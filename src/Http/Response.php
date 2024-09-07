@@ -2,7 +2,6 @@
 
 namespace Oktaax\Http;
 
-use Error;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\APIResponse;
 use Swoole\Coroutine;
@@ -15,7 +14,7 @@ class Response
     public function __construct(SwooleResponse $response, $viewsdir = null)
     {
         $this->response = $response;
-        $this->header("X-Powered-By", "Oktaa");
+        $this->header("X-Powered-By", "Oktaax");
         $this->viewsdir = $viewsdir;
     }
 
@@ -28,16 +27,17 @@ class Response
     {
         $filePath = $this->viewsdir . "/$view.php";
 
-        if (!is_readable($filePath)) {
+        if (!file_exists($filePath)) {
             throw new \Exception("View file not found or inaccessible: $filePath");
+            $this->response->end("Views not found: $filepath");
+        } else {
+            extract($data);
+            ob_start();
+            include $filePath;
+            $viewContent = ob_get_clean();
+
+            $this->response->end($viewContent);
         }
-
-        extract($data);
-        ob_start();
-        include $filePath;
-        $viewContent = ob_get_clean();
-
-        $this->response->end($viewContent);
     }
 
     public function json(APIResponse $json)
@@ -57,8 +57,8 @@ class Response
         $this->response->sendfile($filename, $offset, $lenght);
     }
 
-    public function status(int $status, $reason = null)
+    public function status(int $status)
     {
-        $this->response->status($status, $reason);
+        $this->response->status($status);
     }
 }

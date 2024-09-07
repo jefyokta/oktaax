@@ -53,11 +53,10 @@ $app->start()
 
 ### OpenSwoole Http Server Configuration
 If you want to set configuration for Openswoole http server configuration , you can use Oktaax::setServer().
-Check full list Server Configuration On [OpenSwoole Server Configuration](https://openswoole.com/docs/modules/swoole-server/configuration)
+Check full list server configuration on [OpenSwoole Server Configuration](https://openswoole.com/docs/modules/swoole-server/configuration)
 
 
 ```php
-<?php
 $app->setServer([
     'reactor_num' => 2,
     'worker_num' => 4,
