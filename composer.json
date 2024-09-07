@@ -1,0 +1,29 @@
+{
+    "name": "jefyokta/oktaax",
+    "description": "Oktaax a openswoole http server library",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Oktaax\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Jepi Oktamipa",
+            "email": "jefyokta50@gmail.com"
+        }
+    ],
+    "minimum-stability": "beta",
+    "prefer-stable": true,
+    "require": {
+        "php": ">=7.4",
+        "ext-openswoole": "*"
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/jefyokta/oktaax"
+        }
+    ]
+}
