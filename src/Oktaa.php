@@ -168,7 +168,7 @@ class Oktaa
                 $date = date("d/m/Y");
                 $time = date("h:i");
                 $text = "[$date $time] $addres: $method $path.........\n";
-                Coroutine::writeFile($this->config['logdir'], $text, FILE_APPEND);
+                Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
                 fwrite(STDOUT, "\n");
                 fwrite(STDOUT, "\033[44m\033[30m info \033[0m \033[95m $text \033[0m\n");
                 fwrite(STDOUT, "\n");
@@ -180,7 +180,7 @@ class Oktaa
                 $date = date("d/m/Y");
                 $time = date("h:i");
                 $text = "[$date $time] $addres: $method $path error $th->getMessage()\n";
-                Coroutine::writeFile($this->config['logdir'], $text, FILE_APPEND);
+                Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
                 fwrite(STDOUT, "\n");
                 fwrite(STDOUT, "\033[41m\033[97m error \033[0m \033[93m $text \033[0m\n");
                 fwrite(STDOUT, "\n");

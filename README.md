@@ -146,6 +146,6 @@ Oktaax has its own **Response** class that extends the **OpenSwoole\Http\Respons
 - For the json method, you must pass Oktaax\Http\APIResponse as its argument to maintain consistent response data.
 ```php
 // APIresponse class params
-    public function __construct(?array $data = [], ?string $msg = null, $error = null){}
+public function __construct(?array $data = [], ?string $msg = null, $error = null){}
 
 ```

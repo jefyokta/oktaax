@@ -24,13 +24,20 @@ class Response
         $this->response->header($key, $value);
     }
 
-    public function render($view)
+    public function render(string $view, array $data = [])
     {
-        if (!file_exists($this->viewsdir . "/$view.php")) {
-            throw new Error("No such file or directory " . $this->viewsdir . "/$view.php");
+        $filePath = $this->viewsdir . "/$view.php";
+
+        if (!is_readable($filePath)) {
+            throw new \Exception("View file not found or inaccessible: $filePath");
         }
-        $view = Coroutine::readFile($this->viewsdir . "/$view.php");
-        $this->response->end($view);
+
+        extract($data);
+        ob_start();
+        include $filePath;
+        $viewContent = ob_get_clean();
+
+        $this->response->end($viewContent);
     }
 
     public function json(APIResponse $json)
@@ -53,9 +60,5 @@ class Response
     public function status(int $status, $reason = null)
     {
         $this->response->status($status, $reason);
-    }
-    public function write($content)
-    {
-        $this->response->write($content);
     }
 }
