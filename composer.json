@@ -2,6 +2,7 @@
     "name": "jefyokta/oktaax",
     "description": "Oktaax a openswoole http server library",
     "type": "library",
+    "keywords":["http library","openswoole","php http server","openswoole-library","express.php"],
     "license": "MIT",
     "autoload": {
         "psr-4": {

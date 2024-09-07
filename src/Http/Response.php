@@ -28,8 +28,9 @@ class Response
         $filePath = $this->viewsdir . "/$view.php";
 
         if (!file_exists($filePath)) {
+
+            $this->response->end("Views not found");
             throw new \Exception("View file not found or inaccessible: $filePath");
-            $this->response->end("Views not found: $filepath");
         } else {
             extract($data);
             ob_start();
@@ -59,6 +60,8 @@ class Response
 
     public function status(int $status)
     {
-        $this->response->status($status);
+        if ($this->response->isWritable()) {
+            $this->response->status($status);
+        }
     }
 }

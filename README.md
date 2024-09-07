@@ -57,6 +57,7 @@ Check full list server configuration on [OpenSwoole Server Configuration](https:
 
 
 ```php
+<?php
 $app->setServer([
     'reactor_num' => 2,
     'worker_num' => 4,

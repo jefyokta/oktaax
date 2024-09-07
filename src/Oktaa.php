@@ -139,6 +139,10 @@ class Oktaa
                 }
             ]);
             $this->runStackMidleware($middlewaresStack, $request, $response);
+        } else {
+            $response->status(404);
+            $err = Coroutine::readFile(__DIR__ . "/Http/httperr/404.php");
+            $response->response->end($err);
         }
     }
 
@@ -179,7 +183,7 @@ class Oktaa
                 $addres = $req->server['remote_addr'];
                 $date = date("d/m/Y");
                 $time = date("h:i");
-                $text = "[$date $time] $addres: $method $path error $th->getMessage()\n";
+                $text = "[$date $time] $addres: $method $path error " . $th->getMessage() . "\n";
                 Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
                 fwrite(STDOUT, "\n");
                 fwrite(STDOUT, "\033[41m\033[97m error \033[0m \033[93m $text \033[0m\n");
