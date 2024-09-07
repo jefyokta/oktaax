@@ -2,6 +2,7 @@
 
 namespace Oktaax\Http;
 
+use Error;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\APIResponse;
 use Swoole\Coroutine;
@@ -25,6 +26,9 @@ class Response
 
     public function render($view)
     {
+        if (!file_exists($this->viewsdir . "/$view.php")) {
+            throw new Error("No such file or directory " . $this->viewsdir . "/$view.php");
+        }
         $view = Coroutine::readFile($this->viewsdir . "/$view.php");
         $this->response->end($view);
     }

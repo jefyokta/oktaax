@@ -16,7 +16,7 @@ class Oktaa
     protected $globalMiddleware = [];
     private $config = [
         "viewsDir" => "views/",
-        "logdir" => "logs"
+        "logDir" => "log"
     ];
 
 
@@ -38,6 +38,12 @@ class Oktaa
     {
 
         $this->server->set($setting);
+    }
+
+    public function getServer(): Server
+    {
+
+        return $this->server;
     }
     public function set($key, $value)
     {
@@ -68,6 +74,30 @@ class Oktaa
     public function delete(string $path, callable $callback, array $middleware = [])
     {
         $this->route['DELETE'][$path] = [
+            "action" => $callback,
+            "middleware" => $middleware
+        ];
+    }
+
+    public function patch(string $path, callable $callback, array $middleware = [])
+    {
+        $this->route['PATCH'][$path] = [
+            "action" => $callback,
+            "middleware" => $middleware
+        ];
+    }
+
+    public function options(string $path, callable $callback, array $middleware = [])
+    {
+        $this->route['OPTIONS'][$path] = [
+            "action" => $callback,
+            "middleware" => $middleware
+        ];
+    }
+
+    public function head(string $path, callable $callback, array $middleware = [])
+    {
+        $this->route['HEAD'][$path] = [
             "action" => $callback,
             "middleware" => $middleware
         ];
@@ -139,8 +169,21 @@ class Oktaa
                 $time = date("h:i");
                 $text = "[$date $time] $addres: $method $path.........\n";
                 Coroutine::writeFile($this->config['logdir'], $text, FILE_APPEND);
+                fwrite(STDOUT, "\n");
+                fwrite(STDOUT, "\033[44m\033[30m info \033[0m \033[95m $text \033[0m\n");
+                fwrite(STDOUT, "\n");
                 $next();
             } catch (\Throwable $th) {
+                $method = $req->server['request_method'];
+                $path = $req->server['request_uri'];
+                $addres = $req->server['remote_addr'];
+                $date = date("d/m/Y");
+                $time = date("h:i");
+                $text = "[$date $time] $addres: $method $path error $th->getMessage()\n";
+                Coroutine::writeFile($this->config['logdir'], $text, FILE_APPEND);
+                fwrite(STDOUT, "\n");
+                fwrite(STDOUT, "\033[41m\033[97m error \033[0m \033[93m $text \033[0m\n");
+                fwrite(STDOUT, "\n");
                 $res->status(500);
             }
         };
