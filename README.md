@@ -32,7 +32,7 @@ use Swoole\Http\Request;
 use Oktaax\Http\APIResponse;
 use Oktaax\Oktaa;
 
-$app = new Oktaax("127.0.0.1",80);
+$app = new Oktaa("127.0.0.1",80);
 
 $app->get("/",function(Request $req,Response $res){
     $res->render('myview');
