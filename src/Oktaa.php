@@ -16,7 +16,9 @@ class Oktaa
     protected $globalMiddleware = [];
     private $config = [
         "viewsDir" => "views/",
-        "logDir" => "log"
+        "logDir" => "log",
+        "render_engine" => null,
+        "blade" => ["cacheDir" => null]
     ];
 
 
@@ -30,7 +32,7 @@ class Oktaa
         fwrite(STDOUT, "\n");
         $this->use($this->OktaaMiddlewares()['log']);
         $this->server->on("request", function (Request $request, Response $response) {
-            $response = new OktaResponse($response, $this->config['viewsDir']);
+            $response = new OktaResponse($response, $this->config);
             $this->AppHandler($request, $response);
         });
     }

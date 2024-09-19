@@ -2,20 +2,20 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Blade\Blade;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\APIResponse;
-use Swoole\Coroutine;
 
 class Response
 {
     public $response;
-    private $viewsdir;
+    private array $config;
 
-    public function __construct(SwooleResponse $response, $viewsdir = null)
+    public function __construct(SwooleResponse $response, array $config = [])
     {
         $this->response = $response;
         $this->header("X-Powered-By", "Oktaax");
-        $this->viewsdir = $viewsdir;
+        $this->config = $config;
     }
 
     public function header($key, $value)
@@ -23,39 +23,54 @@ class Response
         $this->response->header($key, $value);
     }
 
+
     public function render(string $view, array $data = [])
     {
-        $filePath = $this->viewsdir . "/$view.php";
+        $viewsDir = $this->config['viewsDir'];
+        $cacheDir = $this->config['blade']['cacheDir'] ?? $viewsDir . "/cache";
 
-        if (!file_exists($filePath)) {
+        // Pastikan direktori ada
+        if (!is_dir($viewsDir)) {
+            if (!mkdir($viewsDir, 0755, true)) {
+                throw new \Exception("Error while creating: $viewsDir \n");
+            }
+        }
 
-            $this->response->end("Views not found");
-            throw new \Exception("View file not found or inaccessible: $filePath");
-        } else {
-            extract($data);
-            ob_start();
-            include $filePath;
-            $viewContent = ob_get_clean();
+        if (!is_dir($cacheDir)) {
+            if (!mkdir($cacheDir, 0755, true)) {
+                throw new \Exception("Error while creating: $cacheDir \n");
+            }
+        }
 
+        try {
+            // Buat instance Blade dan render view
+            $blade = new Blade($viewsDir, $cacheDir);
+            $viewContent = $blade->render($view, $data);
+            $this->response->header("Content-Type", "text/html");
             $this->response->end($viewContent);
+        } catch (\Throwable $th) {
+            $this->response->status(500);
+            // $this->response->end("error: " . $th->getMessage() . " file: " . $th->getFile() . " line: " . $th->getLine());
+            throw $th;
         }
     }
 
+
+
     public function json(APIResponse $json)
     {
-        $this->header("content-type", "Application/json");
+        $this->header("Content-Type", "application/json");
         $this->response->end(json_encode($json->get()));
     }
 
     public function cookie($name, $value = null, $expires = null, $path = null, $secure = null, $httponly = null, $samesite = null, $priority = null)
     {
-
         $this->response->cookie($name, $value, $expires, $path, $secure, $httponly, $samesite, $priority);
     }
 
-    public function sendfile($filename, $offset = null, $lenght = null)
+    public function sendfile($filename, $offset = null, $length = null)
     {
-        $this->response->sendfile($filename, $offset, $lenght);
+        $this->response->sendfile($filename, $offset, $length);
     }
 
     public function status(int $status)

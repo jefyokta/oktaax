@@ -15,11 +15,13 @@
             "email": "jefyokta50@gmail.com"
         }
     ],
-    "minimum-stability": "beta",
+    "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
-        "php": ">=7.4",
-        "ext-openswoole": "*"
+        "php": ">=8.0",
+        "ext-openswoole": "*",
+        "illuminate/view": "^11.23",
+        "illuminate/container": "^11.23"
     },
     "repositories": [
         {
