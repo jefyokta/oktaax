@@ -23,15 +23,23 @@ class Blade
         $bladeCompiler = new BladeCompiler($filesystem, $cacheDir);
 
         $engineResolver = new EngineResolver();
-        $engineResolver->register('blade', function() use ($bladeCompiler, $filesystem) {
+        $engineResolver->register('blade', function () use ($bladeCompiler, $filesystem) {
             return new CompilerEngine($bladeCompiler, $filesystem);
         });
-        $engineResolver->register('php', function() use ($filesystem) {
+        $engineResolver->register('php', function () use ($filesystem) {
             return new \Illuminate\View\Engines\PhpEngine($filesystem);
         });
 
         $viewFinder = new FileViewFinder($filesystem, [$viewsDir]);
         $this->viewFactory = new Factory($engineResolver, $viewFinder, $dispatcher);
+        $this->registerDirectives($bladeCompiler);
+
+    }
+    private function registerDirectives(BladeCompiler $compiler)
+    {
+        $compiler->directive('method', function ($expression) {
+            return "<?php echo \\Oktaax\\Blade\\BladeDirectives::methodField($expression); ?>";
+        });
     }
 
     public function render(string $view, array $data = []): string

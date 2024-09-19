@@ -107,6 +107,10 @@ class Request
 
         return $default;
     }
+    public function post(string $key)
+    {
+        return $this->request->post[$key] ?? null;
+    }
 
     /**
      * Get all request parameters.

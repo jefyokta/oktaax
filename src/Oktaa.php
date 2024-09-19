@@ -16,7 +16,7 @@ class Oktaa
     protected $route;
     protected $globalMiddleware = [];
     private $config = [
-        
+
         "viewsDir" => "views/",
         "logDir" => "log",
         "render_engine" => null,
@@ -122,7 +122,20 @@ class Oktaa
 
         $path = $request->server['request_uri'];
         $path = filter_var($path, FILTER_SANITIZE_URL);
-        $method = $request->server['request_method'];
+
+        $reqmethod = ["PUT", "DELETE", "OPTIONS", "PATCH"];
+
+        if ($request->server['request_method'] === "POST") {
+            if ($request->post("_method") !== null && in_array($request->post("_method"), $reqmethod)) {
+                $method = $request->post("_method");
+            } else {
+                $method = "POST";
+            }
+        } else {
+            $method = $request->server['request_method'];
+        }
+
+
 
         $stack =  array_merge($this->globalMiddleware, [
             function ($request, $response, $next) use ($path, $method) {

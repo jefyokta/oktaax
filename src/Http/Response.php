@@ -29,7 +29,6 @@ class Response
         $viewsDir = $this->config['viewsDir'];
         $cacheDir = $this->config['blade']['cacheDir'] ?? $viewsDir . "/cache";
 
-        // Pastikan direktori ada
         if (!is_dir($viewsDir)) {
             if (!mkdir($viewsDir, 0755, true)) {
                 throw new \Exception("Error while creating: $viewsDir \n");
@@ -42,16 +41,36 @@ class Response
             }
         }
 
-        try {
-            // Buat instance Blade dan render view
-            $blade = new Blade($viewsDir, $cacheDir);
-            $viewContent = $blade->render($view, $data);
-            $this->response->header("Content-Type", "text/html");
-            $this->response->end($viewContent);
-        } catch (\Throwable $th) {
-            $this->response->status(500);
-            // $this->response->end("error: " . $th->getMessage() . " file: " . $th->getFile() . " line: " . $th->getLine());
-            throw $th;
+        if ($this->config['render_engine'] === 'blade') {
+            try {
+                $blade = new Blade($viewsDir, $cacheDir);
+                $viewContent = $blade->render($view, $data);
+                $this->response->header("Content-Type", "text/html");
+                $this->response->end($viewContent);
+            } catch (\Throwable $th) {
+                $this->response->status(500);
+                
+                throw $th;
+            }
+        } else {
+            try {
+                $viewFile = $viewsDir . '/' . $view . '.php';
+
+                if (file_exists($viewFile)) {
+                    ob_start();
+                    extract($data);
+                    include $viewFile;
+                    $viewContent = ob_get_clean();
+                    $this->response->header("Content-Type", "text/html");
+                    $this->response->end($viewContent);
+                } else {
+                    $this->response->status(404);
+                    $this->response->end("View file not found.");
+                }
+            } catch (\Throwable $th) {
+                $this->response->status(500);
+                $this->response->end("error: " . $th->getMessage() . " file: " . $th->getFile() . " line: " . $th->getLine());
+            }
         }
     }
 
