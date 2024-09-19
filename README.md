@@ -5,7 +5,44 @@
 ![MIT License](https://img.shields.io/badge/license-MIT-green)
 
 Oktaax is a lightweight and powerful PHP library that wraps the OpenSwoole HTTP server. It's designed for developers who want to build high-performance, asynchronous PHP applications with syntaxes inspired by ExpressJs.
+## New Features in v1.0.1
 
+#### Support Blade as template engine
+example
+```php
+<?php
+$app = new Oktaa("127.0.0.1",80);
+
+
+//default: null
+$app->set('render_engine','blade');
+
+
+//blade config
+
+//default cacheDir is yourviewsDir/cache/
+$app->set('blade',['cacheDir'=>'path/to/your/cachedir']);
+
+$app->get("/",function(Request $req,Response $res){
+    //will render myblade.blade.php
+    $res->render('myblade');
+
+});
+
+```
+
+#### Oktaax\Http\Request class
+Now it will use Oktaax\Http\Request as arguments. it have all OpenSwoole\Http\Request 's properties and methods with some additional methods.
+```php
+
+use Oktaax\Http\Request;
+use Oktaax\Htpp\Response;
+
+$app->get('/',function(Request $req, Response $res){
+
+})
+
+```
 ## Features
 
 - Simple, intuitive API for creating routes

@@ -2,9 +2,10 @@
 
 namespace Oktaax;
 
+use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Swoole\Coroutine;
-use Swoole\Http\Request;
+use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
 
@@ -31,8 +32,9 @@ class Oktaa
         fwrite(STDOUT, "\033[44m\033[30m info \033[0m \033[95m Server Started on http://$host:$port \033[0m\n");
         fwrite(STDOUT, "\n");
         $this->use($this->OktaaMiddlewares()['log']);
-        $this->server->on("request", function (Request $request, Response $response) {
+        $this->server->on("request", function (SwooleRequest $request, Response $response) {
             $response = new OktaResponse($response, $this->config);
+            $request = new Request($request);
             $this->AppHandler($request, $response);
         });
     }
