@@ -16,10 +16,12 @@ class Oktaa
     protected $route;
     protected $globalMiddleware = [];
     private $config = [
+        
         "viewsDir" => "views/",
         "logDir" => "log",
         "render_engine" => null,
         "blade" => ["cacheDir" => null]
+
     ];
 
 
