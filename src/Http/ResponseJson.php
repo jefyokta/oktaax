@@ -3,7 +3,7 @@
 namespace Oktaax\Http;
 
 
-final class APIResponse
+final class ResponseJson
 {
     private array $data = [];
 

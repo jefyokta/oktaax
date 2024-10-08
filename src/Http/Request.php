@@ -11,7 +11,16 @@ class Request
      * 
      * @var \Swoole\Http\Request
      */
+
+
     public $request;
+
+    /**
+     * 
+     * @var array   
+     */
+
+    public $requestErrors;
 
     /**
      * Additional properties storage.
@@ -59,13 +68,13 @@ class Request
         return isset($this->request->$name) || isset($this->attributes[$name]);
     }
 
+
     /**
      * 
      * @param string $name
      */
     public function __unset($name)
     {
-        // Hapus dari storage tambahan
         unset($this->attributes[$name]);
     }
 
@@ -132,11 +141,34 @@ class Request
      * @param string $key
      * @return bool
      */
-    public function has(string $key)
+    public function has(string $key): bool
     {
         return isset($this->request->get[$key]) ||
             isset($this->request->post[$key]) ||
             isset($this->request->cookie[$key]);
+    }
+
+    /**
+     * Check if the request body has a given parameter.
+     * 
+     * @param string $key
+     * @return bool
+     */
+    public function bodyHas(string $key)
+    {
+        return  isset($this->request->post[$key]);
+    }
+
+
+    /**
+     * Check if the request query has a given parameter.
+     * 
+     * @param string $key
+     * @return bool
+     */
+    public function queryHas(string $key)
+    {
+        return  isset($this->request->get[$key]);
     }
 
     /**
@@ -154,7 +186,7 @@ class Request
      * 
      * @return bool
      */
-    public function isJson()
+    public function isJson(): bool
     {
         return isset($this->request->header['content-type']) &&
             strpos($this->request->header['content-type'], 'application/json') !== false;
@@ -176,7 +208,7 @@ class Request
      * 
      * @return string
      */
-    public function path()
+    public function path(): string
     {
         return parse_url($this->request->server['request_uri'] ?? '', PHP_URL_PATH) ?: '/';
     }
@@ -204,5 +236,25 @@ class Request
     public function host()
     {
         return $this->request->header['host'] ?? '';
+    }
+    /**
+     * Compare param with request method
+     * 
+     * @return bool
+     */
+    public function isMethod(string $method): bool
+    {
+        return strtoupper($method) === $this->request->server['request_method'];
+    }
+    public function validate(array $rules, array|null $data = null): bool
+    {
+        if (is_null($data)) {
+            $data = $this->request['post'];
+        }
+        foreach ($rules as $key => $rule) {
+            $rule = explode("|", $rule);
+        }
+
+        return true;
     }
 }

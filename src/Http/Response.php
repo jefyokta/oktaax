@@ -4,13 +4,38 @@ namespace Oktaax\Http;
 
 use Oktaax\Blade\Blade;
 use Swoole\Http\Response as SwooleResponse;
-use Oktaax\Http\APIResponse;
+use Oktaax\Http\ResponseJson;
 
+/**
+ * Class Response
+ * Handles HTTP responses for the Oktaax application.
+ *
+ * @package Oktaax\Http
+ */
 class Response
 {
+    /**
+     * @var SwooleResponse The Swoole HTTP response instance.
+     */
     public $response;
+
+    /**
+     * @var array Configuration array for the response.
+     */
     private array $config;
 
+    /**
+     * @var int HTTP status code for the response.
+     */
+    public $status = 200;
+    
+
+    /**
+     * Response constructor.
+     *
+     * @param SwooleResponse $response The Swoole HTTP response object.
+     * @param array $config Optional configuration settings for the response.
+     */
     public function __construct(SwooleResponse $response, array $config = [])
     {
         $this->response = $response;
@@ -18,12 +43,26 @@ class Response
         $this->config = $config;
     }
 
-    public function header($key, $value)
+    /**
+     * Set an HTTP header.
+     *
+     * @param string $key The header key.
+     * @param string $value The header value.
+     */
+    public function header($key, $value): Response
     {
         $this->response->header($key, $value);
+        return $this;
     }
 
-
+    /**
+     * Render a view using the specified rendering engine.
+     *
+     * @param string $view The view file to render (without extension).
+     * @param array $data Data to pass to the view.
+     * @throws \Exception If the views or cache directory cannot be created.
+     * @throws \Throwable If an error occurs during rendering.
+     */
     public function render(string $view, array $data = [])
     {
         $viewsDir = $this->config['viewsDir'];
@@ -49,7 +88,6 @@ class Response
                 $this->response->end($viewContent);
             } catch (\Throwable $th) {
                 $this->response->status(500);
-                
                 throw $th;
             }
         } else {
@@ -74,28 +112,63 @@ class Response
         }
     }
 
-
-
-    public function json(APIResponse $json)
+    /**
+     * Send a JSON response.
+     *
+     * @param ResponseJson $json The JSON response object.
+     */
+    public function json(ResponseJson $json)
     {
         $this->header("Content-Type", "application/json");
         $this->response->end(json_encode($json->get()));
     }
 
+    /**
+     * Set a cookie.
+     *
+     * @param string $name The name of the cookie.
+     * @param string|null $value The value of the cookie.
+     * @param int|null $expires Expiration time as a Unix timestamp.
+     * @param string|null $path The path on the server in which the cookie will be available on.
+     * @param bool|null $secure Whether the cookie should be sent over a secure connection.
+     * @param bool|null $httponly Whether the cookie is accessible only through the HTTP protocol.
+     * @param string|null $samesite SameSite attribute of the cookie.
+     * @param string|null $priority The priority attribute of the cookie.
+     */
     public function cookie($name, $value = null, $expires = null, $path = null, $secure = null, $httponly = null, $samesite = null, $priority = null)
     {
         $this->response->cookie($name, $value, $expires, $path, $secure, $httponly, $samesite, $priority);
     }
 
+    /**
+     * Send a file as a response.
+     *
+     * @param string $filename The filename of the file to be sent.
+     * @param int|null $offset The offset at which to start sending the file.
+     * @param int|null $length The length of the content to send.
+     */
     public function sendfile($filename, $offset = null, $length = null)
     {
         $this->response->sendfile($filename, $offset, $length);
     }
 
+    /**
+     * Set the HTTP status code for the response.
+     *
+     * @param int $status The HTTP status code.
+     * 
+     * @return Response || void
+     */
     public function status(int $status)
     {
         if ($this->response->isWritable()) {
+            $this->status = $status;
             $this->response->status($status);
+            return $this;
         }
+    }
+    public function end($content = null)
+    {
+        $this->response->end($content);
     }
 }
