@@ -32,7 +32,7 @@ class Request
      * 
      */
 
-    public  array $body;
+    public  $body;
 
     /**
      * Additional properties storage.
@@ -52,7 +52,7 @@ class Request
      * @param string $name
      * @return mixed
      */
-    
+
     public function __get($name)
     {
         if (property_exists($this->request, $name)) {
@@ -345,7 +345,7 @@ class Request
      */
     public function body(string $key): array
     {
-        return $this->body[$key] ?? [];
+        return $this->json()[$key] ?? $this->post($key);
     }
 
     /**
