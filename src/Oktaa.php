@@ -515,22 +515,7 @@ class Oktaa
         return compact("log");
     }
 
-    /**
-     * 
-     * enabling Csrf Middleware
-     * 
-     * default is disable
-     * 
-     * @return void
-     * 
-     */
 
-    public function enableCsrf($key)
-    {
-
-        $csrf = Csrf::setKey($key);
-        $this->use($csrf->validate());
-    }
 
 
     /**
@@ -602,7 +587,7 @@ class Oktaa
                     foreach ($val as &$method):
                         foreach ($value as $key => $middleware) :
                             if (!in_array($middleware, $method['middleware'])) :
-                                $method['middleware'][] = $middleware;
+                                $method['middleware'] = [$middleware] + $method['middleware'];
                             endif;
                         endforeach;
                     endforeach;

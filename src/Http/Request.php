@@ -17,10 +17,22 @@ class Request
 
     /**
      * 
+     * 
+     * Error nn validate
      * @var array   
      */
 
     public $requestErrors;
+
+
+    /**
+     * 
+     * Request Body
+     * @var array
+     * 
+     */
+
+    public  array $body;
 
     /**
      * Additional properties storage.
@@ -32,6 +44,7 @@ class Request
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
+        $this->body = $this->request->rawContent();
     }
 
     /**
@@ -39,6 +52,7 @@ class Request
      * @param string $name
      * @return mixed
      */
+    
     public function __get($name)
     {
         if (property_exists($this->request, $name)) {
@@ -246,15 +260,111 @@ class Request
     {
         return strtoupper($method) === $this->request->server['request_method'];
     }
-    public function validate(array $rules, array|null $data = null): bool
+    public function validate(array $rules, array|null $data = null)
     {
         if (is_null($data)) {
             $data = $this->request['post'];
         }
+
+        $errors = [];
+
         foreach ($rules as $key => $rule) {
-            $rule = explode("|", $rule);
+            $ruleSet = explode("|", $rule);
+            foreach ($ruleSet as $ruleItem) {
+                if ($ruleItem === 'required' && (!isset($data[$key]) || empty($data[$key]))) {
+                    $errors[$key][] = "$key is required";
+                }
+
+                if ($ruleItem === 'email' && isset($data[$key]) && !filter_var($data[$key], FILTER_VALIDATE_EMAIL)) {
+                    $errors[$key][] = "$key must be a valid email address";
+                }
+
+                if ($ruleItem === 'numeric' && isset($data[$key]) && !is_numeric($data[$key])) {
+                    $errors[$key][] = "$key must be a numeric value";
+                }
+
+                if ($ruleItem === 'alpha' && isset($data[$key]) && !ctype_alpha($data[$key])) {
+                    $errors[$key][] = "$key must contain only alphabetic characters";
+                }
+
+                if ($ruleItem === 'alpha_num' && isset($data[$key]) && !ctype_alnum($data[$key])) {
+                    $errors[$key][] = "$key must contain only letters and numbers";
+                }
+
+                if (str_starts_with($ruleItem, 'min:')) {
+                    $minLength = explode(":", $ruleItem)[1];
+                    if (isset($data[$key]) && strlen($data[$key]) < $minLength) {
+                        $errors[$key][] = "$key must be at least $minLength characters";
+                    }
+                }
+
+                if (str_starts_with($ruleItem, 'max:')) {
+                    $maxLength = explode(":", $ruleItem)[1];
+                    if (isset($data[$key]) && strlen($data[$key]) > $maxLength) {
+                        $errors[$key][] = "$key must not exceed $maxLength characters";
+                    }
+                }
+
+                if (str_starts_with($ruleItem, 'between:')) {
+                    [$min, $max] = explode(",", explode(":", $ruleItem)[1]);
+                    if (isset($data[$key]) && (strlen($data[$key]) < $min || strlen($data[$key]) > $max)) {
+                        $errors[$key][] = "$key must be between $min and $max characters";
+                    }
+                }
+
+                if ($ruleItem === 'confirmed' && isset($data[$key]) && (!isset($data[$key . '_confirmation']) || $data[$key] !== $data[$key . '_confirmation'])) {
+                    $errors[$key][] = "$key confirmation does not match";
+                }
+
+                if (str_starts_with($ruleItem, 'in:')) {
+                    $allowedValues = explode(",", explode(":", $ruleItem)[1]);
+                    if (isset($data[$key]) && !in_array($data[$key], $allowedValues)) {
+                        $errors[$key][] = "$key must be one of the following: " . implode(", ", $allowedValues);
+                    }
+                }
+
+                if ($ruleItem === 'url' && isset($data[$key]) && !filter_var($data[$key], FILTER_VALIDATE_URL)) {
+                    $errors[$key][] = "$key must be a valid URL";
+                }
+
+                if ($ruleItem === 'boolean' && isset($data[$key]) && !is_bool(filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))) {
+                    $errors[$key][] = "$key must be true or false";
+                }
+            }
         }
 
-        return true;
+        $this->requestErrors = $errors;
+    }
+
+    /**
+     * Return request body
+     *
+     * @param string $key 
+     * 
+     * @return array 
+     */
+    public function body(string $key): array
+    {
+        return $this->body[$key] ?? [];
+    }
+
+    /**
+     * 
+     * Get Request Json
+     * @return array|null 
+     * 
+     */
+    public function json()
+    {
+        $rawContent = $this->request->rawContent();
+
+        $jsonStart = strpos($rawContent, '{');
+
+        if ($jsonStart !== false) {
+            $json = substr($rawContent, $jsonStart);
+            return json_decode($json, true);
+        }
+
+        return null;
     }
 }

@@ -28,7 +28,7 @@ class Response
      * @var int HTTP status code for the response.
      */
     public $status = 200;
-    
+
 
     /**
      * Response constructor.
@@ -170,5 +170,17 @@ class Response
     public function end($content = null)
     {
         $this->response->end($content);
+    }
+
+    /**
+     * 
+     * Http redirect
+     * 
+     * @param string $location
+     * 
+     */
+    public function redirect(string $location)
+    {
+        $this->response->redirect($location, $this->status ?? 302);
     }
 }
