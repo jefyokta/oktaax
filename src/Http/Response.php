@@ -135,8 +135,9 @@ class Response
      * @param string|null $samesite SameSite attribute of the cookie.
      * @param string|null $priority The priority attribute of the cookie.
      */
-    public function cookie($name, $value = null, $expires = null, $path = null, $secure = null, $httponly = null, $samesite = null, $priority = null)
+    public function cookie($name, $value = '', $expires = 0, $path = '', $secure = false, $httponly = false, $samesite = null, $priority = null)
     {
+        $samesite =  $samesite === null ? "Lax" : $samesite;
         $this->response->cookie($name, $value, $expires, $path, $secure, $httponly, $samesite, $priority);
     }
 
@@ -147,8 +148,11 @@ class Response
      * @param int|null $offset The offset at which to start sending the file.
      * @param int|null $length The length of the content to send.
      */
-    public function sendfile($filename, $offset = null, $length = null)
+    public function sendfile($filename, $offset = 0, $length = null)
     {
+        if ($length === null) {
+            $length = filesize($filename) - $offset;
+        }
         $this->response->sendfile($filename, $offset, $length);
     }
 

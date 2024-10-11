@@ -260,6 +260,14 @@ class Request
     {
         return strtoupper($method) === $this->request->server['request_method'];
     }
+
+    /**
+     * 
+     * Validation Request
+     * @param array $rules
+     * @param ?array $data
+     * 
+     */
     public function validate(array $rules, array|null $data = null)
     {
         if (is_null($data)) {
@@ -345,16 +353,16 @@ class Request
      */
     public function body(string $key): array
     {
-        return $this->json()[$key] ?? $this->post($key);
+        return $this->json($key) ?? $this->post($key);
     }
 
     /**
      * 
      * Get Request Json
-     * @return array|null 
+     * @return mixed|null 
      * 
      */
-    public function json()
+    public function json(string $key)
     {
         $rawContent = $this->request->rawContent();
 
@@ -362,7 +370,10 @@ class Request
 
         if ($jsonStart !== false) {
             $json = substr($rawContent, $jsonStart);
-            return json_decode($json, true);
+            $dec = json_decode($json, true);
+            if ($dec) {
+                return $dec[$key];
+            }
         }
 
         return null;

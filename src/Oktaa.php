@@ -410,7 +410,6 @@ class Oktaa
                             call_user_func([$instance, $method], $request, $response, $param);
                         }
                     } else {
-
                         throw new Error("Handler must be type of string/callable/array");
                     }
                 }
@@ -450,8 +449,19 @@ class Oktaa
                     $method = $parts[1];
                     $initial = new $class;
                     call_user_func([$initial, $method], $request, $response, $next, $param);
+                } elseif (is_array($middleware)) {
+                    $class = $middleware[0];
+                    $method = $middleware[1];
+                    $reflection = new ReflectionMethod($class, $method);
+                    if ($reflection->isStatic()) {
+                        call_user_func([$class, $method], $request, $response, $param);
+                    } else {
+                        $instance = new $class;
+                        call_user_func([$instance, $method], $request, $response, $param);
+                    }
+                } else {
+                    throw new Error("Handler must be type of string/callable/array");
                 }
-            } else {
             }
         };
 
@@ -587,7 +597,11 @@ class Oktaa
                     foreach ($val as &$method):
                         foreach ($value as $key => $middleware) :
                             if (!in_array($middleware, $method['middleware'])) :
-                                $method['middleware'] = [$middleware] + $method['middleware'];
+                                if (is_array($method['middleware'])) :
+                                    array_unshift($method['middleware'], $middleware);
+                                else:
+                                    $method['middleware'][] = $middleware;
+                                endif;
                             endif;
                         endforeach;
                     endforeach;
