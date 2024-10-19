@@ -29,6 +29,8 @@ class Response
      */
     public $status = 200;
 
+    public Request $request;
+
 
     /**
      * Response constructor.
@@ -36,11 +38,12 @@ class Response
      * @param SwooleResponse $response The Swoole HTTP response object.
      * @param array $config Optional configuration settings for the response.
      */
-    public function __construct(SwooleResponse $response, array $config = [])
+    public function __construct(SwooleResponse $response, Request $request, array $config = [])
     {
         $this->response = $response;
         $this->header("X-Powered-By", "Oktaax");
         $this->config = $config;
+        $this->request = $request;
     }
 
     /**
@@ -83,6 +86,9 @@ class Response
         if ($this->config['render_engine'] === 'blade') {
             try {
                 $blade = new Blade($viewsDir, $cacheDir);
+                $request = ["request" => $this->request];
+                $data = array_merge($request, $data);
+                 
                 $viewContent = $blade->render($view, $data);
                 $this->response->header("Content-Type", "text/html");
                 $this->response->end($viewContent);
@@ -186,5 +192,19 @@ class Response
     public function redirect(string $location)
     {
         $this->response->redirect($location, $this->status ?? 302);
+    }
+
+    public function with($msg): static
+    {
+
+        $this->header("X-message", $msg);
+        return $this;
+    }
+
+    public function withError($erromessage): static
+    {
+        $this->header("X-errmessage", $erromessage);
+
+        return $this;
     }
 }

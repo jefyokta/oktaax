@@ -563,8 +563,8 @@ class Oktaa
         !$this->config['useOktaMiddleware'] ?: $this->use($this->OktaaMiddlewares()['log']);
 
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
-            $response = new OktaResponse($response, $this->config);
             $request = new Request($request);
+            $response = new OktaResponse($response, $request, $this->config);
             $this->AppHandler($request, $response);
         });
         $this->server->start();
