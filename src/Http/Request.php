@@ -351,7 +351,7 @@ class Request
      * 
      * @return array 
      */
-    public function body(string $key): array
+    public function body(string $key)
     {
         return $this->json($key) ?? $this->post($key);
     }

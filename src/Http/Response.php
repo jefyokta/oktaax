@@ -196,15 +196,13 @@ class Response
 
     public function with($msg): static
     {
-
-        $this->header("X-message", $msg);
+        $this->cookie("X-message", $msg, time() + 5);
         return $this;
     }
-
-    public function withError($erromessage): static
+    
+    public function withError($errorMessage): static
     {
-        $this->header("X-errmessage", $erromessage);
-
+        $this->cookie("X-errmessage", $errorMessage, time() + 5); 
         return $this;
     }
 }
