@@ -191,7 +191,7 @@ class Response
      */
     public function redirect(string $location)
     {
-        $this->response->redirect($location, $this->status ?? 302);
+        $this->response->redirect($location, 302);
     }
 
     public function with($msg,  $expires = null): static

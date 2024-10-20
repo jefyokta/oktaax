@@ -64,7 +64,8 @@ class Oktaa
         "useOktaMiddleware" => true,
         "sock_type" => null,
         "mode" => null,
-        "withWebsocket" => false
+        "withWebsocket" => false,
+        "publicDir" => "public"
     ];
 
     /**
@@ -565,7 +566,16 @@ class Oktaa
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
-            $this->AppHandler($request, $response);
+            $path = $request->request->server['request_uri'];
+            $file = $this->config['publicDir'] . $path;
+            if (file_exists($file)) {
+                $mime = mime_content_type($file);
+                $response->header("Content-Type", $mime);
+                $response->sendfile($file);
+            } else {
+
+                $this->AppHandler($request, $response);
+            }
         });
         $this->server->start();
     }
