@@ -163,6 +163,18 @@ class Request
     }
 
     /**
+     * Get header Request
+     * 
+     * @param string $key
+     * 
+     */
+    public function header($key)
+    {
+
+        return $this->request->header[$key];
+    }
+
+    /**
      * Check if the request body has a given parameter.
      * 
      * @param string $key
@@ -170,7 +182,7 @@ class Request
      */
     public function bodyHas(string $key)
     {
-        return  isset($this->request->post[$key]);
+        return  isset($this->request->post[$key]) || isset($this->json($key));
     }
 
 

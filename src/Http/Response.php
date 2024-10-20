@@ -88,7 +88,7 @@ class Response
                 $blade = new Blade($viewsDir, $cacheDir);
                 $request = ["request" => $this->request];
                 $data = array_merge($request, $data);
-                 
+
                 $viewContent = $blade->render($view, $data);
                 $this->response->header("Content-Type", "text/html");
                 $this->response->end($viewContent);
@@ -141,10 +141,10 @@ class Response
      * @param string|null $samesite SameSite attribute of the cookie.
      * @param string|null $priority The priority attribute of the cookie.
      */
-    public function cookie($name, $value = '', $expires = 0, $path = '', $secure = false, $httponly = false, $samesite = null, $priority = null)
+    public function cookie($name, $value = '', $expires = 0, $path = '', $domain = null, $secure = false, $httponly = false, $samesite = true, $priority = null)
     {
         $samesite =  $samesite === null ? "Lax" : $samesite;
-        $this->response->cookie($name, $value, $expires, $path, $secure, $httponly, $samesite, $priority);
+        $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);
     }
 
     /**
@@ -194,15 +194,27 @@ class Response
         $this->response->redirect($location, $this->status ?? 302);
     }
 
-    public function with($msg): static
+    public function with($msg,  $expires = null): static
     {
-        $this->cookie("X-message", $msg, time() + 5);
+        if (is_null($expires)) {
+            $expires = time() + 5;
+        }
+        $this->cookie("X-message", $msg, $expires);
         return $this;
     }
-    
-    public function withError($errorMessage): static
+
+    public function withError($errorMessage, $expires = null): static
     {
-        $this->cookie("X-errmessage", $errorMessage, time() + 5); 
+
+        if (is_null($expires)) {
+            $expires = time() + 5;
+        }
+        $this->cookie("X-errmessage", $errorMessage, $expires);
         return $this;
+    }
+
+    public function back($default = '/')
+    {
+        $this->redirect($this->request->request->header['referer'] ?? $default);
     }
 }

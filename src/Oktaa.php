@@ -579,7 +579,7 @@ class Oktaa
      * @return void
      * 
      */
-    public function useFor(string $path, callable| string $middleware)
+    public function useFor(string $path, callable| string|array $middleware)
     {
         $this->pathMiddlewares[$path][] = $middleware;
     }
@@ -630,5 +630,10 @@ class Oktaa
         $this->init();
         Console::info("Websocket Started on ws://{$this->host}:{$this->port}");
         $this->server->on('message', $callback);
+    }
+    public function on($event, $callback)
+    {
+
+        $this->server->on($event, $callback);
     }
 }
