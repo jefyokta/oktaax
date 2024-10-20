@@ -141,7 +141,7 @@ class Response
      * @param string|null $samesite SameSite attribute of the cookie.
      * @param string|null $priority The priority attribute of the cookie.
      */
-    public function cookie($name, $value = '', $expires = 0, $path = '', $domain = null, $secure = false, $httponly = false, $samesite = true, $priority = null)
+    public function cookie($name, $value = '', $expires = 0, $path = '', $domain = '', $secure = false, $httponly = false, $samesite = true, $priority = '')
     {
         $samesite =  $samesite === null ? "Lax" : $samesite;
         $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);

@@ -174,16 +174,6 @@ class Request
         return $this->request->header[$key];
     }
 
-    /**
-     * Check if the request body has a given parameter.
-     * 
-     * @param string $key
-     * @return bool
-     */
-    public function bodyHas(string $key)
-    {
-        return  isset($this->request->post[$key]) || isset($this->json($key));
-    }
 
 
     /**
