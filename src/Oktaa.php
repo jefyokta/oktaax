@@ -667,8 +667,11 @@ class Oktaa
     private function matchRoute($route)
     {
         $route = rtrim($route);
-        if (str_ends_with($route, "/")) {
-            $route =   substr($route, 0, -1);
+
+        if (strlen($route) > 1) {
+            if (str_ends_with($route, "/")) {
+                $route =   substr($route, 0, -1);
+            }
         }
 
         return $route;
