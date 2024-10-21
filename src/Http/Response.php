@@ -194,7 +194,18 @@ class Response
         $this->response->redirect($location, 302);
     }
 
-    public function with($msg,  $expires = null): static
+    /**
+     * 
+     * Set coookie for flash message.cookie name: x-message
+     * 
+     * @param string $msg
+     * @param int|null $expires
+     * 
+     * @return static
+     * 
+     */
+
+    public function with($msg, int $expires = null): static
     {
         if (is_null($expires)) {
             $expires = time() + 5;
@@ -202,6 +213,18 @@ class Response
         $this->cookie("X-message", $msg, $expires);
         return $this;
     }
+
+        /**
+     * 
+     * Set coookie for flash error message.cookie name: x-errmessage
+     * 
+     * @param string $msg
+     * @param int|null $expires
+     * 
+     * @return static
+     * 
+     */
+
 
     public function withError($errorMessage, $expires = null): static
     {
@@ -212,6 +235,13 @@ class Response
         $this->cookie("X-errmessage", $errorMessage, $expires);
         return $this;
     }
+
+    /**
+     * 
+     * 
+     * rederirect back
+     * 
+     */
 
     public function back($default = '/')
     {

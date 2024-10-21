@@ -2,3 +2,5 @@
 vendor/
 log
 index.php
+views/
+public/

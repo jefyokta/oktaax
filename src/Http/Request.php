@@ -380,4 +380,18 @@ class Request
 
         return null;
     }
+
+
+
+    /**
+     * 
+     * @param string $name
+     * 
+     * @return mixed 
+     */
+
+    public function cookie($name)
+    {
+        return $this->request->cookie[$name] ?? null;
+    }
 }

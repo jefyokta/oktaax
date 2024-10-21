@@ -381,7 +381,7 @@ class Oktaa
      */
     private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
-
+        $path = $this->matchRoute($path);
         if (isset($this->route[$path][$method])) {
 
             $handler = $this->route[$path][$method]['action'];
@@ -514,7 +514,7 @@ class Oktaa
                 $addres = $req->server['remote_addr'];
                 $date = date("d/m/Y");
                 $time = date("h:i");
-                $text = "[$date $time] $addres: $method $path error " . $th->getMessage() . "\n";
+                $text = "[$date $time] $addres: $method $path error " . $th->getMessage() . ":" . $th->getLine() . " in " . $th->getFile() . "\n";
                 Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
                 Console::error($text);
                 $res->status(500);
@@ -568,7 +568,8 @@ class Oktaa
             $response = new OktaResponse($response, $request, $this->config);
             $path = $request->request->server['request_uri'];
             $file = $this->config['publicDir'] . $path;
-            if (file_exists($file)) {
+
+            if (is_file($file) && file_exists($file)) {
                 $mime = mime_content_type($file);
                 $response->header("Content-Type", $mime);
                 $response->sendfile($file);
@@ -641,9 +642,35 @@ class Oktaa
         Console::info("Websocket Started on ws://{$this->host}:{$this->port}");
         $this->server->on('message', $callback);
     }
+
+    /**
+     * 
+     * Handle Server event
+     * 
+     * @param string $event
+     * @param callable $callback
+     */
     public function on($event, $callback)
     {
 
         $this->server->on($event, $callback);
+    }
+
+/**
+ * 
+ * filter url before calling action
+ * 
+ * @param string $route
+ * @return string
+ * 
+ */
+    private function matchRoute($route)
+    {
+        $route = rtrim($route);
+        if (str_ends_with($route, "/")) {
+            $route =   substr($route, 0, -1);
+        }
+
+        return $route;
     }
 }
