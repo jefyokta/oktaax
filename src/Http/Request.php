@@ -140,9 +140,9 @@ class Request
      * 
      * @return array
      */
-    public function all(): array
+    public function all(): object
     {
-        return array_merge(
+        return (object) array_merge(
             $this->request->get ?? [],
             $this->request->post ?? [],
             $this->request->cookie ?? []
@@ -351,7 +351,7 @@ class Request
      *
      * @param string $key 
      * 
-     * @return array 
+     * @return mixed
      */
     public function body(string $key)
     {

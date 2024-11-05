@@ -6,7 +6,8 @@
     "license": "MIT",
     "autoload": {
         "psr-4": {
-            "Oktaax\\": "src/"
+            "Oktaax\\": "src/",
+            "Oktaax\\Http\\Middleware\\":"src/Http/Middlewares/"
         }
     },
     "authors": [
@@ -29,5 +30,8 @@
             "type": "vcs",
             "url": "https://github.com/jefyokta/oktaax"
         }
-    ]
+    ],
+    "require-dev": {
+        "openswoole/ide-helper": "~22.0.1"
+    }
 }

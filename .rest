@@ -1,0 +1,7 @@
+POST http://localhost:8000/a HTTP/1.1
+
+Content-Type: "application/json"
+
+{
+    "_token":"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJpYXQiOjE3MzA1MjI5MjMsImV4cCI6MTczMDUyMjk0MywiZGF0YSI6eyJyZXF1ZXN0aWQiOiI2NzI1YWYyYjEyNDgwIn19.Jef-xaJonX-aHJk6NFLeC7PC3gfbJPcdxj6tYVoaqKQDqSpb6MpwDLCRh1pGHkoScH-36YpCv5C8xCvKN_t0Ew"
+}

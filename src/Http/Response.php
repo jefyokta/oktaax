@@ -83,9 +83,13 @@ class Response
             }
         }
 
+        //render engine handler
+
+        //blade
+
         if ($this->config['render_engine'] === 'blade') {
             try {
-                $blade = new Blade($viewsDir, $cacheDir);
+                $blade = new Blade($viewsDir, $cacheDir, $this->config);
                 $request = ["request" => $this->request];
                 $data = array_merge($request, $data);
 
@@ -96,7 +100,9 @@ class Response
                 $this->response->status(500);
                 throw $th;
             }
-        } else {
+        } 
+        // php
+        else {
             try {
                 $viewFile = $viewsDir . '/' . $view . '.php';
 
@@ -210,11 +216,11 @@ class Response
         if (is_null($expires)) {
             $expires = time() + 5;
         }
-        $this->cookie("X-message", $msg, $expires);
+        $this->cookie("X-Message", $msg, $expires);
         return $this;
     }
 
-        /**
+    /**
      * 
      * Set coookie for flash error message.cookie name: x-errmessage
      * 
@@ -232,7 +238,7 @@ class Response
         if (is_null($expires)) {
             $expires = time() + 5;
         }
-        $this->cookie("X-errmessage", $errorMessage, $expires);
+        $this->cookie("X-ErrMessage", $errorMessage, $expires);
         return $this;
     }
 
