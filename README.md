@@ -22,7 +22,7 @@ composer require jefyokta/oktaax
 
 ## What news in v2.0.0?
 
-#### Oktaax\Oktaa now have no contructor & start() method
+### Oktaax\Oktaa now have no constructor & start() method
 
 we removed consturctor and start() method.
 now you would need to use Oktaa::listen(); to start and define port and host for server.
@@ -44,8 +44,30 @@ $app->listen(8000,"127.0.0.1",function($url){
 
 
 ```
+### Dynamic route
+The dynamic route feature is one of the standout features. The examples you've provided are clear. Consider adding more detailed examples where the routes handle more complex data processing or response handling, which can help developers see the power and flexibility of the library
 
-#### Crsf
+```php
+
+$app->get("user/{id}",function($request,$response){
+
+        //example: find a user in database
+        $user = User::find($request->params['id'])
+        $response->render("user",compact("user"));
+
+    })
+    ->delete("user/{id}",function($request,$response){
+
+        $response->end("User {$request->params['id']} has been deleted");
+    })
+    ->put("user/{id}",function($request,$response){
+
+        $response->end("User {$request->params['id']} has been updated");
+    })
+```
+
+
+### Crsf
 
 Now you can enable csrf with Oktaa::useCsfr().
 
@@ -75,6 +97,7 @@ For Oktaax versions below v2.xx, including `@csrf` in a Blade view would cause a
 </form>
 ```
 
+
 ## Example Usage
 
 ### Quick Start
@@ -88,7 +111,7 @@ require __DIR__."/vendor/autoload.php";
 
 use Oktaax\Http\Response;
 use Oktaax\Http\Request;
-use Oktaax\Http\APIResponse;
+use Oktaax\Http\ResponseJson;
 use Oktaax\Oktaa;
 
 $app = new Oktaa("127.0.0.1",80);
@@ -101,7 +124,7 @@ $app->get("/",function(Request $req,Response $res){
 $app->get("/users",function(Request $req,Response $res){
 
     $users = fetchusers(); // example function
-    $res->json(new APIresponse($users,'here all of the users','no error'))
+    $res->json(new ResponseJson($users,'here all of the users','no error'))
 });
 
 $app->start()
@@ -252,7 +275,6 @@ Global middleware runs for every request
 
 use Oktaax\Http\Response;
 use Oktaax\Http\Request;
-use Oktaax\Http\APIResponse;
 use Oktaax\Oktaa;
 
 $app = new Oktaax();
@@ -331,7 +353,7 @@ $app->get("/", function($request, $response) {
 
 Oktaax has its own **Response** class that extends the **OpenSwoole\Http\Response** methods. It adds json and render methods. You can still access the original **OpenSwoole\Http\Response** via the $response property.
 
-- For the json method, you must pass Oktaax\Http\APIResponse as its argument to maintain consistent response data.
+- For the json method, you must pass Oktaax\Http\ResponseJson as its argument to maintain consistent response data.
 
 ```php
 // ResponseJson class params

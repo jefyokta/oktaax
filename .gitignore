@@ -4,3 +4,4 @@ log
 index.php
 views/
 public/
+.DS_Store

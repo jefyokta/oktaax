@@ -3,6 +3,7 @@
 namespace Oktaax\Trait;
 
 use Error;
+use Oktaax\Http\Request as HttpRequest;
 use Swoole\Table;
 use Swoole\Http\Request;
 use Swoole\WebSocket\Frame;
@@ -12,6 +13,8 @@ use Swoole\WebSocket\Server;
 trait HasWebsocket
 {
 
+
+    private $whenOpened = ["handler" => null];
 
     /**
      * 
@@ -94,6 +97,13 @@ trait HasWebsocket
         }
     }
 
+
+    public function onOpen($callback)
+    {
+
+        $this->whenOpened["handler"] = $callback;
+    }
+
     /**
      * @param int $port
      * @param string|callback|null $hostOrcallback
@@ -107,6 +117,7 @@ trait HasWebsocket
 
         $table = new Table(1024);
         $table->column('fd', Table::TYPE_INT, 4);
+        $table->column('details', Table::TYPE_STRING, 512);
         $table->column('request_uri', Table::TYPE_STRING, 64);
         $table->create();
 
@@ -123,8 +134,11 @@ trait HasWebsocket
         }
         $this->server->on("Open", function (Server $server, Request $request) use (&$table) {
             echo "Connection opened: {$request->fd}\n";
-
             $table->set($request->fd, ["request_uri" => $request->server['request_uri'], "fd" => $request->fd]);
+            $request =  new HttpRequest($request);
+            if (is_callable($this->whenOpened["handler"])) {
+                $this->whenOpened["handler"]($server, $request, $table);
+            }
         });
         $this->server->on("message", function (Server $server, Frame $frame) use (&$table) {
 
