@@ -4,6 +4,11 @@ namespace Oktaax\Http;
 
 use Swoole\Http\Request as HttpRequest;
 
+
+/**
+ * @package Oktaax\Http
+ */
+
 class Request
 {
     /**
@@ -39,7 +44,14 @@ class Request
      *
      * @var array
      */
+
     protected $attributes = [];
+    /**
+     * 
+     * Request params
+     * @var array|null
+     */
+    public  $params;
 
     public function __construct(HttpRequest $request)
     {

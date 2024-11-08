@@ -2,8 +2,6 @@
 
 namespace Oktaax\Interfaces;
 
-use Swoole\Http\Server as HttpServer;
-use Swoole\WebSocket\Server as WebSocketServer;
 
 interface Server
 {

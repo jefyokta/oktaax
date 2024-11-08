@@ -32,7 +32,7 @@
     <div class="container">
         <div>
 
-            <h1 class="text-center">404</h1>
+            <h1 class="text-center" style="font-size: 4em;">404</h1>
             <p class="text-center" style="color: #cbd5e1;opacity:.5">Not Found</p>
         </div>
     </div>

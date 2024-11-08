@@ -8,6 +8,7 @@ use Oktaax\Http\Middleware\Csrf as MiddlewareCsrf;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
+use OpenSwoole\Error as OpenSwooleError;
 use ReflectionMethod;
 use Swoole\Coroutine;
 use Swoole\Http\Request as SwooleRequest;
@@ -32,10 +33,8 @@ class Oktaax implements Server
      */
 
 
-    private $eventHandler = [];
 
-
-    private array $serverSettings = [];
+    protected array $serverSettings = [];
 
     /**
      * Application route definitions.
@@ -227,14 +226,31 @@ class Oktaax implements Server
         $this->config['app']['useCsrf'] = true;
     }
 
-    private function addRoute(string $path, string $method, string|callable|array $handler, callable|array|string ...$middlewares)
+    /**
+     * 
+     * Registering Application Routes
+     * @param string $path
+     * @param string|callable|array $handler
+     * @param callable|array|string ...$middlewares
+     */
+
+    private function addRoute(string $path, string $method, string|callable|array $handler, array $middlewares)
     {
-
-
-        $this->route[$path][$method] = [
-            "action" => $handler,
-            "middleware" => $middlewares[0]
-        ];
+        if (strpos($path, '{') === false) {
+            $this->route[$path][$method] = [
+                "action" => $handler,
+                "middleware" => $middlewares,
+                "isDynamic" => false
+            ];
+        } elseif (strpos($path, '{') !== false && strpos($path, '}') !== false) {
+            $this->route[$path][$method] = [
+                "action" => $handler,
+                "middleware" => $middlewares,
+                "isDynamic" => true
+            ];
+        } else {
+            throw new Error("Dynamic route must has `{` and `}`");
+        }
     }
 
     /**
@@ -404,7 +420,6 @@ class Oktaax implements Server
 
         $path = $request->server['request_uri'];
         $path = filter_var($path, FILTER_SANITIZE_URL);
-
         $reqmethod = ["PUT", "DELETE", "OPTIONS", "PATCH"];
 
         if ($request->server['request_method'] === "POST") {
@@ -426,8 +441,54 @@ class Oktaax implements Server
             }
         ]);
 
+
         $this->runStackMidleware($stack, $request, $response);
     }
+
+    /**
+     * 
+     * Filter url before calling action
+     * 
+     * @param string $route
+     * @param string $method
+     * @param \Oktaax\Http\Request &$request
+     * @return array
+     * 
+     */
+    private function matchRoute(string $route, string $method, Request &$request)
+    {
+        $route = rtrim($route, '');
+        if (isset($this->route[$route][$method])) {
+            $handler = $this->route[$route][$method]['action'];
+            $middlewares = $this->route[$route][$method]['middleware'];
+            return ["route" => $route, "handler" => $handler, "middlewares" => $middlewares];
+        }
+
+        foreach ($this->route as $pattern => $methods) {
+            if (isset($methods[$method]) && $methods[$method]['isDynamic']) {
+                $regex = preg_replace('/\{([a-zA-Z_]+)\}/', '([^/]+)', str_replace('/', '\/', $pattern));
+
+                $regex = "#^$regex$#";
+
+
+                if (preg_match($regex, $route, $matches)) {
+                    array_shift($matches);
+
+                    if (strpos($pattern, '{') !== false) {
+                        preg_match_all('/\{([a-zA-Z_]+)\}/', $pattern, $paramNames);
+                        $request->params = array_combine($paramNames[1], $matches);
+                    }
+
+                    $handler = $methods[$method]['action'];
+                    $middlewares = $methods[$method]['middleware'];
+                    return ["route" => $pattern, "handler" => $handler, "middlewares" => $middlewares];
+                }
+            }
+        }
+
+        return false; // Jika tidak ada route yang cocok
+    }
+
 
 
 
@@ -444,11 +505,12 @@ class Oktaax implements Server
      */
     private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
-        $path = $this->matchRoute($path);
-        if (isset($this->route[$path][$method])) {
+        $match = $this->matchRoute($path, $method, $request);
+        // var_dump($request);
 
-            $handler = $this->route[$path][$method]['action'];
-            $middlewares = $this->route[$path][$method]['middleware'];
+        if ($match !== false) {
+            $handler = $match['handler'];
+            $middlewares = $match['middlewares'];
 
             $middlewaresStack = array_merge($middlewares, [
                 function ($request, $response, $next, $param) use ($handler) {
@@ -495,7 +557,7 @@ class Oktaax implements Server
      * @param \Oktaax\Http\Response $response The HTTP response.
      * @param array $param Optional parameters to pass to middleware.
      */
-    private function runStackMidleware($stack, $request, $response, $param = null)
+    private function runStackMidleware($stack, Request $request, $response, $param = null)
     {
 
         $next = function ($param = null) use (&$stack, $request, $response, &$next) {
@@ -515,7 +577,10 @@ class Oktaax implements Server
 
 
                     $class = $middleware[0];
-                    $method = $middleware[1];
+                    if (!class_exists($class)) {
+                        throw new Error("Class $class does'nt exist");
+                    }
+                    $method = $middleware[1] ?? throw new Error("Method not found!");
                     $reflection = new ReflectionMethod($class, $method);
                     if ($reflection->isStatic()) {
                         call_user_func([$class, $method], $request, $response, $param);
@@ -607,14 +672,14 @@ class Oktaax implements Server
 
     /**
      * @param int $port
-     * @param string $host
-     * @param callable $callback
+     * @param string|callback|null $hostOrcallback
+     * @param callable|null $callback
      */
 
-    public function listen($port, $host, $callback)
+    public function listen($port,  $hostOrcallback = null, $callback = null)
     {
         $this->port = $port;
-        $this->host = $host;
+        $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         if (is_null($this->server)) {
             $this->init();
         }
@@ -628,18 +693,23 @@ class Oktaax implements Server
             $this->use(MiddlewareCsrf::generate($this->config['app']['key'], $this->config['app']['csrfExp']));
             $this->use(MiddlewareCsrf::handle($this->config['app']['key']));
         }
-
-        $callback($this->protocol . "://" . $this->host . ":" . $this->port);
-
-        foreach ($this->eventHandler as $event => $handler) {
-            $this->server->on($event, $handler);
+        if (is_callable($hostOrcallback)) {
+            $callback($this->protocol . "://" . $this->host . ":" . $this->port);
+        } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
+            $callback($this->protocol . "://" . $this->host . ":" . $this->port);
         }
+
         $this->onRequest();
 
         $this->server->start();
     }
 
 
+
+    /**
+     * Application on request event
+     * 
+     */
     protected function onRequest()
     {
 
@@ -697,27 +767,5 @@ class Oktaax implements Server
                 endif;
             endforeach;
         endforeach;
-    }
-
-
-    /**
-     * 
-     * filter url before calling action
-     * 
-     * @param string $route
-     * @return string
-     * 
-     */
-    private function matchRoute($route)
-    {
-        $route = rtrim($route);
-
-        if (strlen($route) > 1) {
-            if (str_ends_with($route, "/")) {
-                $route =   substr($route, 0, -1);
-            }
-        }
-
-        return $route;
     }
 };

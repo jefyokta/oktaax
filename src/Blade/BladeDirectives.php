@@ -14,8 +14,6 @@ class BladeDirectives
     public static function csrf(Request $request)
     {
 
-        $token =  $request->_token;
-
-        return '<input type="hidden" name="_token" value="' . $token . '">';
+        return '<input type="hidden" name="_token" value="' .$request->_token . '">';
     }
 }
