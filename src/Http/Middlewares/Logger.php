@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,10 +34,36 @@
  * SOFTWARE.
  *
  */
-namespace Oktaax\Interfaces;
 
 
-interface Server
+
+namespace Oktaax\Http\Middleware;
+
+use Oktaax\Console;
+use Oktaax\Http\Request;
+use Oktaax\Http\Response;
+
+class Logger
 {
-    public function listen(int $port, string $host, callable $callback);
+
+
+    public static function handle($path = "log")
+    {
+
+        return function (Request $request, Response $response, $next) use ($path) {
+            try {
+                $next();
+            } catch (\Throwable $th) {
+                Console::error("ERR");
+                $message = $th->getMessage();
+                $line = $th->getLine();
+                $file = $th->getFile();
+
+                ob_start();
+                require_once __DIR__ . "/../../Views/Error/index.php";
+                $content = ob_get_clean();
+                $response->end($content);
+            }
+        };
+    }
 }

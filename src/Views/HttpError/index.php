@@ -18,21 +18,21 @@
             align-items: center;
             background-color: #020617;
         }
-        .text-center{
+
+        .text-center {
             text-align: center;
         }
     </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Not Found</title>
+    <title>Bad Request</title>
 </head>
 
 <body class="container">
 
     <div class="container">
         <div>
-
-            <h1 class="text-center" style="font-size: 4em;">404</h1>
+            <h1 class="text-center">404</h1>
             <p class="text-center" style="color: #cbd5e1;opacity:.5">Not Found</p>
         </div>
     </div>

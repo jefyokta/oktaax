@@ -33,10 +33,8 @@
  * SOFTWARE.
  *
  */
-namespace Oktaax\Interfaces;
-
-
-interface Server
+function sayHello()
 {
-    public function listen(int $port, string $host, callable $callback);
+    return "Hello from okta";
 }
+

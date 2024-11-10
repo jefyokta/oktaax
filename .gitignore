@@ -1,7 +1,9 @@
 
 vendor/
 log
-index.php
-views/
-public/
+/index.php
+/views/
+/public
 .DS_Store
+node_modules/
+example/

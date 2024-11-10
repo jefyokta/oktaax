@@ -1,5 +1,40 @@
 <?php
 
+/**
+ * Oktaax - Real-time Websocket and HTTP Server using Swoole
+ *
+ * @package Oktaax
+ * @author Jefyokta
+ * @license MIT License
+ * 
+ * @link https://github.com/jefyokta/oktaax
+ *
+ * @copyright Copyright (c) 2024, Jefyokta
+ *
+ * MIT License
+ *
+ * Copyright (c) 2024 Jefyokta
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
 namespace Oktaax;
 
 
@@ -8,12 +43,21 @@ use Oktaax\Http\Middleware\Csrf as MiddlewareCsrf;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
-use OpenSwoole\Error as OpenSwooleError;
 use ReflectionMethod;
 use Swoole\Coroutine;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response;
 use Swoole\Http\Server as HttpServer;
+
+/**
+ * 
+ * A class to make application server
+ * 
+ * @package Oktaax
+ * 
+ * 
+ */
+
 
 class Oktaax implements Server
 {
@@ -41,7 +85,7 @@ class Oktaax implements Server
      *
      * @var array
      */
-    protected $route;
+    protected $route = [];
 
     /**
      * Global middleware stack.
@@ -51,13 +95,16 @@ class Oktaax implements Server
     protected $globalMiddleware = [];
 
 
+    private OktaResponse $response;
+
+
     /**
      * Configuration settings for the application.
      *
      * @var array
      */
 
-    protected array $config = [
+    protected  array $config = [
         "viewsDir" => "views/",
         "logDir" => "log",
         "render_engine" => null,
@@ -65,7 +112,7 @@ class Oktaax implements Server
             "cacheDir" => null,
             "functionsDir" => null
         ],
-        "useOktaMiddleware" => true,
+        "useOktaMiddleware" => false,
         "sock_type" => null,
         "mode" => null,
         "publicDir" => "public",
@@ -76,7 +123,6 @@ class Oktaax implements Server
             "csrfExp" => (60 * 5)
         ]
     ];
-
 
     /**
      * Application host
@@ -115,7 +161,7 @@ class Oktaax implements Server
      * Set view configuration
      * 
      * @param string $viewDir
-     * @param string $render_engine
+     * @param 'blade'|'php' $render_engine
      * 
      * @return static
      * 
@@ -129,17 +175,17 @@ class Oktaax implements Server
     }
 
     /** 
-     * Set view configuration
+     * Set blade  configuration
      * 
      * @param string $viewDir
-     * @param string $render_engine
-     * 
+     * @param string $cacheDir
+     * @param string $functionDir
      * @return static
      * 
      */
     public function useBlade(
         $viewDir = "views/",
-        $cachedir = "/views/cache/",
+        $cachedir = "views/cache/",
         $functionDir = null
     ) {
 
@@ -147,7 +193,6 @@ class Oktaax implements Server
         $this->config['render_engine'] = "blade";
         $this->config['blade']["cacheDir"] = $cachedir;
         $this->config['blade']["functionDir"] = $functionDir;
-
         return $this;
     }
 
@@ -506,7 +551,6 @@ class Oktaax implements Server
     private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
         $match = $this->matchRoute($path, $method, $request);
-        // var_dump($request);
 
         if ($match !== false) {
             $handler = $match['handler'];
@@ -543,7 +587,7 @@ class Oktaax implements Server
             $this->runStackMidleware($middlewaresStack, $request, $response);
         } else {
             $response->status(404);
-            $err = Coroutine::readFile(__DIR__ . "/Http/httperr/404.php");
+            $err = Coroutine::readFile(__DIR__ . "/Views/HttpError/index.php");
             $response->response->end($err);
         }
     }
@@ -694,7 +738,7 @@ class Oktaax implements Server
             $this->use(MiddlewareCsrf::handle($this->config['app']['key']));
         }
         if (is_callable($hostOrcallback)) {
-            $callback($this->protocol . "://" . $this->host . ":" . $this->port);
+            $hostOrcallback($this->protocol . "://" . $this->host . ":" . $this->port);
         } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
             $callback($this->protocol . "://" . $this->host . ":" . $this->port);
         }
@@ -716,15 +760,16 @@ class Oktaax implements Server
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
+            $this->response = $response;
             $path = $request->request->server['request_uri'];
             $file = $this->config['publicDir'] . $path;
-
             if (is_file($file) && file_exists($file)) {
-                $mime = mime_content_type($file);
-                $response->header("Content-Type", $mime);
+                $extension = pathinfo($file, PATHINFO_EXTENSION);
+                $types = require __DIR__ . "/Utils/MimeTypes.php";
+                $mimetype = $types[$extension] ?? "application/octet-stream";
+                $response->header("Content-Type", $mimetype);
                 $response->sendfile($file);
             } else {
-
                 $this->AppHandler($request, $response);
             }
         });
