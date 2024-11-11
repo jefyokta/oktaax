@@ -1,0 +1,35 @@
+#!/bin/bash
+
+## kill on exit
+cleanup() {
+    echo -e "\nServer Shutdown!"
+    kill $server_pid
+    exit 0
+}
+trap cleanup SIGINT SIGTERM
+
+
+##fswatch
+php -d swoole.enable_coroutine=1 server.php &
+
+server_pid=$!
+
+fswatch -o ./app | while read num; do
+    echo "files changed reloading server.."
+    kill $server_pid
+    php -r '$app= require "server.php"; $app->reload();'
+    server_pid=$!
+done
+
+
+##inotify
+# php -d swoole.enable_coroutine=1 server.php &
+
+# server_pid=$!
+
+# while inotifywait -e modify server.php; do
+#     echo "files changed reloading server.."
+#     kill $server_pid
+#     php -r '$app= require "server.php"; $app->reload();'
+#     server_pid=$!
+# done

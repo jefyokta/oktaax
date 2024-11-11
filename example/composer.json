@@ -1,5 +1,11 @@
 {
+    "autoload":{
+        "psr-4":{
+            "Example\\":"app/"
+        }
+    },
     "require": {
         "jefyokta/oktaax": "^2.0.3"
     }
+
 }

@@ -12,7 +12,7 @@
 <body class="bg-slate-900">
     <div class="flex w-full justify-center">
         <h1 class="text-white p-5 text-4xl">
-            hei
+            hi {{ $name }}
         </h1>
     </div>
 </body>

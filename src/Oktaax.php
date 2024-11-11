@@ -39,6 +39,7 @@ namespace Oktaax;
 
 
 use Error;
+use Illuminate\Support\Facades\Http;
 use Oktaax\Http\Middleware\Csrf as MiddlewareCsrf;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
@@ -48,6 +49,7 @@ use Swoole\Coroutine;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response;
 use Swoole\Http\Server as HttpServer;
+use Swoole\Process;
 
 /**
  * 
@@ -69,7 +71,7 @@ class Oktaax implements Server
      * 
      */
 
-    protected HttpServer|null $server = null;
+    protected HttpServer $server ;
     /**
      * Server Settings
      * 
@@ -216,7 +218,7 @@ class Oktaax implements Server
         $this->setServer('ssl_key_file', $key);
 
         $this->config['sock_type'] = SWOOLE_SOCK_TCP | SWOOLE_SSL;
-        $this->config['mode'] = SWOOLE_PROCESS;
+        $this->config['mode'] = SWOOLE_BASE;
         $this->protocol = 'https';
 
         return $this;
@@ -724,6 +726,7 @@ class Oktaax implements Server
     {
         $this->port = $port;
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
+        $this->init();
         if (is_null($this->server)) {
             $this->init();
         }
@@ -745,6 +748,10 @@ class Oktaax implements Server
 
         $this->onRequest();
 
+        $this->server->on("AfterReload", function ($serv,$workerId) {
+            echo "reloaded";
+            var_dump(get_included_files());
+        });
         $this->server->start();
     }
 
@@ -812,5 +819,14 @@ class Oktaax implements Server
                 endif;
             endforeach;
         endforeach;
+    }
+
+    /**
+     * Reload server
+     * 
+     */
+    public function reload()
+    {
+        $this->server->reload();
     }
 };
