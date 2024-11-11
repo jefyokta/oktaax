@@ -39,6 +39,7 @@
 
 namespace Oktaax\Http\Middleware;
 
+use Exception;
 use Oktaax\Console;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
@@ -53,16 +54,30 @@ class Logger
         return function (Request $request, Response $response, $next) use ($path) {
             try {
                 $next();
-            } catch (\Throwable $th) {
-                Console::error("ERR");
-                $message = $th->getMessage();
-                $line = $th->getLine();
-                $file = $th->getFile();
+                if ($response->status >= 400) {
+                    if ($response->response->isWritable()) {
+                        $title = require __DIR__."/../../Utils/HttpError.php";
 
+                        ob_start();
+                        $req = $request;
+                        $status = $response->status;
+                        $title = $title[$status];
+                        require __DIR__ . "/../../Views/HttpError/index.php";
+                        $content = ob_get_clean();
+                        $response->end($content);
+                    }
+                }
+            } catch (\Throwable $th) {
+                Console::error($th->getMessage());
                 ob_start();
-                require_once __DIR__ . "/../../Views/Error/index.php";
+                $message = $th->getMessage();
+                $code = $th->getCode();
+                $error = $th;
+                $req = $request;
+
+                require __DIR__ . "/../../Views/Error/index.php";
                 $content = ob_get_clean();
-                $response->end($content);
+                return   $response->end($content);
             }
         };
     }

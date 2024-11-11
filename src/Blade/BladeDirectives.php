@@ -83,44 +83,55 @@ class BladeDirectives
      */
     public static function vite($resources, $publicDir)
     {
+        $output = '';
         $manifestPath = $publicDir . '/build/.vite/manifest.json';
         if (!file_exists($manifestPath)) {
-            throw new Exception('Vite manifest file not found! Please ensure that "manifest.json" exists at ' . $manifestPath . ', or check if the "manifest" option is enabled in your Vite configuration.');
-        }
-
-        if (is_string($resources)) {
-            $resources = json_decode($resources, true);
-        }
-
-        $manifest = json_decode(file_get_contents($manifestPath), true);
-
-        $output = '';
-
-        foreach ($resources as $resource) {
-
-            $resource = trim($resource, "'");
-            $resource = str_replace("\\", "", $resource);
-
-            if (isset($manifest[$resource])) {
-                $asset = "/build/" . $manifest[$resource]['file'];
-                if (file_exists($publicDir . $asset)) {
-                    $extension = pathinfo($resource, PATHINFO_EXTENSION);
+            if (file_exists($publicDir . "/vite-okta")) {
+                $viteHost = file_get_contents($publicDir . "/vite-okta");
+                $output .= '<script type="module" src="' . $viteHost . '/@vite/client"></script>';
+                foreach ($resources as $resource) {
+                    $asset = $resource;
+                    $extension = pathinfo($asset, PATHINFO_EXTENSION);
                     if ($extension === "js") {
-                        $output .= "<script type='module' src='$asset'></script>\n";
+                        $output .= "<script type='module' src='http://localhost:5173/$asset'></script>\n";
                     } elseif ($extension === "css") {
-                        $output .= "<link rel='stylesheet' href='$asset'>\n";
+                        $output .= "<link rel='stylesheet' href='http://localhost:5173/$asset'>\n";
                     } else {
                         $output .= "<!-- Unsupported asset type: $resource -->\n";
                     }
-                } else {
-                    throw new Error("$publicDir$asset does'nt exist! please run npx vite build first!");
                 }
+                return $output;
             } else {
-
-                throw new Error("Manifest $resource does'nt exist! please add the resource to your vite config! then run npx vite build");
+                throw new Exception("Vite Server is not running! please run `npm run dev` or `npm run build`");
             }
-        }
+        } else {
+            $manifest = json_decode(file_get_contents($manifestPath), true);
+            foreach ($resources as $resource) {
 
-        return $output;
+                $resource = trim($resource, "'");
+                $resource = str_replace("\\", "", $resource);
+
+                if (isset($manifest[$resource])) {
+                    $asset = "/build/" . $manifest[$resource]['file'];
+                    if (file_exists($publicDir . $asset)) {
+                        $extension = pathinfo($resource, PATHINFO_EXTENSION);
+                        if ($extension === "js") {
+                            $output .= "<script type='module' src='$asset'></script>\n";
+                        } elseif ($extension === "css") {
+                            $output .= "<link rel='stylesheet' href='$asset'>\n";
+                        } else {
+                            $output .= "<!-- Unsupported asset type: $resource -->\n";
+                        }
+                    } else {
+                        throw new Exception("$publicDir$asset does'nt exist! please run npx vite build first!");
+                    }
+                } else {
+
+                    throw new Exception("Manifest $resource does'nt exist! please add the resource to your vite config! then run npx vite build");
+                }
+            }
+
+            return $output;
+        }
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,6 +34,7 @@
  * SOFTWARE.
  *
  */
+
 namespace Oktaax\Blade;
 
 use Error;
@@ -155,12 +157,9 @@ class Blade
 
 
         $pubdir = $this->config['publicDir'];
-        $compiler->directive("vite", function (...$resources) use ($pubdir) {
+        $compiler->directive("vite", function ($resources) use ($pubdir) {
 
-            $resources =  json_encode($resources);
-
-
-            return "<?php echo \\Oktaax\\Blade\\BladeDirectives::vite($resources,'$pubdir'); ?>";
+            return "<?php echo \\Oktaax\\Blade\\BladeDirectives::vite($resources, '$pubdir'); ?>";
         });
 
 

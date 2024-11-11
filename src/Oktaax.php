@@ -168,7 +168,7 @@ class Oktaax implements Server
      */
     public function setView($viewDir, $render_engine)
     {
-        $this->config["viewDir"] = $viewDir;
+        $this->config["viewsDir"] = $viewDir;
         $this->config['render_engine'] = $render_engine;
 
         return $this;
