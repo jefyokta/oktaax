@@ -116,9 +116,6 @@ class Response
             }
         }
 
-        //render engine handler
-
-        //blade
 
         if ($this->config['render_engine'] === 'blade') {
             try {

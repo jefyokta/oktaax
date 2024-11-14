@@ -4,9 +4,10 @@ namespace Example\Controller;
 
 class HomeController
 {
-    public function index($req, $res)
+    public function index($req, $res, $next)
     {
-        $name = "jefyokta";
-        $res->render("index",compact("name"));
+        $name = "Jepi Oktaaa";
+        // $next();
+        $res->render("index", compact("name"));
     }
 }

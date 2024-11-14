@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 
 import { viteOktaa } from "./okta-vite";
 
+//your php server publicDir
 const publicDir = __dirname + "/public";
 
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
     hmr: {
       protocol: "ws",
       host: "localhost",
-      port: 5173,
+      port: 5173, //if you want to change the host or port, you also have to change the default host in bladedirective class
     },
   },
   build: {

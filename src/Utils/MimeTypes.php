@@ -35,7 +35,7 @@
  *
  */
 
-$mime = [
+return [
     'html' => 'text/html',
     'htm' => 'text/html',
     'shtml' => 'text/html',
@@ -147,6 +147,3 @@ $mime = [
     'wmv' => 'video/x-ms-wmv',
     'avi' => 'video/x-msvideo'
 ];
-
-
-return $mime;

@@ -78,22 +78,50 @@
         <div class="error-icon"> Error!</div>
         <div class="error-message">
             <?= $error->getMessage(); ?> </div>
-        <div class="debug-info">
-            <?= $code; ?>
-        </div>
         <div class="" style="margin-bottom: 20px;">
-
-            <strong>Stack Trace:</strong>
             <div>
-               - at <em> <?= $error->getFile() . " : " . $error->getLine(); ?> </em>
+                <em>at <?= $error->getFile() . " : " . $error->getLine(); ?> </em>
             </div>
         </div>
+        <div class="debug-info">
+            <?php if (isset($prevcode)): ?>
+                <div style="margin-bottom: 5px;">
+                    <span style="color:darkgray;"><?= $error->getLine() - 1; ?>&nbsp;|
+                    </span>
+                    <span>
+                        <?= $prevcode; ?>
+                    </span>
+                </div>
+            <?php endif ?>
+            <div style="margin-bottom: 5px;">
+                <span style="color:darkgray;"><?= $error->getLine(); ?>&nbsp;|
+                </span>
+                <span style="text-decoration:underline ;text-decoration-color: red;text-decoration-thickness: 2px; text-underline-offset: 5px;">
 
-        <ul class="debug-info" style="white-space: wrap!important;padding:2em">
+                    <?= $code; ?>
+                </span>
+            </div>
+            <?php if (isset($nextcode)): ?>
+                <div style="margin-bottom: 5px;">
+                    <span style="color:darkgray;"><?= $error->getLine() + 1; ?>&nbsp;|
+                    </span>
+                    <span>
+                        <?= $nextcode; ?>
+                    </span>
+                </div>
+            <?php endif ?>
+        </div>
+
+        <table class="debug-info" style="white-space: wrap!important;padding:2em;width:100%">
             <?php foreach ($req->server as $key => $val): ?>
-                <li><?= $key; ?>:<?= $val; ?></li>
+                <tr>
+
+                    <td><?= $key; ?></td>
+                    <td>:</td>
+                    <td><?= $val; ?></td>
+                </tr>
             <?php endforeach; ?>
-        </ul>
+        </table>
 
     </div>
 </body>

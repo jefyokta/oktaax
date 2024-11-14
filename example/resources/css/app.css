@@ -1,3 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* style for markdown */
+h1 {
+    @apply text-6xl font-extrabold;
+    @apply my-5
+}
+h2 {
+    @apply text-4xl font-bold;
+    @apply my-5
+}
+h3 {
+    @apply text-3xl font-semibold;
+    @apply my-5
+}
+pre{
+    @apply bg-gray-800 p-5 rounded-md my-2 max-w-max;
+}
+li{
+    @apply list-disc;
+}
+p{
+    @apply m-2;
+}
+img{
+    @apply my-1
+}

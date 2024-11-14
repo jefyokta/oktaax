@@ -1,35 +1,38 @@
 #!/bin/bash
 
+script_dir="$(dirname "${BASH_SOURCE[0]}")"
+
 ## kill on exit
 cleanup() {
     echo -e "\nServer Shutdown!"
-    kill $server_pid
+    pid=$(cat $script_dir/swoole.pid)
+    kill $pid
     exit 0
 }
+
 trap cleanup SIGINT SIGTERM
 
-
-##fswatch
-php -d swoole.enable_coroutine=1 server.php &
-
-server_pid=$!
-
-fswatch -o ./app | while read num; do
-    echo "files changed reloading server.."
-    kill $server_pid
-    php -r '$app= require "server.php"; $app->reload();'
+## Start server function
+start_server() {
+    php -d swoole.enable_coroutine=1 $script_dir/server.php &
     server_pid=$!
+    echo $server_pid > $script_dir/swoole.pid
+    echo "Server started with PID $server_pid"
+}
+
+## Initial server start
+start_server
+
+## Watch for file changes
+fswatch -o ./app | while read num; do
+    echo "Files changed, reloading server..."
+    
+    # Read PID from swoole.pid and kill the process
+    if [[ -f swoole.pid ]]; then
+        pid=$(cat $script_dir/swoole.pid)
+        kill $pid
+    fi
+
+    # Restart the server
+    start_server
 done
-
-
-##inotify
-# php -d swoole.enable_coroutine=1 server.php &
-
-# server_pid=$!
-
-# while inotifywait -e modify server.php; do
-#     echo "files changed reloading server.."
-#     kill $server_pid
-#     php -r '$app= require "server.php"; $app->reload();'
-#     server_pid=$!
-# done

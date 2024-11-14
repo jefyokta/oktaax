@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,8 +34,10 @@
  * SOFTWARE.
  *
  */
+
 namespace Oktaax\Http;
 
+use InvalidArgumentException;
 use Swoole\Http\Request as HttpRequest;
 
 
@@ -60,7 +63,7 @@ class Request
      * @var array   
      */
 
-    public $requestErrors;
+    public $errors;
 
 
     /**
@@ -326,69 +329,82 @@ class Request
         foreach ($rules as $key => $rule) {
             $ruleSet = explode("|", $rule);
             foreach ($ruleSet as $ruleItem) {
+                if ($ruleItem === "nullable") {
+                    isset($data[$key]) ?: $data[$key] = null;
+                }
                 if ($ruleItem === 'required' && (!isset($data[$key]) || empty($data[$key]))) {
-                    $errors[$key][] = "$key is required";
+                    $errors[$key]['required'] = "$key is required";
                 }
-
-                if ($ruleItem === 'email' && isset($data[$key]) && !filter_var($data[$key], FILTER_VALIDATE_EMAIL)) {
-                    $errors[$key][] = "$key must be a valid email address";
-                }
-
-                if ($ruleItem === 'numeric' && isset($data[$key]) && !is_numeric($data[$key])) {
-                    $errors[$key][] = "$key must be a numeric value";
-                }
-
-                if ($ruleItem === 'alpha' && isset($data[$key]) && !ctype_alpha($data[$key])) {
-                    $errors[$key][] = "$key must contain only alphabetic characters";
-                }
-
-                if ($ruleItem === 'alpha_num' && isset($data[$key]) && !ctype_alnum($data[$key])) {
-                    $errors[$key][] = "$key must contain only letters and numbers";
-                }
-
-                if (str_starts_with($ruleItem, 'min:')) {
-                    $minLength = explode(":", $ruleItem)[1];
-                    if (isset($data[$key]) && strlen($data[$key]) < $minLength) {
-                        $errors[$key][] = "$key must be at least $minLength characters";
+    
+                if (isset($data[$key])) {
+                    if ($ruleItem === 'email'  && !filter_var($data[$key], FILTER_VALIDATE_EMAIL)) {
+                        $errors[$key]['email'] = "$key must be a valid email address";
                     }
-                }
-
-                if (str_starts_with($ruleItem, 'max:')) {
-                    $maxLength = explode(":", $ruleItem)[1];
-                    if (isset($data[$key]) && strlen($data[$key]) > $maxLength) {
-                        $errors[$key][] = "$key must not exceed $maxLength characters";
+    
+                    if ($ruleItem === 'numeric'  && !is_numeric($data[$key])) {
+                        $errors[$key]['numeric'] = "$key must be a numeric value";
                     }
-                }
-
-                if (str_starts_with($ruleItem, 'between:')) {
-                    [$min, $max] = explode(",", explode(":", $ruleItem)[1]);
-                    if (isset($data[$key]) && (strlen($data[$key]) < $min || strlen($data[$key]) > $max)) {
-                        $errors[$key][] = "$key must be between $min and $max characters";
+    
+                    if ($ruleItem === 'alpha'  && !ctype_alpha($data[$key])) {
+                        $errors[$key]['alpha'] = "$key must contain only alphabetic characters";
                     }
-                }
-
-                if ($ruleItem === 'confirmed' && isset($data[$key]) && (!isset($data[$key . '_confirmation']) || $data[$key] !== $data[$key . '_confirmation'])) {
-                    $errors[$key][] = "$key confirmation does not match";
-                }
-
-                if (str_starts_with($ruleItem, 'in:')) {
-                    $allowedValues = explode(",", explode(":", $ruleItem)[1]);
-                    if (isset($data[$key]) && !in_array($data[$key], $allowedValues)) {
-                        $errors[$key][] = "$key must be one of the following: " . implode(", ", $allowedValues);
+    
+                    if ($ruleItem === 'alpha_num'  && !ctype_alnum($data[$key])) {
+                        $errors[$key]['alpha_num'] = "$key must contain only letters and numbers";
                     }
-                }
-
-                if ($ruleItem === 'url' && isset($data[$key]) && !filter_var($data[$key], FILTER_VALIDATE_URL)) {
-                    $errors[$key][] = "$key must be a valid URL";
-                }
-
-                if ($ruleItem === 'boolean' && isset($data[$key]) && !is_bool(filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))) {
-                    $errors[$key][] = "$key must be true or false";
+    
+                    if (str_starts_with($ruleItem, 'min:')) {
+                        $minLength = explode(":", $ruleItem)[1];
+                        if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set minimum's rule with a non-numeric!");
+                        if (isset($data[$key]) && strlen($data[$key]) < $minLength) {
+                            $errors[$key]['min'] = "$key must be at least $minLength characters";
+                        }
+                    }
+    
+                    if (str_starts_with($ruleItem, 'max:')) {
+                        $maxLength = explode(":", $ruleItem)[1];
+                        if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set maximum's rule with a non-numeric!");
+    
+                        if (isset($data[$key]) && strlen($data[$key]) > $maxLength) {
+                            $errors[$key]['max'] = "$key must not exceed $maxLength characters";
+                        }
+                    }
+    
+                    if (str_starts_with($ruleItem, 'between:')) {
+                        [$min, $max] = explode(",", explode(":", $ruleItem)[1]);
+                        if (isset($data[$key]) && (strlen($data[$key]) < $min || strlen($data[$key]) > $max)) {
+                            $errors[$key]['between'] = "$key must be between $min and $max characters";
+                        }
+                    }
+    
+                    if ($ruleItem === 'confirmed') {
+                        if (!isset($data[$key . "_confirmation"])) {
+                            $errors[$key]['confirmed'] = "{$key}_confirmation not found";
+                        } elseif ($data[$key] !== $data[$key . '_confirmation']) {
+                            $errors[$key]['confirmed'] = "{$key}_confirmation does not match";
+                        }
+                    }
+    
+                    if (str_starts_with($ruleItem, 'in:')) {
+                        $allowedValues = explode(",", explode(":", $ruleItem)[1]);
+                        if (isset($data[$key]) && !in_array($data[$key], $allowedValues)) {
+                            $errors[$key]['in'] = "$key must be one of the following: " . implode(", ", $allowedValues);
+                        }
+                    }
+    
+                    if ($ruleItem === 'url'  && !filter_var($data[$key], FILTER_VALIDATE_URL)) {
+                        $errors[$key]['url'] = "$key must be a valid URL";
+                    }
+    
+                    if ($ruleItem === 'boolean'  && !is_bool(filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))) {
+                        $errors[$key]['boolean'] = "$key must be true or false";
+                    }
                 }
             }
         }
+        $this->errors = $errors;
 
-        $this->requestErrors = $errors;
+        return new RequestValidate($data, !empty($errors) ? $errors : null);
     }
 
     /**

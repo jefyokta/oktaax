@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -34,44 +35,66 @@
  *
  */
 
-namespace Oktaax;
+namespace Oktaax\Http;
 
-class Console
+
+
+class RequestValidate
 {
-    public static function log($msg)
-    {
-        self::writeToConsole($msg, "\033[42m\033[30m log \033[0m", "\033[0m");
-    }
 
-    public static function error($msg)
-    {
-        self::writeToConsole($msg, "\033[41m\033[97m error \033[0m", "\033[31m", STDERR);
-    }
 
-    public static function warning($msg)
-    {
-        self::writeToConsole($msg, "\033[43m\033[30m warning \033[0m", "\033[33m");
-    }
+    /**
+     *  @var array<string[]> $data
+     * @var ?array<string[]> $errors
+     */
+    public function __construct(private $data = [], private $errors = null) {}
 
-    public static function info($msg)
-    {
-        self::writeToConsole($msg, "\033[44m\033[30m info \033[0m", "\033[95m");
-    }
 
-    public static function custom($msg, $boxColor, $msgColor, $output = STDOUT)
-    {
-        self::writeToConsole($msg, $boxColor, $msgColor, $output);
-    }
-
-    public static function json(array|object $msg)
+    /**
+     * @param array<string> $message
+     * @return static
+     */
+    public function setMessage(array $messages):static
     {
 
-        self::writeToConsole("\n\n".json_encode($msg, JSON_PRETTY_PRINT), "\033[44m\033[30m info \033[0m", "\033[95m");
-    }
+        foreach ($messages as $ms => $value) {
+            [$field, $rule] = explode('.', $ms);
 
-    private static function writeToConsole($msg, $box, $msgColor, $output = STDOUT)
+            if (isset($this->errors[$field])) {
+                if (isset($this->errors[$field][$rule])) {
+                    $this->errors[$field][$rule] = $value;
+                }
+            }
+        }
+
+        return $this;
+    }
+    /**
+     * 
+     * Return all validate result
+     * @return array<array[],array[]>
+     */
+    public function getAll():array
+    {
+        return [$this->data, $this->errors];
+    }
+    /**
+     * 
+     * Return all error from result
+     * @return array
+     */
+    public function getErrors():array
+    {
+        return $this->errors ?? [];
+    }
+    /**
+     * 
+     * Return all data from result
+     * @return array
+     */
+    public function getData():array
     {
 
-        fwrite($output, "\n{$box} {$msgColor} {$msg}\033[0m\n");
+        return $this->data;
     }
-}
+};

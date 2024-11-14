@@ -50,6 +50,7 @@ use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response;
 use Swoole\Http\Server as HttpServer;
 use Swoole\Process;
+use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
  * 
@@ -71,7 +72,7 @@ class Oktaax implements Server
      * 
      */
 
-    protected HttpServer $server ;
+    protected HttpServer $server;
     /**
      * Server Settings
      * 
@@ -208,11 +209,13 @@ class Oktaax implements Server
     {
 
         if (!file_exists($cert)) {
-            throw new Error("Certificate not found!");
+            Console::error("Certificate not found!");
+            throw new InvalidResourceException("Certificate not found!");
         }
 
         if (!file_exists($key)) {
-            throw new Error("key not found!");
+            Console::error("Key not found!");
+            throw new InvalidResourceException("key not found!");
         }
         $this->setServer('ssl_cert_file', $cert);
         $this->setServer('ssl_key_file', $key);
@@ -250,6 +253,8 @@ class Oktaax implements Server
         } elseif (is_string($setting)) {
             $this->serverSettings[$setting] = $value;
         } else {
+
+            Console::error('$setting argument must ber array or string');
             throw new Error('$setting argument must ber array or string');
         }
     }
@@ -533,7 +538,7 @@ class Oktaax implements Server
             }
         }
 
-        return false; // Jika tidak ada route yang cocok
+        return false;
     }
 
 
@@ -589,7 +594,10 @@ class Oktaax implements Server
             $this->runStackMidleware($middlewaresStack, $request, $response);
         } else {
             $response->status(404);
-            $err = Coroutine::readFile(__DIR__ . "/Views/HttpError/index.php");
+            ob_start();
+
+            require __DIR__ . "/Views/HttpError/index.php";
+            $err = ob_get_clean();
             $response->response->end($err);
         }
     }
@@ -747,11 +755,6 @@ class Oktaax implements Server
         }
 
         $this->onRequest();
-
-        $this->server->on("AfterReload", function ($serv,$workerId) {
-            echo "reloaded";
-            var_dump(get_included_files());
-        });
         $this->server->start();
     }
 

@@ -43,6 +43,7 @@ use Exception;
 use Oktaax\Console;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
+use Swoole\Coroutine;
 
 class Logger
 {
@@ -56,7 +57,7 @@ class Logger
                 $next();
                 if ($response->status >= 400) {
                     if ($response->response->isWritable()) {
-                        $title = require __DIR__."/../../Utils/HttpError.php";
+                        $title = require __DIR__ . "/../../Utils/HttpError.php";
 
                         ob_start();
                         $req = $request;
@@ -67,16 +68,25 @@ class Logger
                         $response->end($content);
                     }
                 }
-            } catch (\Throwable $th) {
+            } catch (\Throwable | Exception $th) {
                 Console::error($th->getMessage());
+
+                $file =  Coroutine::readFile($th->getFile());
+                $lines = explode("\n", $file);
+                $code = $lines[$th->getLine() - 1];
+
                 ob_start();
                 $message = $th->getMessage();
-                $code = $th->getCode();
+                $prevcode = $lines[$th->getLine() - 2] ?? '';
+                $code = $code;
+                $nextcode = $lines[$th->getLine()] ?? '';
                 $error = $th;
                 $req = $request;
 
                 require __DIR__ . "/../../Views/Error/index.php";
                 $content = ob_get_clean();
+
+                
                 return   $response->end($content);
             }
         };
