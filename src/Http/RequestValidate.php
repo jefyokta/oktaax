@@ -47,7 +47,7 @@ class RequestValidate
      *  @var array<string[]> $data
      * @var ?array<string[]> $errors
      */
-    public function __construct(private $data = [], private $errors = null) {}
+    public function __construct(private $data = [], private ?array $errors = null) {}
 
 
     /**

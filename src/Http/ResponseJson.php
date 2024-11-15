@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,6 +34,7 @@
  * SOFTWARE.
  *
  */
+
 namespace Oktaax\Http;
 
 
@@ -40,7 +42,7 @@ final class ResponseJson
 {
     private array $data = [];
 
-    public function __construct(?array $data = [], ?string $msg = null, $error = null)
+    public function __construct(?array $data = [], ?string $msg = null, mixed $error = null)
     {
 
         $this->data = [

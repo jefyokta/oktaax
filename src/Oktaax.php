@@ -187,9 +187,9 @@ class Oktaax implements Server
      * 
      */
     public function useBlade(
-        $viewDir = "views/",
-        $cachedir = "views/cache/",
-        $functionDir = null
+        string   $viewDir = "views/",
+        string $cachedir = "views/cache/",
+        ?string $functionDir = null
     ) {
 
         $this->config["viewDir"] = $viewDir;
@@ -242,7 +242,7 @@ class Oktaax implements Server
      * @param mixed $value array value  
      *
      */
-    public function setServer(array|string $setting, $value = null)
+    public function setServer(array|string $setting, mixed $value = null)
     {
         if (is_array($setting)) {
             if (!is_null($value)) {
@@ -611,7 +611,7 @@ class Oktaax implements Server
      * @param \Oktaax\Http\Response $response The HTTP response.
      * @param array $param Optional parameters to pass to middleware.
      */
-    private function runStackMidleware($stack, Request $request, $response, $param = null)
+    private function runStackMidleware(array $stack, Request $request, OktaResponse $response,mixed $param = null)
     {
 
         $next = function ($param = null) use (&$stack, $request, $response, &$next) {
@@ -730,7 +730,7 @@ class Oktaax implements Server
      * @param callable|null $callback
      */
 
-    public function listen($port,  $hostOrcallback = null, $callback = null)
+    public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null)
     {
         $this->port = $port;
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";

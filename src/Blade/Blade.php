@@ -65,7 +65,9 @@ class Blade
 
 
     /**
-     * 
+     * @param string $viewsDir
+     * @param string $cacheDir
+     * @param ?array $config
      * 
      */
     public function __construct(string $viewsDir, string $cacheDir, $config)

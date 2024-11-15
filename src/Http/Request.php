@@ -162,7 +162,7 @@ class Request
      * @param mixed $default
      * @return mixed
      */
-    public function input(string $key, $default = null)
+    public function input(string $key, mixed $default = null)
     {
         if (isset($this->request->get[$key])) {
             return $this->request->get[$key];
@@ -335,24 +335,24 @@ class Request
                 if ($ruleItem === 'required' && (!isset($data[$key]) || empty($data[$key]))) {
                     $errors[$key]['required'] = "$key is required";
                 }
-    
+
                 if (isset($data[$key])) {
                     if ($ruleItem === 'email'  && !filter_var($data[$key], FILTER_VALIDATE_EMAIL)) {
                         $errors[$key]['email'] = "$key must be a valid email address";
                     }
-    
+
                     if ($ruleItem === 'numeric'  && !is_numeric($data[$key])) {
                         $errors[$key]['numeric'] = "$key must be a numeric value";
                     }
-    
+
                     if ($ruleItem === 'alpha'  && !ctype_alpha($data[$key])) {
                         $errors[$key]['alpha'] = "$key must contain only alphabetic characters";
                     }
-    
+
                     if ($ruleItem === 'alpha_num'  && !ctype_alnum($data[$key])) {
                         $errors[$key]['alpha_num'] = "$key must contain only letters and numbers";
                     }
-    
+
                     if (str_starts_with($ruleItem, 'min:')) {
                         $minLength = explode(":", $ruleItem)[1];
                         if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set minimum's rule with a non-numeric!");
@@ -360,23 +360,23 @@ class Request
                             $errors[$key]['min'] = "$key must be at least $minLength characters";
                         }
                     }
-    
+
                     if (str_starts_with($ruleItem, 'max:')) {
                         $maxLength = explode(":", $ruleItem)[1];
                         if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set maximum's rule with a non-numeric!");
-    
+
                         if (isset($data[$key]) && strlen($data[$key]) > $maxLength) {
                             $errors[$key]['max'] = "$key must not exceed $maxLength characters";
                         }
                     }
-    
+
                     if (str_starts_with($ruleItem, 'between:')) {
                         [$min, $max] = explode(",", explode(":", $ruleItem)[1]);
                         if (isset($data[$key]) && (strlen($data[$key]) < $min || strlen($data[$key]) > $max)) {
                             $errors[$key]['between'] = "$key must be between $min and $max characters";
                         }
                     }
-    
+
                     if ($ruleItem === 'confirmed') {
                         if (!isset($data[$key . "_confirmation"])) {
                             $errors[$key]['confirmed'] = "{$key}_confirmation not found";
@@ -384,18 +384,18 @@ class Request
                             $errors[$key]['confirmed'] = "{$key}_confirmation does not match";
                         }
                     }
-    
+
                     if (str_starts_with($ruleItem, 'in:')) {
                         $allowedValues = explode(",", explode(":", $ruleItem)[1]);
                         if (isset($data[$key]) && !in_array($data[$key], $allowedValues)) {
                             $errors[$key]['in'] = "$key must be one of the following: " . implode(", ", $allowedValues);
                         }
                     }
-    
+
                     if ($ruleItem === 'url'  && !filter_var($data[$key], FILTER_VALIDATE_URL)) {
                         $errors[$key]['url'] = "$key must be a valid URL";
                     }
-    
+
                     if ($ruleItem === 'boolean'  && !is_bool(filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))) {
                         $errors[$key]['boolean'] = "$key must be true or false";
                     }

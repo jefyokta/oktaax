@@ -35,6 +35,12 @@
  *
  */
 
+
+
+ /**
+  * 
+  *@return array<string>
+  */
 return [
     'html' => 'text/html',
     'htm' => 'text/html',

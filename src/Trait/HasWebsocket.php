@@ -143,7 +143,7 @@ trait HasWebsocket
      * @param callable|null $callback
      */
 
-    public function listen($port,  $hostOrcallback = null, $callback = null)
+    public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null)
     {
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         $this->port = $port;

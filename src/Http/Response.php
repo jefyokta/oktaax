@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,6 +34,7 @@
  * SOFTWARE.
  *
  */
+
 namespace Oktaax\Http;
 
 use Oktaax\Blade\Blade;
@@ -130,7 +132,7 @@ class Response
                 $this->response->status(500);
                 throw $th;
             }
-        } 
+        }
         // php
         else {
             try {
@@ -190,7 +192,7 @@ class Response
      * @param int|null $offset The offset at which to start sending the file.
      * @param int|null $length The length of the content to send.
      */
-    public function sendfile($filename, $offset = 0, $length = null)
+    public function sendfile(string $filename, int $offset = 0, ?int $length = null)
     {
         if ($length === null) {
             $length = filesize($filename) - $offset;
@@ -213,7 +215,7 @@ class Response
             return $this;
         }
     }
-    public function end($content = null)
+    public function end(mixed $content = null)
     {
         $this->response->end($content);
     }
@@ -241,7 +243,7 @@ class Response
      * 
      */
 
-    public function with($msg, int $expires = null): static
+    public function with(string $msg, ?int $expires = null): static
     {
         if (is_null($expires)) {
             $expires = time() + 5;
@@ -262,7 +264,7 @@ class Response
      */
 
 
-    public function withError($errorMessage, $expires = null): static
+    public function withError(string $errorMessage, ?int $expires = null): static
     {
 
         if (is_null($expires)) {

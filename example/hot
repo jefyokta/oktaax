@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/zsh
 
 script_dir="$(dirname "${BASH_SOURCE[0]}")"
 

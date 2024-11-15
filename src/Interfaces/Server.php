@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,10 +34,11 @@
  * SOFTWARE.
  *
  */
+
 namespace Oktaax\Interfaces;
 
 
 interface Server
 {
-    public function listen(int $port, string $host, callable $callback);
+    public function listen(int $port, string|callable|null $hostOrCallback = null, ?callable $callback =null);
 }
