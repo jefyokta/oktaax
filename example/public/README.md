@@ -44,7 +44,9 @@ $app->listen(8000,"127.0.0.1",function($url){
 
 
 ```
+
 ### Dynamic route
+
 The dynamic route feature is one of the standout features. The examples you've provided are clear. Consider adding more detailed examples where the routes handle more complex data processing or response handling, which can help developers see the power and flexibility of the library
 
 ```php
@@ -65,7 +67,6 @@ $app->get("user/{id}",function($request,$response){
         $response->end("User {$request->params['id']} has been updated");
     })
 ```
-
 
 ### Crsf
 
@@ -96,7 +97,6 @@ For Oktaax versions below v2.xx, including `@csrf` in a Blade view would cause a
   @csrf
 </form>
 ```
-
 
 ## Example Usage
 
@@ -347,9 +347,7 @@ $app->get("/", function($request, $response) {
 
 ```
 
-## Request and Response Classs
-
-### Response Class
+## Response Class
 
 Oktaax has its own **Response** class that extends the **OpenSwoole\Http\Response** methods. It adds json and render methods. You can still access the original **OpenSwoole\Http\Response** via the $response property.
 
@@ -358,5 +356,83 @@ Oktaax has its own **Response** class that extends the **OpenSwoole\Http\Respons
 ```php
 // ResponseJson class params
 public function __construct(?array $data = [], ?string $msg = null, $error = null){}
+
+```
+
+### Properties
+
+```PHP
+<?php
+
+    /**
+     * @var \OpenSwoole\Http\Response The Swoole HTTP response instance.
+     */
+    public $response;
+
+    /**
+     * @var array Configuration array for the response.
+     */
+    private array $config;
+
+    /**
+     * @var int HTTP status code for the response.
+     */
+    public $status = 200;
+
+    public Request $request;
+
+
+```
+
+### Methods
+
+\Oktaax\Http\Response has a general method as a response class, like render, cookies, redirect, etc.
+
+```php
+
+$response->render("view",["data"=>$data]);
+.....
+// send a message before go back
+$response->with("hei, this is a temporary message")->back()
+
+//or error message
+
+$response->withError("hei, this is an error message due to your incomplete request")->back()
+```
+
+## Request Class
+
+### Validation
+
+if you wanna make sure that the request body has eligable to be processed, you can use validate message
+
+example:
+
+```php
+
+$rules = [
+
+    "name"=>"required|min:3|max:100",
+    "email"=>"required|email",
+    "password"=>"required|confirmed|min:8|max|200"
+
+    ];
+
+$validate =$request->validate($rules);
+
+//you can check errors with 
+
+if($request->errors !== null){
+    //do somethings
+};
+
+//or you can get the data or errors with
+
+ [$result,$errors]= $validate->getAll();
+
+ if($errors !== null){
+    //do something
+ }
+
 
 ```

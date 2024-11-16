@@ -15,7 +15,6 @@ $app = new Oktaax;
 
 $app->setServer('pid_file', 'swoole.pid');
 
-
 $app->set('viewsDir', __DIR__ . '/resources/views/');
 $app->useBlade(__DIR__ . '/resources/views/', __DIR__ . "/storage/views/")
     ->use(Logger::handle())
