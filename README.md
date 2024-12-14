@@ -37,11 +37,11 @@ Create a file named `index.php` with the following content:
 
 require 'vendor/autoload.php';
 
-use Oktaax\App;
+use Oktaax\Oktaax;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
-$app = new App;
+$app = new Oktaax;
 
 $app->get("/", function (Request $request, Response $response) {
     $response->end("Hello World");
@@ -69,14 +69,14 @@ If you need both HTTP and WebSocket support in one class, you can use the `HasWe
 
 require 'vendor/autoload.php';
 
-use Oktaax\App;
+use Oktaax\Oktaax;
 use Oktaax\Websocket\HasWebsocket;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Websocket\Client;
 use Oktaax\Websocket\Server;
 
-$app = new class extends App {
+$app = new class extends Oktaax {
     use HasWebsocket;
 };
 
