@@ -5,9 +5,9 @@ namespace Oktaax\Websocket;
 use Error;
 use Oktaax\Interfaces\Channel;
 use Oktaax\Interfaces\WebSocketServer;
-use Swoole\Coroutine;
-use Swoole\Table;
-use Swoole\WebSocket\Server as SWServer;
+use OpenSwoole\Coroutine;
+use OpenSwoole\Table;
+use OpenSwoole\WebSocket\Server as SWServer;
 
 class Server implements WebSocketServer
 {
@@ -20,9 +20,9 @@ class Server implements WebSocketServer
 
     public SWServer $swooleWebsocket;
 
-    private function push($fd, $data)
+    private function push($fd, $data, $opcode = 1, $flags = 1)
     {
-        $this->swooleWebsocket->push($fd, $data);
+        $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
     }
     public function __construct(SWServer $server, Client $client)
     {
@@ -31,23 +31,23 @@ class Server implements WebSocketServer
     }
 
 
-    public function broadcast(mixed $data, int $delay = 0): void
+    public function broadcast(mixed $data, int $delay = 0, $opcode = 1, $flags = 1): void
     {
         $receivers = $this->fds ?? $this->swooleWebsocket->connections;
 
         if (is_int($receivers)) {
             $message = is_callable($data) ? $data(new Client($receivers)) : $data;
-            $this->swooleWebsocket->push($receivers, $message);
-            return;
-        }
+            $this->swooleWebsocket->push($receivers, $message, $opcode, $flags);
+        } else {
 
-        if (is_array($receivers)) {
-            foreach ($receivers as $fd) {
-                $message = is_callable($data) ? $data(new Client($fd)) : $data;
-                $this->swooleWebsocket->push($fd, $message);
+            if (is_array($receivers)) {
+                foreach ($receivers as $fd) {
+                    $message = is_callable($data) ? $data(new Client($fd)) : $data;
+                    $this->swooleWebsocket->push($fd, $message, $opcode, $flags);
 
-                if ($delay > 0) {
-                    Coroutine::sleep($delay);
+                    if ($delay > 0) {
+                        Coroutine::sleep($delay);
+                    }
                 }
             }
         }
@@ -85,5 +85,10 @@ class Server implements WebSocketServer
     {
 
         $this->swooleWebsocket->tick($ms, $callback, ...$params);
+    }
+
+    public function reject($fd, $reason, $code)
+    {
+        $this->swooleWebsocket->disconnect($fd, \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL, $reason);
     }
 };

@@ -45,10 +45,10 @@ use Oktaax\Websocket\Client;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
 use ReflectionFunction;
-use Swoole\Table;
-use Swoole\Http\Request;
-use Swoole\WebSocket\Frame;
-use Swoole\WebSocket\Server;
+use OpenSwoole\Table;
+use OpenSwoole\Http\Request;
+use OpenSwoole\WebSocket\Frame;
+use OpenSwoole\WebSocket\Server;
 
 
 

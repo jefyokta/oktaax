@@ -38,7 +38,7 @@
 namespace Oktaax\Http;
 
 use InvalidArgumentException;
-use Swoole\Http\Request as HttpRequest;
+use OpenSwoole\Http\Request as HttpRequest;
 
 
 /**

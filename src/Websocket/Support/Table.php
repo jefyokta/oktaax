@@ -2,7 +2,7 @@
 
 namespace Oktaax\Websocket\Support;
 
-use Swoole\Table as SwooleTable;
+use OpenSwoole\Table as SwooleTable;
 
 class Table
 {

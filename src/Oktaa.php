@@ -44,8 +44,8 @@ use Oktaax\Interfaces\Server as InterfacesServer;
 use Oktaax\Interfaces\WithBlade;
 use Oktaax\Interfaces\Xsocket;
 use Oktaax\Trait\HasWebsocket as HasWebsocket;
-use Swoole\Http\Server;
-use Swoole\WebSocket\Server as WebSocketServer;
+use OpenSwoole\Http\Server;
+use OpenSwoole\WebSocket\Server as WebSocketServer;
 
 /**
  * 

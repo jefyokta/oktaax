@@ -4,7 +4,6 @@ namespace Oktaax\Websocket;
 
 use Oktaax\Interfaces\Channel;
 use Oktaax\Websocket\Support\Member;
-use Swoole\WebSocket\Frame;
 
 class Client
 {

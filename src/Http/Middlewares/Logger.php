@@ -43,7 +43,7 @@ use Exception;
 use Oktaax\Console;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
-use Swoole\Coroutine;
+use OpenSwoole\Coroutine;
 
 class Logger
 {

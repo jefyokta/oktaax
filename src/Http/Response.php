@@ -38,7 +38,7 @@
 namespace Oktaax\Http;
 
 use Oktaax\Blade\Blade;
-use Swoole\Http\Response as SwooleResponse;
+use OpenSwoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Types\OktaaxConfig;
 
