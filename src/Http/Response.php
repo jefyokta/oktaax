@@ -40,6 +40,7 @@ namespace Oktaax\Http;
 use Oktaax\Blade\Blade;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
+use Oktaax\Types\OktaaxConfig;
 
 /**
  * Class Response
@@ -55,9 +56,9 @@ class Response
     public $response;
 
     /**
-     * @var array Configuration array for the response.
+     * @var OktaaxConfig  Configuration from application for the response.
      */
-    private array $config;
+    private OktaaxConfig  $config;
 
     /**
      * @var int HTTP status code for the response.
@@ -71,9 +72,9 @@ class Response
      * Response constructor.
      *
      * @param SwooleResponse $response The Swoole HTTP response object.
-     * @param array $config Optional configuration settings for the response.
+     * @param OktaaxConfig  $config Optional configuration settings for the response.
      */
-    public function __construct(SwooleResponse $response, Request $request, array $config = [])
+    public function __construct(SwooleResponse $response, Request $request, OktaaxConfig $config)
     {
         $this->response = $response;
         $this->header("X-Powered-By", "Oktaax");
@@ -103,8 +104,8 @@ class Response
      */
     public function render(string $view, array $data = [])
     {
-        $viewsDir = $this->config['viewsDir'];
-        $cacheDir = $this->config['blade']['cacheDir'] ?? $viewsDir . "/cache";
+        $viewsDir = $this->config->viewDir;
+        $cacheDir = $this->config->blade->cacheDir ?? $viewsDir . "/cache";
 
         if (!is_dir($viewsDir)) {
             if (!mkdir($viewsDir, 0755, true)) {
@@ -119,7 +120,7 @@ class Response
         }
 
 
-        if ($this->config['render_engine'] === 'blade') {
+        if ($this->config->render_engine === 'blade') {
             try {
                 $blade = new Blade($viewsDir, $cacheDir, $this->config);
                 $request = ["request" => $this->request];

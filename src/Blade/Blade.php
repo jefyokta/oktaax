@@ -46,6 +46,7 @@ use Illuminate\View\Engines\EngineResolver;
 use Illuminate\View\Factory;
 use Illuminate\View\FileViewFinder;
 use Oktaax\Http\Request;
+use Oktaax\Types\OktaaxConfig;
 
 class Blade
 {
@@ -59,9 +60,9 @@ class Blade
 
     /**
      * equals Oktaax\Oktaa::$config
-     * @var array $config
+     * @var OktaaxConfig $config
      */
-    private $config;
+    private OktaaxConfig $config;
 
 
     /**
@@ -70,7 +71,7 @@ class Blade
      * @param ?array $config
      * 
      */
-    public function __construct(string $viewsDir, string $cacheDir, $config)
+    public function __construct(string $viewsDir, string $cacheDir, OktaaxConfig $config)
     {
         $container = new Container();
         $filesystem = new Filesystem();
@@ -99,11 +100,11 @@ class Blade
 
 
         //calling user functions
-        if (!is_null($this->config['blade']['functionsDir'])) {
-            if (file_exists($this->config['blade']['functionsDir'])) {
-                require_once $this->config['blade']['functionsDir'];
+        if (!is_null($this->config->blade->functionDir)) {
+            if (file_exists($this->config->blade->functionDir)) {
+                require_once($this->config->blade->functionDir);
             } else {
-                throw new Error("File not found " . $this->config['blade']['functionsDir']);
+                throw new Error("File not found " . $this->config->blade->functionDir);
             }
         }
     }
@@ -158,14 +159,14 @@ class Blade
 
 
 
-        $pubdir = $this->config['publicDir'];
+        $pubdir = $this->config->publicDir;
         $compiler->directive("vite", function ($resources) use ($pubdir) {
 
             return "<?php echo \\Oktaax\\Blade\\BladeDirectives::vite($resources, '$pubdir'); ?>";
         });
 
 
-        if ($this->config['app']['useCsrf']) {
+        if ($this->config->app->useCsrf) {
             $compiler->directive("csrf", function () {
                 return "<?php echo \\Oktaax\\Blade\\BladeDirectives::csrf(\$request); ?>";
             });

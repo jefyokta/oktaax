@@ -88,14 +88,14 @@ class BladeDirectives
         if (!file_exists($manifestPath)) {
             if (file_exists($publicDir . "/vite-okta")) {
                 $viteHost = file_get_contents($publicDir . "/vite-okta");
-                $output .= '<script type="module" src="' . $viteHost . '/@vite/client"></script>';
+                 $output .= '<script type="module" src="' . $viteHost . '/@vite/client"></script>';
                 foreach ($resources as $resource) {
                     $asset = $resource;
                     $extension = pathinfo($asset, PATHINFO_EXTENSION);
                     if ($extension === "js") {
-                        $output .= "<script type='module' src='http://localhost:5173/$asset'></script>\n";
+                        $output .= "<script type='module' src='http://{$viteHost}/$asset'></script>\n";
                     } elseif ($extension === "css") {
-                        $output .= "<link rel='stylesheet' href='http://localhost:5173/$asset'>\n";
+                        $output .= "<link rel='stylesheet' href='http://{$viteHost}/$asset'>\n";
                     } else {
                         $output .= "<!-- Unsupported asset type: $resource -->\n";
                     }

@@ -35,10 +35,144 @@
  *
  */
 
-namespace Oktaax\Interfaces;
-
-
-interface Server
-{
-    public function listen(int $port, string|callable|null $hostOrCallback = null, ?callable $callback =null);
-}
+ namespace Oktaax\Interfaces;
+ 
+ use Oktaax\Http\Request;
+ use Oktaax\Http\Response as OktaResponse;
+ 
+ interface Server
+ {
+     /**
+      * Set view configuration.
+      *
+      * @param string $viewDir
+      * @param 'blade'|'php' $render_engine
+      * @return static
+      */
+     public function setView(string $viewDir, string $render_engine);
+ 
+     /**
+      * Set Blade configuration.
+      *
+      * @param string $viewDir
+      * @param string $cacheDir
+      * @param string|null $functionDir
+      * @return static
+      */
+     public function useBlade(string $viewDir = "views/", string $cacheDir = "views/cache/", ?string $functionDir = null);
+ 
+     /**
+      * Enable SSL for the server.
+      *
+      * @param string $cert
+      * @param string $key
+      * @return static
+      */
+     public function withSSL(string $cert, string $key);
+ 
+     /**
+      * Alternative method to enable SSL.
+      *
+      * @param string $cert
+      * @param string $key
+      * @return static
+      */
+     public function securely(string $cert, string $key);
+ 
+     /**
+      * Set server settings.
+      *
+      * @param string|array $setting
+      * @param mixed $value
+      */
+     public function setServer(string|array $setting, mixed $value = null);
+ 
+     /**
+      * Enable CSRF protection.
+      *
+      * @param string $appkey
+      * @param int $expr
+      */
+     public function useCsrf(string $appkey, int $expr = 300);
+ 
+     /**
+      * Define a GET route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function get(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define a POST route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function post(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define a PUT route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function put(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define a DELETE route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function delete(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define a PATCH route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function patch(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define an OPTIONS route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function options(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Define a HEAD route.
+      *
+      * @param string $path
+      * @param string|callable|array $callback
+      * @param string|callable|array ...$middlewares
+      * @return static
+      */
+     public function head(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
+ 
+     /**
+      * Register global middleware.
+      *
+      * @param callable $globalMiddleware
+      * @return static
+      */
+     public function use(callable $globalMiddleware);
+ 
+    
+ }
+ 

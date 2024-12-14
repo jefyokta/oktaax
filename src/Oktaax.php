@@ -39,11 +39,15 @@ namespace Oktaax;
 
 
 use Error;
-use Illuminate\Support\Facades\Http;
-use Oktaax\Http\Middleware\Csrf as MiddlewareCsrf;
+use Oktaax\Http\Middleware\Csrf;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
+use Oktaax\Interfaces\WithBlade;
+use Oktaax\Trait\Requestable;
+use Oktaax\Types\AppConfig;
+use Oktaax\Types\BladeConfig;
+use Oktaax\Types\OktaaxConfig;
 use ReflectionMethod;
 use Swoole\Coroutine;
 use Swoole\Http\Request as SwooleRequest;
@@ -54,7 +58,7 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
  * 
- * A class to make application server
+ * A class to make a raw http application server
  * 
  * @package Oktaax
  * 
@@ -62,9 +66,9 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
  */
 
 
-class Oktaax implements Server
+class Oktaax implements Server, WithBlade
 {
-
+    use Requestable;
     /**
      * Swoole HTTP server instance.
      *
@@ -78,54 +82,18 @@ class Oktaax implements Server
      * 
      * @var array
      */
-
-
-
     protected array $serverSettings = [];
 
-    /**
-     * Application route definitions.
-     *
-     * @var array
-     */
-    protected $route = [];
 
-    /**
-     * Global middleware stack.
-     *
-     * @var callable[]
-     */
-    protected $globalMiddleware = [];
-
-
-    private OktaResponse $response;
 
 
     /**
      * Configuration settings for the application.
      *
-     * @var array
+     * @var OktaaxConfig
      */
 
-    protected  array $config = [
-        "viewsDir" => "views/",
-        "logDir" => "log",
-        "render_engine" => null,
-        "blade" => [
-            "cacheDir" => null,
-            "functionsDir" => null
-        ],
-        "useOktaMiddleware" => false,
-        "sock_type" => null,
-        "mode" => null,
-        "publicDir" => "public",
-        "app" => [
-            "key" => null,
-            "name" => "oktaax",
-            "useCsrf" => false,
-            "csrfExp" => (60 * 5)
-        ]
-    ];
+    protected OktaaxConfig  $config;
 
     /**
      * Application host
@@ -169,11 +137,27 @@ class Oktaax implements Server
      * @return static
      * 
      */
+
+    public function __construct()
+    {
+
+        $this->config = new OktaaxConfig(
+            "views/",
+            "php",
+            'log',
+            false,
+            null,
+            null,
+            new AppConfig(null, false, 300, 'Oktaax'),
+            new BladeConfig('views/cache', null),
+            'public/'
+        );
+    }
+
     public function setView($viewDir, $render_engine)
     {
-        $this->config["viewsDir"] = $viewDir;
-        $this->config['render_engine'] = $render_engine;
-
+        $this->config->viewDir = $viewDir;
+        $this->config->render_engine = $render_engine;
         return $this;
     }
 
@@ -190,12 +174,11 @@ class Oktaax implements Server
         string   $viewDir = "views/",
         string $cachedir = "views/cache/",
         ?string $functionDir = null
-    ) {
-
-        $this->config["viewDir"] = $viewDir;
-        $this->config['render_engine'] = "blade";
-        $this->config['blade']["cacheDir"] = $cachedir;
-        $this->config['blade']["functionDir"] = $functionDir;
+    ): static {
+        $this->config->viewDir = $viewDir;
+        $this->config->render_engine = "blade";
+        $this->config->blade->cacheDir = $cachedir;
+        $this->config->blade->functionDir = $functionDir;
         return $this;
     }
 
@@ -220,19 +203,40 @@ class Oktaax implements Server
         $this->setServer('ssl_cert_file', $cert);
         $this->setServer('ssl_key_file', $key);
 
-        $this->config['sock_type'] = SWOOLE_SOCK_TCP | SWOOLE_SSL;
-        $this->config['mode'] = SWOOLE_BASE;
+        $this->config->sock_type = SWOOLE_SOCK_TCP | SWOOLE_SSL;
+        $this->config->mode = SWOOLE_BASE;
         $this->protocol = 'https';
 
         return $this;
     }
 
     /**
-     * Set SSL certificates for the server.
+     * Enable SSL for the server. 
+     * Alternative of withSSl() method
      *
-     * @param string $cert The SSL certificate file path.
-     * @param string $key The SSL key file path.
+     * @return $this
      */
+    public function securely($cert, $key)
+    {
+
+        if (!file_exists($cert)) {
+            Console::error("Certificate not found!");
+            throw new InvalidResourceException("Certificate not found!");
+        }
+
+        if (!file_exists($key)) {
+            Console::error("Key not found!");
+            throw new InvalidResourceException("key not found!");
+        }
+        $this->setServer('ssl_cert_file', $cert);
+        $this->setServer('ssl_key_file', $key);
+
+        $this->config->sock_type = SWOOLE_SOCK_TCP | SWOOLE_SSL;
+        $this->config->mode = SWOOLE_BASE;
+        $this->protocol = 'https';
+
+        return $this;
+    }
 
 
     /**
@@ -272,10 +276,9 @@ class Oktaax implements Server
     public function useCsrf(string $appkey, int $expr = 300)
     {
 
-        $this->config['app']['key'] = $appkey;
-        $this->config['app']['csrfExp'] = $expr;
-
-        $this->config['app']['useCsrf'] = true;
+        $this->config->app->key = $appkey;
+        $this->config->app->csrfExp = $expr;
+        $this->config->app->useCsrf = true;
     }
 
     /**
@@ -305,406 +308,7 @@ class Oktaax implements Server
         }
     }
 
-    /**
-     * Set configuration values for the application.
-     *
-     * @param string $key Configuration key.
-     * @param mixed $value Configuration value.
-     */
-    public function set($key, $value)
-    {
-        $this->config[$key] = $value;
-    }
 
-
-    /**
-     * Define a GET route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param string|callable|array  $middleware Route specific middleware.
-     * @return static
-
-     */
-    public function get(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-
-        $this->addRoute($path, "GET", $callback, $middlewares);
-        return $this;
-    }
-
-    /**
-     * Define a POST route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     * 
-     * @return static
-     */
-    public function post(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-
-        $this->addroute($path, "POST", $callback, $middlewares);
-        return $this;
-    }
-
-
-    /**
-     * Define a PUT route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     */
-    public function put(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-
-        $this->addRoute($path, "PUT", $callback, $middlewares);
-        return $this;
-    }
-
-
-
-    /**
-     * Define a DELETE route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     * 
-     *  
-     * @return static
-
-     */
-    public function delete(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-        $this->addRoute($path, "DELETE", $callback, $middlewares);
-        return $this;
-    }
-
-
-
-    /**
-     * Define a PATCH route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     * 
-     * @return static
-
-     */
-    public function patch(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-
-        $this->addRoute($path, "PATCH", $callback, $middlewares);
-        return $this;
-    }
-
-
-    /**
-     * Define a OPTIONS route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     * 
-     *     
-     *  * @return static
-
-     */
-    public function options(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-
-        $this->addRoute($path, "OPTIONS", $callback, $middlewares);
-        return $this;
-    }
-
-    /**
-     * Define a HEAD route.
-     *
-     * @param string $path The route path.
-     * @param string|callable|array $callback The route handler.
-     * @param callable[] $middleware Route specific middleware.
-     * 
-     * @return static
-     */
-    public function head(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
-    {
-        $this->addroute($path, "HEAD", $callback, $middlewares);
-        return $this;
-    }
-
-
-    /**
-     * Register a global middleware.
-     *
-     * @param callable $globalMiddleware The middleware callback.
-     * @return static
-     */
-
-    public function use(callable $globalMiddleware)
-    {
-        $this->globalMiddleware[] = $globalMiddleware;
-
-        return $this;
-    }
-
-
-    /**
-     * Placeholder function for path. Can be used for future expansion.
-     */
-    public function path() {}
-
-
-
-    /**
-     * Handle the incoming request and route it.
-     *
-     * @param \Oktaax\Http\Request $request The HTTP request.
-     * @param \Oktaax\Http\Response $response The HTTP response.
-     */
-
-    private function AppHandler(Request $request, OktaResponse $response)
-    {
-
-
-        $path = $request->server['request_uri'];
-        $path = filter_var($path, FILTER_SANITIZE_URL);
-        $reqmethod = ["PUT", "DELETE", "OPTIONS", "PATCH"];
-
-        if ($request->server['request_method'] === "POST") {
-            $method = strtoupper($request->post("_method") ?? "POST");
-            if (!in_array($method, $reqmethod)) {
-                $method = "POST";
-            }
-        } else {
-            $method = $request->server['request_method'];
-        }
-
-        if (!empty($this->pathMiddlewares)) {
-            $this->handlerPathMiddleware();
-        }
-
-        $stack =  array_merge($this->globalMiddleware, [
-            function ($request, $response, $next) use ($path, $method) {
-                $this->proccesRequest($request, $response, $method, $path, $next);
-            }
-        ]);
-
-
-        $this->runStackMidleware($stack, $request, $response);
-    }
-
-    /**
-     * 
-     * Filter url before calling action
-     * 
-     * @param string $route
-     * @param string $method
-     * @param \Oktaax\Http\Request &$request
-     * @return array
-     * 
-     */
-    private function matchRoute(string $route, string $method, Request &$request)
-    {
-        $route = rtrim($route, '');
-        if (isset($this->route[$route][$method])) {
-            $handler = $this->route[$route][$method]['action'];
-            $middlewares = $this->route[$route][$method]['middleware'];
-            return ["route" => $route, "handler" => $handler, "middlewares" => $middlewares];
-        }
-
-        foreach ($this->route as $pattern => $methods) {
-            if (isset($methods[$method]) && $methods[$method]['isDynamic']) {
-                $regex = preg_replace('/\{([a-zA-Z_]+)\}/', '([^/]+)', str_replace('/', '\/', $pattern));
-
-                $regex = "#^$regex$#";
-
-
-                if (preg_match($regex, $route, $matches)) {
-                    array_shift($matches);
-
-                    if (strpos($pattern, '{') !== false) {
-                        preg_match_all('/\{([a-zA-Z_]+)\}/', $pattern, $paramNames);
-                        $request->params = array_combine($paramNames[1], $matches);
-                    }
-
-                    $handler = $methods[$method]['action'];
-                    $middlewares = $methods[$method]['middleware'];
-                    return ["route" => $pattern, "handler" => $handler, "middlewares" => $middlewares];
-                }
-            }
-        }
-
-        return false;
-    }
-
-
-
-
-    /**
-     * Process the request and invoke the appropriate route handler.
-     *
-     * @param \Oktaax\Http\Request $request The HTTP request.
-     * @param \Oktaax\Http\Response $response The HTTP response.
-     * @param string $method The HTTP method.
-     * @param string $path The request path.
-     * @param callable $next The next middleware function.
-     * 
-     * 
-     */
-    private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
-    {
-        $match = $this->matchRoute($path, $method, $request);
-
-        if ($match !== false) {
-            $handler = $match['handler'];
-            $middlewares = $match['middlewares'];
-
-            $middlewaresStack = array_merge($middlewares, [
-                function ($request, $response, $next, $param) use ($handler) {
-                    if (is_string($handler)) {
-                        $class = explode("." || "@", $handler)[0];
-                        $parts = preg_split("/[.@]/", $handler);
-                        $class = $parts[0];
-                        $method = $parts[1];
-                        $initial = new $class;
-                        call_user_func([$initial, $method], $request, $response, $param);
-                    } elseif (is_callable($handler)) {
-                        $handler($request, $response, $param);
-                    } elseif (is_array($handler)) {
-
-                        $class = $handler[0];
-                        $method = $handler[1];
-
-                        $reflection = new ReflectionMethod($class, $method);
-                        if ($reflection->isStatic()) {
-                            call_user_func([$class, $method], $request, $response, $param);
-                        } else {
-                            $instance = new $class;
-                            call_user_func([$instance, $method], $request, $response, $param);
-                        }
-                    } else {
-                        throw new Error("Handler must be type of string/callable/array");
-                    }
-                }
-            ]);
-            $this->runStackMidleware($middlewaresStack, $request, $response);
-        } else {
-            $response->status(404);
-            ob_start();
-
-            require __DIR__ . "/Views/HttpError/index.php";
-            $err = ob_get_clean();
-            $response->response->end($err);
-        }
-    }
-
-
-    /**
-     * Run a stack of middleware functions sequentially.
-     *
-     * @param callable[] $stack The middleware stack.
-     * @param \Oktaax\Http\Request $request The HTTP request.
-     * @param \Oktaax\Http\Response $response The HTTP response.
-     * @param array $param Optional parameters to pass to middleware.
-     */
-    private function runStackMidleware(array $stack, Request $request, OktaResponse $response,mixed $param = null)
-    {
-
-        $next = function ($param = null) use (&$stack, $request, $response, &$next) {
-
-            if (!empty($stack)) {
-                $middleware = array_shift($stack);
-
-                if (is_callable($middleware)) {
-                    $middleware($request, $response, $next, $param);
-                } elseif (is_string($middleware)) {
-                    $parts = preg_split("/[.@]/", $middleware);
-                    $class = $parts[0];
-                    $method = $parts[1];
-                    $initial = new $class;
-                    call_user_func([$initial, $method], $request, $response, $next, $param);
-                } elseif (is_array($middleware)) {
-
-
-                    $class = $middleware[0];
-                    if (!class_exists($class)) {
-                        throw new Error("Class $class does'nt exist");
-                    }
-                    $method = $middleware[1] ?? throw new Error("Method not found!");
-                    $reflection = new ReflectionMethod($class, $method);
-                    if ($reflection->isStatic()) {
-                        call_user_func([$class, $method], $request, $response, $param);
-                    } else {
-                        $instance = new $class;
-                        call_user_func([$instance, $method], $request, $response, $param);
-                    }
-                } else {
-                    throw new Error("Handler must be type of string/callable/array");
-                }
-            }
-        };
-
-        $next($param);
-    }
-
-
-    /**
-     * Return an array of default middleware.
-     *
-     * @return array The default middleware array.
-     */
-    private function OktaaMiddlewares()
-    {
-
-
-        $log = function (Request $req, OktaResponse $res, $next) {
-
-            try {
-
-
-                go(function () use ($next) {
-
-                    $next();
-                });
-
-                go(function () use ($req, $res) {
-                    $method = $req->server['request_method'];
-                    $path = $req->server['request_uri'];
-                    $addres = $req->server['remote_addr'];
-                    $date = date("d/m/Y");
-                    $time = date("h:i");
-                    $status = $res->status;
-
-                    $text = "[$date $time] $addres:  $method $path.........[$status]\n";
-                    Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
-                    Console::log($text);
-                });
-            } catch (\Throwable $th) {
-                go(function () use ($req, $th) {
-                    $method = $req->server['request_method'];
-                    $path = $req->server['request_uri'];
-                    $addres = $req->server['remote_addr'];
-                    $date = date("d/m/Y");
-                    $time = date("h:i");
-                    $text = "[$date $time] $addres: $method $path error " . $th->getMessage() . ":" . $th->getLine() . " in " . $th->getFile() . "\n";
-                    Coroutine::writeFile($this->config['logDir'], $text, FILE_APPEND);
-                    Console::error($text);
-                });
-
-                go(function () use ($res, $th) {
-                    $res->status(500);
-                    $res->response->end($th->getMessage());
-                });
-            }
-        };
-
-
-        return compact("log");
-    }
 
     /**
      * 
@@ -714,11 +318,11 @@ class Oktaax implements Server
      */
     private function init()
     {
-        if (!is_null($this->config['mode']) && !is_null($this->config['sock_type'])) {
+        if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
             $this->protocol = "https";
-            $this->server = new HttpServer($this->host, $this->port, $this->config['mode'], $this->config['sock_type']);
+            $this->server = new HttpServer($this->host, $this->port, $this->config->mode, $this->config->sock_type);
         } else {
-            $this->server = new HttpServer($this->host, $this->port,);
+            $this->server = new HttpServer($this->host, $this->port);
         }
     }
 
@@ -732,6 +336,8 @@ class Oktaax implements Server
 
     public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null)
     {
+
+
         $this->port = $port;
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         $this->init();
@@ -742,11 +348,10 @@ class Oktaax implements Server
         $this->server->set($this->serverSettings);
 
 
-        !$this->config['useOktaMiddleware'] ?: $this->use($this->OktaaMiddlewares()['log']);
 
-        if ($this->config['app']['useCsrf']) {
-            $this->use(MiddlewareCsrf::generate($this->config['app']['key'], $this->config['app']['csrfExp']));
-            $this->use(MiddlewareCsrf::handle($this->config['app']['key']));
+        if ($this->config->app->useCsrf) {
+            $this->use(Csrf::generate($this->config->app->key, $this->config->app->csrfExp));
+            $this->use(Csrf::handle($this->config->app->key));
         }
         if (is_callable($hostOrcallback)) {
             $hostOrcallback($this->protocol . "://" . $this->host . ":" . $this->port);
@@ -755,6 +360,7 @@ class Oktaax implements Server
         }
 
         $this->onRequest();
+
         $this->server->start();
     }
 
@@ -772,7 +378,7 @@ class Oktaax implements Server
             $response = new OktaResponse($response, $request, $this->config);
             $this->response = $response;
             $path = $request->request->server['request_uri'];
-            $file = $this->config['publicDir'] . $path;
+            $file = $this->config->publicDir . $path;
             if (is_file($file) && file_exists($file)) {
                 $extension = pathinfo($file, PATHINFO_EXTENSION);
                 $types = require __DIR__ . "/Utils/MimeTypes.php";
@@ -824,6 +430,8 @@ class Oktaax implements Server
         endforeach;
     }
 
+
+
     /**
      * Reload server
      * 
@@ -831,5 +439,29 @@ class Oktaax implements Server
     public function reload()
     {
         $this->server->reload();
+    }
+
+    /**
+     * 
+     * Set Your Application Configuration
+     * @param AppConfig $appConfig
+     */
+    public function setApplication(AppConfig $appConfig)
+    {
+        $this->config->app = $appConfig;
+    }
+
+
+    /**
+     * Renew Oktaax Configuration
+     * 
+     * @param OktaaxConfig $config
+     * 
+     */
+
+    public function setConfig(OktaaxConfig $config)
+    {
+
+        $this->config = $config;
     }
 };

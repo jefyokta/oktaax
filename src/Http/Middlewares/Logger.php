@@ -54,11 +54,13 @@ class Logger
 
         return function (Request $request, Response $response, $next) use ($path) {
             try {
+                $start = microtime(true);
                 $next();
+                $end = microtime(true);
+                $took = floor(($end - $start) * 100) / 100;
                 if ($response->status >= 400) {
                     if ($response->response->isWritable()) {
                         $title = require __DIR__ . "/../../Utils/HttpError.php";
-
                         ob_start();
                         $req = $request;
                         $status = $response->status;
@@ -67,7 +69,8 @@ class Logger
                         $content = ob_get_clean();
                         $response->end($content);
                     }
-                }
+                 }
+                Console::info("{$request->server['request_method']}{$request->server['request_uri']}..........[$response->status]  [took {$took}s]");
             } catch (\Throwable | Exception $th) {
                 Console::error($th->getMessage());
 
@@ -86,7 +89,7 @@ class Logger
                 require __DIR__ . "/../../Views/Error/index.php";
                 $content = ob_get_clean();
 
-                
+
                 return   $response->end($content);
             }
         };

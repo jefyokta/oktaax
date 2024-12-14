@@ -48,10 +48,19 @@ use Swoole\Http\Request as HttpRequest;
 class Request
 {
     /**
+     * 
+     * @var ?int $fd
+     * Request frame disk
+     */
+
+    public $fd = null;
+    /**
      * The original Swoole HTTP Request instance.
      * 
      * @var \Swoole\Http\Request
      */
+
+ 
 
 
     public $request;
@@ -93,6 +102,7 @@ class Request
     {
         $this->request = $request;
         $this->body = $this->request->rawContent();
+        $this->fd = $request->fd ?? null;
     }
 
     /**
@@ -404,7 +414,7 @@ class Request
         }
         $this->errors = $errors;
 
-        return new RequestValidate($data, !empty($errors) ? $errors : null);
+        return new RequestValidated($data, !empty($errors) ? $errors : null);
     }
 
     /**

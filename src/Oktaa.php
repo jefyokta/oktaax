@@ -41,6 +41,8 @@ namespace Oktaax;
 
 use Error;
 use Oktaax\Interfaces\Server as InterfacesServer;
+use Oktaax\Interfaces\WithBlade;
+use Oktaax\Interfaces\Xsocket;
 use Oktaax\Trait\HasWebsocket as HasWebsocket;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebSocketServer;
@@ -53,7 +55,7 @@ use Swoole\WebSocket\Server as WebSocketServer;
  * 
  * 
  */
-class Oktaa extends Oktaax implements InterfacesServer
+class Oktaa extends Oktaax implements InterfacesServer,  WithBlade
 {
 
     use HasWebsocket;

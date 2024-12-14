@@ -39,7 +39,7 @@ namespace Oktaax\Http;
 
 
 
-class RequestValidate
+class RequestValidated
 {
 
 
@@ -54,7 +54,7 @@ class RequestValidate
      * @param array<string> $message
      * @return static
      */
-    public function setMessage(array $messages):static
+    public function setMessage(array $messages): static
     {
 
         foreach ($messages as $ms => $value) {
@@ -74,7 +74,7 @@ class RequestValidate
      * Return all validate result
      * @return array<array[],array[]>
      */
-    public function getAll():array
+    public function getAll(): array
     {
         return [$this->data, $this->errors];
     }
@@ -83,7 +83,7 @@ class RequestValidate
      * Return all error from result
      * @return array
      */
-    public function getErrors():array
+    public function getErrors(): array
     {
         return $this->errors ?? [];
     }
@@ -92,9 +92,18 @@ class RequestValidate
      * Return all data from result
      * @return array
      */
-    public function getData():array
+    public function getData(): array
     {
 
         return $this->data;
+    }
+    /**
+     * 
+     * Return first errors
+     * @return string|null
+     */
+    public function getError()
+    {
+        isset($this->errors) ? current(current($this->errors)) : null;
     }
 };

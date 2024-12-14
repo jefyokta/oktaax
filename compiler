@@ -1,0 +1,28 @@
+<?php
+
+$filename = $argv[1];
+
+$file = file_get_contents($filename . ".okta");
+
+$patterns = [
+    '/(\<\?okta\s+)/m',
+    '/\bimport\b\s+"(.*?)";/m',
+    '/\$(.*?)\s*=\s*\[(.*?)\]/',
+    '/\$(\w+)\s*=\s*(["\'])(.*?)\2;/'
+
+
+];
+$replacements = [
+    "<?php \n",
+    'require "$1.php";',
+    '$$1 = new Arr([$2]);',
+    '$$1 = new Str($2$3$2);'
+
+
+
+];
+
+$php = preg_replace($patterns, $replacements, $file);
+
+$outputFile = "$filename.okta.php";
+file_put_contents($outputFile, $php);
