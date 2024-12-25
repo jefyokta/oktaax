@@ -35,9 +35,14 @@
  *
  */
 
+
+
+
+
 namespace Oktaax\Http;
 
 use Oktaax\Blade\Blade;
+use Oktaax\Console;
 use OpenSwoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Types\OktaaxConfig;
@@ -90,7 +95,9 @@ class Response
      */
     public function header($key, $value): Response
     {
-        $this->response->header($key, $value);
+        if ($this->response->isWritable()) {
+            $this->response->header($key, $value);
+        }
         return $this;
     }
 
@@ -122,7 +129,7 @@ class Response
 
         if ($this->config->render_engine === 'blade') {
             try {
-                $blade = new Blade($viewsDir, $cacheDir, $this->config);
+                $blade = new Blade($viewsDir, $cacheDir, $this->config, $this->request);
                 $request = ["request" => $this->request];
                 $data = array_merge($request, $data);
 
@@ -182,8 +189,10 @@ class Response
      */
     public function cookie($name, $value = '', $expires = 0, $path = '', $domain = '', $secure = false, $httponly = false, $samesite = true, $priority = '')
     {
-        $samesite =  $samesite === null ? "Lax" : $samesite;
-        $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);
+        if ($this->response->isWritable()) {
+            $samesite =  $samesite === null ? "Lax" : $samesite;
+            $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);
+        }
     }
 
     /**
@@ -212,13 +221,22 @@ class Response
     {
         if ($this->response->isWritable()) {
             $this->status = $status;
-            $this->response->status($status);
+            // $this->response->status($status);
             return $this;
         }
     }
     public function end(mixed $content = null)
     {
-        $this->response->end($content);
+        if ($this->response->isWritable()) {
+            $this->response->status($this->status);
+            $this->response->end($content);            
+        }
+    
+        else{
+            Console::warning("Cannot call Respones::end() method because has been ended");
+
+            // Console::json([$content]);
+        }
     }
 
     /**

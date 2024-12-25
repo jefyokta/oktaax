@@ -1,6 +1,4 @@
-<?php
-
-
+<?php 
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -35,6 +33,11 @@
  * SOFTWARE.
  *
  */
+ 
+
+
+
+
 return [
     "400" => "Bad Request",
     "401" => "Unauthorized",

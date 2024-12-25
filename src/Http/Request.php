@@ -35,9 +35,14 @@
  *
  */
 
+
+
+
+
 namespace Oktaax\Http;
 
 use InvalidArgumentException;
+use Oktaax\Http\Support\Validation;
 use OpenSwoole\Http\Request as HttpRequest;
 
 
@@ -47,6 +52,14 @@ use OpenSwoole\Http\Request as HttpRequest;
 
 class Request
 {
+
+    /**
+     * The current request instance.
+     * 
+     * @var Request
+     */
+    private static $instance;
+
     /**
      * 
      * @var ?int $fd
@@ -57,11 +70,8 @@ class Request
     /**
      * The original Swoole HTTP Request instance.
      * 
-     * @var \Swoole\Http\Request
+     * @var \OpenSwoole\Http\Request
      */
-
- 
-
 
     public $request;
 
@@ -98,11 +108,15 @@ class Request
      */
     public  $params;
 
+    public $post;
+
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
-        $this->body = $this->request->rawContent();
+        $this->post = $request->post;
+        $this->body = json_decode($this->request->rawContent()) ?? $this->post;
         $this->fd = $request->fd ?? null;
+        static::$instance = $this;
     }
 
     /**
@@ -127,6 +141,12 @@ class Request
      */
     public function __set($name, $value)
     {
+        $this->attributes[$name] = $value;
+    }
+
+    public function setHeader($name, $value)
+    {
+
         $this->attributes[$name] = $value;
     }
 
@@ -198,9 +218,10 @@ class Request
      * 
      * @return array
      */
-    public function all(): object
+    public function all(): array
     {
-        return (object) array_merge(
+
+        return  array_merge(
             $this->request->get ?? [],
             $this->request->post ?? [],
             $this->request->cookie ?? []
@@ -215,9 +236,7 @@ class Request
      */
     public function has(string $key): bool
     {
-        return isset($this->request->get[$key]) ||
-            isset($this->request->post[$key]) ||
-            isset($this->request->cookie[$key]);
+        return null !== $this->all()[$key] ?? null;
     }
 
     /**
@@ -334,84 +353,9 @@ class Request
             $data = $this->request['post'];
         }
 
-        $errors = [];
 
-        foreach ($rules as $key => $rule) {
-            $ruleSet = explode("|", $rule);
-            foreach ($ruleSet as $ruleItem) {
-                if ($ruleItem === "nullable") {
-                    isset($data[$key]) ?: $data[$key] = null;
-                }
-                if ($ruleItem === 'required' && (!isset($data[$key]) || empty($data[$key]))) {
-                    $errors[$key]['required'] = "$key is required";
-                }
 
-                if (isset($data[$key])) {
-                    if ($ruleItem === 'email'  && !filter_var($data[$key], FILTER_VALIDATE_EMAIL)) {
-                        $errors[$key]['email'] = "$key must be a valid email address";
-                    }
-
-                    if ($ruleItem === 'numeric'  && !is_numeric($data[$key])) {
-                        $errors[$key]['numeric'] = "$key must be a numeric value";
-                    }
-
-                    if ($ruleItem === 'alpha'  && !ctype_alpha($data[$key])) {
-                        $errors[$key]['alpha'] = "$key must contain only alphabetic characters";
-                    }
-
-                    if ($ruleItem === 'alpha_num'  && !ctype_alnum($data[$key])) {
-                        $errors[$key]['alpha_num'] = "$key must contain only letters and numbers";
-                    }
-
-                    if (str_starts_with($ruleItem, 'min:')) {
-                        $minLength = explode(":", $ruleItem)[1];
-                        if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set minimum's rule with a non-numeric!");
-                        if (isset($data[$key]) && strlen($data[$key]) < $minLength) {
-                            $errors[$key]['min'] = "$key must be at least $minLength characters";
-                        }
-                    }
-
-                    if (str_starts_with($ruleItem, 'max:')) {
-                        $maxLength = explode(":", $ruleItem)[1];
-                        if (!is_numeric($minLength)) throw new InvalidArgumentException("Cannot set maximum's rule with a non-numeric!");
-
-                        if (isset($data[$key]) && strlen($data[$key]) > $maxLength) {
-                            $errors[$key]['max'] = "$key must not exceed $maxLength characters";
-                        }
-                    }
-
-                    if (str_starts_with($ruleItem, 'between:')) {
-                        [$min, $max] = explode(",", explode(":", $ruleItem)[1]);
-                        if (isset($data[$key]) && (strlen($data[$key]) < $min || strlen($data[$key]) > $max)) {
-                            $errors[$key]['between'] = "$key must be between $min and $max characters";
-                        }
-                    }
-
-                    if ($ruleItem === 'confirmed') {
-                        if (!isset($data[$key . "_confirmation"])) {
-                            $errors[$key]['confirmed'] = "{$key}_confirmation not found";
-                        } elseif ($data[$key] !== $data[$key . '_confirmation']) {
-                            $errors[$key]['confirmed'] = "{$key}_confirmation does not match";
-                        }
-                    }
-
-                    if (str_starts_with($ruleItem, 'in:')) {
-                        $allowedValues = explode(",", explode(":", $ruleItem)[1]);
-                        if (isset($data[$key]) && !in_array($data[$key], $allowedValues)) {
-                            $errors[$key]['in'] = "$key must be one of the following: " . implode(", ", $allowedValues);
-                        }
-                    }
-
-                    if ($ruleItem === 'url'  && !filter_var($data[$key], FILTER_VALIDATE_URL)) {
-                        $errors[$key]['url'] = "$key must be a valid URL";
-                    }
-
-                    if ($ruleItem === 'boolean'  && !is_bool(filter_var($data[$key], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE))) {
-                        $errors[$key]['boolean'] = "$key must be true or false";
-                    }
-                }
-            }
-        }
+        $errors = (new Validation)->validate($data, $rules) ?? null;
         $this->errors = $errors;
 
         return new RequestValidated($data, !empty($errors) ? $errors : null);
@@ -464,5 +408,38 @@ class Request
     public function cookie($name)
     {
         return $this->request->cookie[$name] ?? null;
+    }
+    public static function getInstance()
+    {
+        return static::$instance;
+    }
+
+    public function hasHeader($key)
+    {
+        return isset($this->request->header[$key]);
+    }
+
+
+    public function isAjax()
+    {
+        return isset($this->request->header['x-requested-with']) && $this->request->header['x-requested-with'] === 'XMLHttpRequest';
+    }
+
+
+    public function __invoke($key)
+    {
+        $this->all()[$key];
+    }
+
+    public function bodies()
+    {
+
+        return array_merge($this->post ?? [], $this->body ?? ['body' => 'is-empty']);
+    }
+
+    public function parameters()
+    {
+
+        return array_merge($this->get ?? [], $this->bodies());
     }
 }

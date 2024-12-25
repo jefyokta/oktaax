@@ -1,4 +1,4 @@
-<?php
+<?php 
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,6 +33,9 @@
  * SOFTWARE.
  *
  */
+ 
+
+
 namespace Oktaax\Http\Middleware;
 
 use Firebase\JWT\JWT;

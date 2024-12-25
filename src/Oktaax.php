@@ -35,6 +35,10 @@
  *
  */
 
+
+
+
+
 namespace Oktaax;
 
 
@@ -146,7 +150,7 @@ class Oktaax implements Server, WithBlade
             null,
             null,
             new AppConfig(null, false, 300, 'Oktaax'),
-            new BladeConfig('views/cache', null),
+            new BladeConfig('views/', 'views/cache', null),
             'public/'
         );
     }
@@ -161,21 +165,18 @@ class Oktaax implements Server, WithBlade
     /** 
      * Set blade  configuration
      * 
-     * @param string $viewDir
-     * @param string $cacheDir
-     * @param string $functionDir
+     * @param BladeConfig $bladeConfig
+
      * @return static
      * 
      */
-    public function useBlade(
-        string   $viewDir = "views/",
-        string $cachedir = "views/cache/",
-        ?string $functionDir = null
+    public function blade(
+        BladeConfig $bladeConfig
     ): static {
-        $this->config->viewDir = $viewDir;
+        $this->config->viewDir = $bladeConfig->viewDir;
         $this->config->render_engine = "blade";
-        $this->config->blade->cacheDir = $cachedir;
-        $this->config->blade->functionDir = $functionDir;
+        $this->config->blade->cacheDir = $bladeConfig->cacheDir;
+        $this->config->blade->functionDir = $bladeConfig->functionDir;
         return $this;
     }
 
@@ -223,7 +224,7 @@ class Oktaax implements Server, WithBlade
 
         if (!file_exists($key)) {
             Console::error("Key not found!");
-            throw new InvalidResourceException("key not found!");
+            throw new InvalidResourceException("Key not found!");
         }
         $this->setServer('ssl_cert_file', $cert);
         $this->setServer('ssl_key_file', $key);
@@ -254,7 +255,6 @@ class Oktaax implements Server, WithBlade
         } elseif (is_string($setting)) {
             $this->serverSettings[$setting] = $value;
         } else {
-
             Console::error('$setting argument must ber array or string');
             throw new Error('$setting argument must ber array or string');
         }

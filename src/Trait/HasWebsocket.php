@@ -35,6 +35,10 @@
  *
  */
 
+
+
+
+
 namespace Oktaax\Trait;
 
 use Closure;
@@ -49,8 +53,7 @@ use OpenSwoole\Table;
 use OpenSwoole\Http\Request;
 use OpenSwoole\WebSocket\Frame;
 use OpenSwoole\WebSocket\Server;
-
-
+use Oktaax\Error\RecreateTableException;
 
 /**
  * Trait HasWebsocket
@@ -64,6 +67,7 @@ trait HasWebsocket
 {
     public Table $userTable;
 
+    public $number = 1;
 
     private $hasChannel = false;
     private $userTableConfig = ['size' => 1024];
@@ -257,12 +261,38 @@ trait HasWebsocket
     }
 
 
+
+
     private function boot()
     {
         $this->userTable = new Table($this->userTableConfig['size']);
-        if (is_callable($this->actions['table'])) {
-            $this->actions['table']($this->userTable);
-        }
+        // if (is_callable($this->actions['table'])) {
+        //     $this->actions['table']($this->userTable);
+        // }
+        $this->callIfCallable($this->actions['table'], $this->userTable);
+
         SupportTable::boot($this->userTable);
+    }
+    public function test(callable $callback)
+    {
+
+        if (SupportTable::getTable() !== null) {
+            throw new RecreateTableException("Cannot recreated table!. Table has been created");
+        }
+
+        $this->callIfCallable($callback, $this->number);
+        var_dump($this->number);
+    }
+
+    private function callIfCallable(?callable $callback, &...$params)
+    {
+        if (is_callable($callback)) {
+
+            try {
+                $callback(...$params);
+            } catch (\Throwable $th) {
+                throw new \RuntimeException($th->getMessage(), 0, $th);
+            }
+      }
     }
 }

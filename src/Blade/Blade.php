@@ -35,6 +35,10 @@
  *
  */
 
+
+
+
+
 namespace Oktaax\Blade;
 
 use Error;
@@ -53,7 +57,7 @@ class Blade
 
     /**
      * 
-     * @var  Illuminate\View\Factory $viewFactory
+     * @var  \Illuminate\View\Factory $viewFactory
      * 
      */
     private $viewFactory;
@@ -63,6 +67,7 @@ class Blade
      * @var OktaaxConfig $config
      */
     private OktaaxConfig $config;
+
 
 
     /**
@@ -76,6 +81,7 @@ class Blade
         $container = new Container();
         $filesystem = new Filesystem();
         $dispatcher = new \Illuminate\Events\Dispatcher($container);
+
 
         $bladeCompiler = new BladeCompiler($filesystem, $cacheDir);
 
@@ -98,6 +104,10 @@ class Blade
         //calling functions
         require_once __DIR__ . "/Functions.php";
 
+     
+
+
+
 
         //calling user functions
         if (!is_null($this->config->blade->functionDir)) {
@@ -111,12 +121,13 @@ class Blade
     private function registerDirectives(BladeCompiler $compiler)
     {
 
+        
         $compiler->directive('method', function ($expression) {
-            return "<?php echo \\Oktaax\\Blade\\BladeDirectives::methodField($expression); ?>";
+            return " echo \\Oktaax\\Blade\\BladeDirectives::methodField($expression); ?>";
         });
 
         $compiler->directive('okta', function () {
-            return "<?php  sayHello(); ?>";
+            return "  sayHello(); ?>";
         });
 
 
@@ -128,12 +139,12 @@ class Blade
          * check if request has $key
          */
         $compiler->directive("requestHas", function ($key) {
-            return "<?php if(\$request->has($key)): ?>";
+            return " if(request()->has($key)): ?>";
         });
 
 
         $compiler->directive("endRequestHas", function () {
-            return "<?php endif; ?>";
+            return " endif; ?>";
         });
 
         /**
@@ -142,19 +153,19 @@ class Blade
          */
 
         $compiler->directive("hasMessage", function () {
-            return "<?php if(!is_null(\$request->cookie('X-Message'))): ?>\n<?php \$message = \$request->cookie('X-Message') ?>";
+            return " if(!is_null(\$request->cookie('X-Message'))): ?>\n \$message = \$request->cookie('X-Message'): ?>";
         });
 
         $compiler->directive("endHasMessage", function () {
-            return "<?php endif; ?>";
+            return " endif; ?>";
         });
 
         $compiler->directive("hasErrorMessage", function () {
-            return "<?php if(!is_null(\$request->cookie('X-ErrMessage'))): ?>\n<?php \$message = \$request->cookie('X-Message') ?>";
+            return " if(!is_null(\$request->cookie('X-ErrMessage'))): ?>\n \$message = \$request->cookie('X-Message'): ?>";
         });
 
         $compiler->directive("endHasErrorMessage", function () {
-            return "<?php endif; ?>";
+            return " endif; ?>";
         });
 
 
@@ -162,13 +173,13 @@ class Blade
         $pubdir = $this->config->publicDir;
         $compiler->directive("vite", function ($resources) use ($pubdir) {
 
-            return "<?php echo \\Oktaax\\Blade\\BladeDirectives::vite($resources, '$pubdir'); ?>";
+            return " echo \\Oktaax\\Blade\\BladeDirectives::vite($resources, '$pubdir'); ?>";
         });
 
 
         if ($this->config->app->useCsrf) {
             $compiler->directive("csrf", function () {
-                return "<?php echo \\Oktaax\\Blade\\BladeDirectives::csrf(\$request); ?>";
+                return " echo \\Oktaax\\Blade\\BladeDirectives::csrf(\$request); ?>";
             });
         }
     }

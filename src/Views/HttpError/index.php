@@ -34,6 +34,9 @@
         <div>
             <h1 class="text-center"><?= $status ?? 404; ?></h1>
             <p class="text-center" style="color: #cbd5e1;opacity:.5"><?= $title ?? "Not Found"; ?></p>
+            <div style="margin-top: 20px;">
+                <p class="text-center" style="color: #cbd5e1;opacity:.2">Powered By Oktaax</p>
+            </div>
         </div>
     </div>
 

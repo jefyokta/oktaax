@@ -1,4 +1,8 @@
 <?php
+
+use Oktaax\Blade\Blade;
+use Oktaax\Http\Request;
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,8 +37,22 @@
  * SOFTWARE.
  *
  */
-function sayHello()
-{
-    return "Hello from okta";
+
+
+if (! function_exists('sayHello')) {
+    function sayHello()
+    {
+        return "Hello from okta";
+    }
+
+ 
 }
 
+
+
+if (! function_exists('csrf_token')) {
+    function csrf_token()
+    {
+        return request()->_token;
+    }
+}

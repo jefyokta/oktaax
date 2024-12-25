@@ -1,5 +1,4 @@
-<?php
-
+<?php 
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -34,6 +33,10 @@
  * SOFTWARE.
  *
  */
+ 
+
+
+
 
 
 
@@ -89,6 +92,7 @@ class Logger
                 require __DIR__ . "/../../Views/Error/index.php";
                 $content = ob_get_clean();
 
+          
 
                 return   $response->end($content);
             }

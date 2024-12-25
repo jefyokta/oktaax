@@ -1,5 +1,4 @@
-<?php
-
+<?php 
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -34,6 +33,10 @@
  * SOFTWARE.
  *
  */
+ 
+
+
+
 
  namespace Oktaax\Interfaces;
  
@@ -50,16 +53,6 @@
       * @return static
       */
      public function setView(string $viewDir, string $render_engine);
- 
-     /**
-      * Set Blade configuration.
-      *
-      * @param string $viewDir
-      * @param string $cacheDir
-      * @param string|null $functionDir
-      * @return static
-      */
-     public function useBlade(string $viewDir = "views/", string $cacheDir = "views/cache/", ?string $functionDir = null);
  
      /**
       * Enable SSL for the server.

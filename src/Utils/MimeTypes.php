@@ -1,5 +1,4 @@
-<?php
-
+<?php 
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -34,6 +33,10 @@
  * SOFTWARE.
  *
  */
+ 
+
+
+
 
 
 
@@ -151,5 +154,6 @@ return [
     'asx' => 'video/x-ms-asf',
     'asf' => 'video/x-ms-asf',
     'wmv' => 'video/x-ms-wmv',
-    'avi' => 'video/x-msvideo'
+    'avi' => 'video/x-msvideo',
+    
 ];
