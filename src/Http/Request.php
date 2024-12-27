@@ -110,12 +110,15 @@ class Request
 
     public $post;
 
+    public $uri;
+
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
         $this->post = $request->post;
         $this->body = json_decode($this->request->rawContent()) ?? $this->post;
         $this->fd = $request->fd ?? null;
+        $this->uri = $request->server['request_uri'] ?? '/';
         static::$instance = $this;
     }
 
@@ -144,10 +147,16 @@ class Request
         $this->attributes[$name] = $value;
     }
 
+    /**
+     * 
+     * @param string $name
+     * @param mixed $value
+     */
+
     public function setHeader($name, $value)
     {
 
-        $this->attributes[$name] = $value;
+        $this->attributes['header'][$name] = $value;
     }
 
     /**
@@ -317,6 +326,17 @@ class Request
             strpos($this->request->header['accept'], 'application/json') !== false;
     }
 
+    /**
+     * Determine if the request is requesting JavaScript.
+     * 
+     * @return bool
+     */
+
+    public function wantsJS(){
+        return isset($this->request->header['accept']) &&
+            strpos($this->request->header['accept'], 'application/javascript') !== false;
+    }
+
     public function protocol()
     {
         return !empty($this->request->server['https']) && $this->request->server['https'] !== 'off' ? 'https' : 'http';
@@ -434,7 +454,7 @@ class Request
     public function bodies()
     {
 
-        return array_merge($this->post ?? [], $this->body ?? ['body' => 'is-empty']);
+        return array_merge($this->post ?? [], (array)$this->body ?? []);
     }
 
     public function parameters()

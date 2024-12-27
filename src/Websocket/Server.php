@@ -50,9 +50,7 @@ class Server implements WebSocketServer
 
     public int|array $fds = [];
 
-    public Client $client;
-
-    public Table $table;
+    protected Client $client;
 
     public SWServer $swooleWebsocket;
 
@@ -73,13 +71,13 @@ class Server implements WebSocketServer
 
         if (is_int($receivers)) {
             $message = is_callable($data) ? $data(new Client($receivers)) : $data;
-            $this->swooleWebsocket->push($receivers, $message, $opcode, $flags);
+            $this->push($receivers, $message, $opcode, $flags);
         } else {
 
             if (is_array($receivers)) {
                 foreach ($receivers as $fd) {
                     $message = is_callable($data) ? $data(new Client($fd)) : $data;
-                    $this->swooleWebsocket->push($fd, $message, $opcode, $flags);
+                    $this->push($fd, $message, $opcode, $flags);
 
                     if ($delay > 0) {
                         Coroutine::sleep($delay);
@@ -123,8 +121,34 @@ class Server implements WebSocketServer
         $this->swooleWebsocket->tick($ms, $callback, ...$params);
     }
 
-    public function reject($fd, $reason, $code)
+    public function after($ms, $callback, ...$params)
     {
-        $this->swooleWebsocket->disconnect($fd, \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL, $reason);
+        $this->swooleWebsocket->after($ms, $callback, ...$params);
+    }
+
+
+    public function getSender(): Client
+    {
+        return $this->client;
+    }
+
+    public function getSenderFd(): int
+    {
+        return $this->client->fd;
+    }
+
+    public function getSenderData(): mixed
+    {
+        return $this->client->data;
+    }
+
+    public function kickSender( $reason = 'Kicked by server',$code = SWServer::WEBSOCKET_CLOSE_NORMAL)
+    {
+        $this->swooleWebsocket->disconnect($this->getSenderFd(), $code, $reason);
+    }
+
+    public function reject($fd, $reason, $code = \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL)
+    {
+        $this->swooleWebsocket->disconnect($fd, $code, $reason);
     }
 };

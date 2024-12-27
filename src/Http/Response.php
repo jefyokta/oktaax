@@ -221,22 +221,26 @@ class Response
     {
         if ($this->response->isWritable()) {
             $this->status = $status;
-            // $this->response->status($status);
             return $this;
         }
     }
+
+    /**
+     * End the response.
+     *
+     * @param mixed $content The content to send in the response.
+     * 
+     * @final
+     * 
+     */
     public function end(mixed $content = null)
     {
         if ($this->response->isWritable()) {
             $this->response->status($this->status);
-            $this->response->end($content);            
+              $this->response->end($content);            
         }
     
-        else{
-            Console::warning("Cannot call Respones::end() method because has been ended");
-
-            // Console::json([$content]);
-        }
+       
     }
 
     /**
@@ -298,10 +302,35 @@ class Response
      * 
      * rederirect back
      * 
+     * @param string $default
+     * 
      */
 
     public function back($default = '/')
     {
         $this->redirect($this->request->request->header['referer'] ?? $default);
+    }
+
+
+    /**
+     * 
+     * Render http error
+     * 
+     * @param int $code
+     * 
+     * @return string
+     * 
+     */
+    public function renderHttpError(int $code)
+    {
+        $this->status($code);
+        $title = require __DIR__ . "/../Utils/HttpError.php";
+        ob_start();
+        $req = $this->request;
+        $status = $this->status;
+        $title = $title[$status];
+        require __DIR__ . "/../Views/HttpError/index.php";
+        $content = ob_get_clean();
+        return $this->end($content);
     }
 }

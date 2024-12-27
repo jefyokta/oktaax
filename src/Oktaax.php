@@ -278,32 +278,6 @@ class Oktaax implements Server, WithBlade
         $this->config->app->useCsrf = true;
     }
 
-    /**
-     * 
-     * Registering Application Routes
-     * @param string $path
-     * @param string|callable|array $handler
-     * @param callable|array|string ...$middlewares
-     */
-
-    private function addRoute(string $path, string $method, string|callable|array $handler, array $middlewares)
-    {
-        if (strpos($path, '{') === false) {
-            $this->route[$path][$method] = [
-                "action" => $handler,
-                "middleware" => $middlewares,
-                "isDynamic" => false
-            ];
-        } elseif (strpos($path, '{') !== false && strpos($path, '}') !== false) {
-            $this->route[$path][$method] = [
-                "action" => $handler,
-                "middleware" => $middlewares,
-                "isDynamic" => true
-            ];
-        } else {
-            throw new Error("Dynamic route must has `{` and `}`");
-        }
-    }
 
 
 
@@ -409,7 +383,7 @@ class Oktaax implements Server, WithBlade
     private function handlerPathMiddleware()
     {
         foreach ($this->pathMiddlewares as $path => $value):
-            foreach ($this->route as $route => &$val):
+            foreach ($this->routes as $route => &$val):
                 if ($route === $path || strpos($route, $path . "/") === 0):
                     foreach ($val as &$method):
                         foreach ($value as $key => $middleware) :
@@ -461,4 +435,11 @@ class Oktaax implements Server, WithBlade
 
         $this->config = $config;
     }
+
+    public function getRoutes()
+    {
+        return $this->routes;
+    }
+
+
 };

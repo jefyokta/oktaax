@@ -42,7 +42,8 @@
  
  use Oktaax\Http\Request;
  use Oktaax\Http\Response as OktaResponse;
- 
+use Oktaax\Oktaax;
+
  interface Server
  {
      /**
@@ -165,6 +166,12 @@
       * @return static
       */
      public function use(callable $globalMiddleware);
+
+
+     public function path(string $path, Oktaax $app);
+
+
+     public function getRoutes();
  
     
  }

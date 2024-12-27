@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 
@@ -41,11 +42,13 @@ namespace Oktaax\Trait;
 
 
 use Error;
+use Oktaax\Error\CombineException;
 use Oktaax\Http\Middleware\Csrf;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
 use Oktaax\Interfaces\WithBlade;
+use Oktaax\Oktaax;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\BladeConfig;
 use Oktaax\Types\OktaaxConfig;
@@ -62,7 +65,7 @@ trait Requestable
      *
      * @var array
      */
-    protected $route = [];
+    protected $routes = [];
 
 
     /**
@@ -72,7 +75,7 @@ trait Requestable
      */
     protected $globalMiddleware = [];
 
-  /**
+    /**
      * Http Response
      *
      * @var OktaResponse
@@ -133,7 +136,7 @@ trait Requestable
     public function post(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
     {
 
-        $this->addroute($path, "POST", $callback, $middlewares);
+        $this->addRoute($path, "POST", $callback, $middlewares);
         return $this;
     }
 
@@ -240,10 +243,25 @@ trait Requestable
     }
 
 
+  
     /**
-     * Placeholder function for path. Can be used for future expansion.
+     * 
+     * Registering Application Routes
+     * @param string $path
+     * @param  Oktaax $app
      */
-    public function path() {}
+    public function path(string $path, Oktaax $app)
+    {
+
+        $routes =  $app->getRoutes();
+        foreach ($routes as $route => $methods) {
+            foreach ($methods as $method => $handler) {
+                $this->routes[str_ends_with($path, '/') ? $path : $path . "/" . $route][$method] = $handler;
+            }
+        }
+
+        return $this;
+    }
 
 
 
@@ -298,13 +316,13 @@ trait Requestable
     private function matchRoute(string $route, string $method, Request &$request)
     {
         $route = rtrim($route, '');
-        if (isset($this->route[$route][$method])) {
-            $handler = $this->route[$route][$method]['action'];
-            $middlewares = $this->route[$route][$method]['middleware'];
+        if (isset($this->routes[$route][$method])) {
+            $handler = $this->routes[$route][$method]['action'];
+            $middlewares = $this->routes[$route][$method]['middleware'];
             return ["route" => $route, "handler" => $handler, "middlewares" => $middlewares];
         }
 
-        foreach ($this->route as $pattern => $methods) {
+        foreach ($this->routes as $pattern => $methods) {
             if (isset($methods[$method]) && $methods[$method]['isDynamic']) {
                 $regex = preg_replace('/\{([a-zA-Z_]+)\}/', '([^/]+)', str_replace('/', '\/', $pattern));
 
@@ -452,6 +470,37 @@ trait Requestable
             $this->server = new HttpServer($this->host, $this->port, $this->config->mode, $this->config->sock_type);
         } else {
             $this->server = new HttpServer($this->host, $this->port);
+        }
+    }
+
+    /**
+     * 
+     * Registering Application Routes
+     * @param string $path
+     * @param string|callable|array $handler
+     * @param callable|array|string ...$middlewares
+     */
+
+    private function addRoute(string $path, string $method, string|callable|array $handler, array $middlewares)
+    {
+
+        if (method_exists($this, 'bootLaravel')) {
+            throw new CombineException("You can't add route if you using Laravel and Requestable at the same time");
+        }
+        if (strpos($path, '{') === false) {
+            $this->routes[$path][$method] = [
+                "action" => $handler,
+                "middleware" => $middlewares,
+                "isDynamic" => false
+            ];
+        } elseif (strpos($path, '{') !== false && strpos($path, '}') !== false) {
+            $this->routes[$path][$method] = [
+                "action" => $handler,
+                "middleware" => $middlewares,
+                "isDynamic" => true
+            ];
+        } else {
+            throw new Error("Dynamic route must has `{` and `}`");
         }
     }
 }
