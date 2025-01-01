@@ -69,7 +69,7 @@ class Client
     {
         $this->fd = $fd;
 
-        if (! is_null($data)) {
+        if (! is_null($data) && is_string($data)) {
             $decodedData =  json_decode($data, true);
             $this->data = json_last_error() === JSON_ERROR_NONE ? $decodedData : $data;
         }
@@ -84,5 +84,10 @@ class Client
     public function inChannel(Channel $channel): bool
     {
         return (new $channel)->eligible($this);
+    }
+
+    public function __set($name, $value)
+    {
+        $this->identify[$name] = $value;
     }
 }

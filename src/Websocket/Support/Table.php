@@ -38,6 +38,7 @@
 
 namespace Oktaax\Websocket\Support;
 
+use Illuminate\Support\Collection;
 use OpenSwoole\Table as SwooleTable;
 
 class Table
@@ -108,9 +109,9 @@ class Table
     /**
      * Retrieve all rows as a collection.
      *
-     * @return array The collection of all rows.
+     * @return Collection The collection of all rows.
      */
-    public static function all(): array
+    public static function all(): Collection
     {
         $collection = [];
 
@@ -118,7 +119,7 @@ class Table
             $collection[] = $row;
         }
 
-        return $collection;
+        return collect($collection);
     }
 
     /**

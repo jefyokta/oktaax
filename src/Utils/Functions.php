@@ -55,6 +55,7 @@ if (! function_exists('oktaa')) {
 
 if (! function_exists('oktaax')) {
     /**
+     * return a instance of oktaax. A http server
      * 
      */
     function oktaax(): Server
@@ -84,33 +85,22 @@ if (! function_exists('xsocket')) {
  * 
  * @return Request
  */
-// if (! function_exists('request')) {
-//     function request(): ?Request
-//     {
-
-//         return Request::getInstance() ;
-//     }
-// }
-
-
-
-if (! function_exists('dd')) {
-    function dd()
+if (!function_exists('xrequest')) {
+    function xrequest(): ?Request
     {
-        array_map(function ($x) {
-            var_dump($x);
-        }, func_get_args());
-        return;
+        return Request::getInstance();
     }
 }
 
-// if (! function_exists('csrf_token') ) {
 
-//     function csrf_token()
-//     {
-//         return request()->_token;
-//     }
-// }
+
+if (! function_exists('xcsrf_token') ) {
+
+    function xcsrf_token()
+    {
+        return xrequest()->_token;
+    }
+}
 
 if (! function_exists('stringable')) {
     function stringable(string $string): Stringable

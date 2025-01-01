@@ -44,15 +44,7 @@ if (! function_exists('sayHello')) {
     {
         return "Hello from okta";
     }
-
- 
 }
 
 
 
-if (! function_exists('csrf_token')) {
-    function csrf_token()
-    {
-        return request()->_token;
-    }
-}

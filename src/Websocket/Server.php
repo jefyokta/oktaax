@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,16 +34,16 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 namespace Oktaax\Websocket;
 
 use Error;
+use Oktaax\Error\EventNotDecleared;
 use Oktaax\Interfaces\Channel;
 use Oktaax\Interfaces\WebSocketServer;
 use OpenSwoole\Coroutine;
-use OpenSwoole\Table;
 use OpenSwoole\WebSocket\Server as SWServer;
 
 class Server implements WebSocketServer
@@ -51,18 +52,38 @@ class Server implements WebSocketServer
     public int|array $fds = [];
 
     protected Client $client;
+    public $event;
+    public static $eventDefault = 'general';
+
+    private $messages = [
+        "event"=>null,
+        "message" => null
+    ];
 
     public SWServer $swooleWebsocket;
 
-    private function push($fd, $data, $opcode = 1, $flags = 1)
-    {
-        $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
-    }
     public function __construct(SWServer $server, Client $client)
     {
         $this->client = $client;
         $this->swooleWebsocket = $server;
+        $this->messages["event"] = static::$eventDefault ?? null;
     }
+
+
+    private function push($fd, $data, $opcode = 1, $flags = 1)
+    {
+        if (is_null($this->event) && null === static::$eventDefault) {
+            throw new EventNotDecleared("Cannot push a message without event");
+        }
+        if (is_array($data) || is_object($data)) {
+            $data = json_encode([
+                "event" => $this->event ?? static::$eventDefault,
+                "message" => $data
+            ], JSON_PRETTY_PRINT);
+        }
+        $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
+    }
+
 
 
     public function broadcast(mixed $data, int $delay = 0, $opcode = 1, $flags = 1): void
@@ -142,7 +163,7 @@ class Server implements WebSocketServer
         return $this->client->data;
     }
 
-    public function kickSender( $reason = 'Kicked by server',$code = SWServer::WEBSOCKET_CLOSE_NORMAL)
+    public function kickSender($reason = 'Kicked by server', $code = SWServer::WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($this->getSenderFd(), $code, $reason);
     }
@@ -150,5 +171,17 @@ class Server implements WebSocketServer
     public function reject($fd, $reason, $code = \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
+    }
+    public function event($eventName)
+    {
+
+        $this->event = $eventName;
+        return $this;
+    }
+
+    public static function setDefaultEvent($eventName)
+    {
+
+        static::$eventDefault = $eventName;
     }
 };

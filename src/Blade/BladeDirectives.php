@@ -62,15 +62,14 @@ class BladeDirectives
      * 
      * Blade csrf field
      * 
-     * @param \Oktaax\Http\Request $request
      * @return string
      * 
      * 
      */
-    public static function csrf(Request $request)
+    public static function csrf()
     {
 
-        return '<input type="hidden" name="_token" value="' . $request->_token . '">';
+        return '<input type="hidden" name="_token" value="' . xcsrf_token() . '">';
     }
 
     /**

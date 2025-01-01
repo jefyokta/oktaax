@@ -332,7 +332,8 @@ class Request
      * @return bool
      */
 
-    public function wantsJS(){
+    public function wantsJS()
+    {
         return isset($this->request->header['accept']) &&
             strpos($this->request->header['accept'], 'application/javascript') !== false;
     }

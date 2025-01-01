@@ -8,3 +8,7 @@ log
 node_modules/
 test/
 test2/
+.rest
+index.html
+test.mp4
+watermark

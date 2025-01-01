@@ -10,11 +10,8 @@ $app =  new class extends Oktaax\Oktaax {
 $app->setServer("worker_num", 4);
 $app->laravelRegister(
     new \Oktaax\Types\Laravel(
-        host: 'jepi.okta',
-        directory: __DIR__ . "/../test2/"
+        directory:  "/Applications/jefyokta/esuratdesa"
     ),
-  
-
 );
 
 $app->listen(3000, '127.0.0.1', function ($url) {

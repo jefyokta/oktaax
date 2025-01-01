@@ -135,7 +135,7 @@ class Response
 
                 $viewContent = $blade->render($view, $data);
                 $this->response->header("Content-Type", "text/html");
-                $this->response->end($viewContent);
+                return $this->response->end($viewContent);
             } catch (\Throwable $th) {
                 $this->response->status(500);
                 throw $th;
@@ -152,7 +152,7 @@ class Response
                     include $viewFile;
                     $viewContent = ob_get_clean();
                     $this->response->header("Content-Type", "text/html");
-                    $this->response->end($viewContent);
+                    return   $this->response->end($viewContent);
                 } else {
                     $this->response->status(404);
                     $this->response->end("View file not found.");
@@ -202,12 +202,12 @@ class Response
      * @param int|null $offset The offset at which to start sending the file.
      * @param int|null $length The length of the content to send.
      */
-    public function sendfile(string $filename, int $offset = 0, ?int $length = null)
+    public function sendfile(string $filename, int $offset = 0, ?int $length = 0)
     {
         if ($length === null) {
             $length = filesize($filename) - $offset;
         }
-        $this->response->sendfile($filename, $offset, $length);
+        return  $this->response->sendfile($filename, $offset, $length);
     }
 
     /**
@@ -237,10 +237,8 @@ class Response
     {
         if ($this->response->isWritable()) {
             $this->response->status($this->status);
-              $this->response->end($content);            
+            return  $this->response->end($content);
         }
-    
-       
     }
 
     /**
@@ -332,5 +330,11 @@ class Response
         require __DIR__ . "/../Views/HttpError/index.php";
         $content = ob_get_clean();
         return $this->end($content);
+    }
+
+
+    public function write(string $data)
+    {
+        return $this->response->write($data);
     }
 }
