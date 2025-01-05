@@ -48,6 +48,7 @@ use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
 use Oktaax\Interfaces\WithBlade;
+use Oktaax\Server as OktaaxServer;
 use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\BladeConfig;
@@ -73,17 +74,22 @@ class Oktaax implements Server, WithBlade
     /**
      * Swoole HTTP server instance.
      *
-     * @var Swoole\Http\Server | Swoole\WebSocket\Server
+     * @var \OpenSwoole\WebSocket\Server
      * 
      */
 
-    protected HttpServer $server;
+    protected $server;
+
     /**
      * Server Settings
      * 
      * @var array
      */
     protected array $serverSettings = [];
+
+
+
+    protected $swoolevents = [];
 
 
 
@@ -252,12 +258,9 @@ class Oktaax implements Server, WithBlade
                 trigger_error(" value would'nt be save", E_USER_WARNING);
             }
             $this->serverSettings = $setting;
-        } elseif (is_string($setting)) {
-            $this->serverSettings[$setting] = $value;
         } else {
-            Console::error('$setting argument must ber array or string');
-            throw new Error('$setting argument must ber array or string');
-        }
+            $this->serverSettings[$setting] = $value;
+        } 
     }
 
 
@@ -310,11 +313,10 @@ class Oktaax implements Server, WithBlade
 
 
         $this->port = $port;
+
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
+
         $this->init();
-        if (is_null($this->server)) {
-            $this->init();
-        }
 
         $this->server->set($this->serverSettings);
 
@@ -329,7 +331,9 @@ class Oktaax implements Server, WithBlade
         } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
             $callback($this->protocol . "://" . $this->host . ":" . $this->port);
         }
+        $this->makeAGlobalServer();
 
+        $this->bootEvents();
         $this->onRequest();
 
         $this->server->start();
@@ -347,6 +351,8 @@ class Oktaax implements Server, WithBlade
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
+
+            // new OktaaxServer($this->server);
             $this->response = $response;
             $path = $request->request->server['request_uri'];
             $file = $this->config->publicDir . $path;
@@ -442,4 +448,31 @@ class Oktaax implements Server, WithBlade
     }
 
 
+    public function on(string $event, callable $handler)
+    {
+
+        $handledEvents = $this->getHandledEvents();
+        if (in_array(strtolower($event), $handledEvents)) {
+            throw new Error("Cannot declare handled event!");
+        }
+
+        $this->swoolevents[$event] = $handler;
+    }
+
+    public function getHandledEvents(){
+        return ['request'];
+    }
+
+    protected function makeAGlobalServer()
+    {
+
+        new OktaaxServer($this->server);
+    }
+
+    protected function bootEvents()
+    {
+        foreach ($this->swoolevents as $event => $handler) {
+            $this->server->on($event, $handler);
+        }
+    }
 };

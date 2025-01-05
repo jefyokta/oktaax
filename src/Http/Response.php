@@ -43,6 +43,7 @@ namespace Oktaax\Http;
 
 use Oktaax\Blade\Blade;
 use Oktaax\Console;
+use Oktaax\Error\ViewNotFound;
 use OpenSwoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Types\OktaaxConfig;
@@ -126,7 +127,7 @@ class Response
             }
         }
 
-
+        //blade
         if ($this->config->render_engine === 'blade') {
             try {
                 $blade = new Blade($viewsDir, $cacheDir, $this->config, $this->request);
@@ -154,8 +155,7 @@ class Response
                     $this->response->header("Content-Type", "text/html");
                     return   $this->response->end($viewContent);
                 } else {
-                    $this->response->status(404);
-                    $this->response->end("View file not found.");
+                    throw new ViewNotFound("View file not found: $viewFile");
                 }
             } catch (\Throwable $th) {
                 $this->response->status(500);
@@ -219,10 +219,8 @@ class Response
      */
     public function status(int $status)
     {
-        if ($this->response->isWritable()) {
-            $this->status = $status;
-            return $this;
-        }
+        $this->status = $status;
+        return $this;
     }
 
     /**

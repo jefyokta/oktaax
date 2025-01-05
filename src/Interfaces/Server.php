@@ -40,8 +40,7 @@
 
  namespace Oktaax\Interfaces;
  
- use Oktaax\Http\Request;
- use Oktaax\Http\Response as OktaResponse;
+
 use Oktaax\Oktaax;
 
  interface Server

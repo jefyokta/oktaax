@@ -42,30 +42,27 @@ namespace Oktaax\Trait;
 
 
 use Error;
-use Oktaax\Error\CombineException;
-use Oktaax\Http\Middleware\Csrf;
-use Oktaax\Http\Request;
-use Oktaax\Http\Response as OktaResponse;
-use Oktaax\Interfaces\Server;
-use Oktaax\Interfaces\WithBlade;
 use Oktaax\Oktaax;
-use Oktaax\Types\AppConfig;
-use Oktaax\Types\BladeConfig;
-use Oktaax\Types\OktaaxConfig;
 use ReflectionMethod;
-use OpenSwoole\Http\Request as SwooleRequest;
+use Oktaax\Http\Request;
 use OpenSwoole\Http\Response;
+use Oktaax\Error\CombineException;
+use Oktaax\Http\Response as OktaResponse;
 use OpenSwoole\Http\Server as HttpServer;
+use OpenSwoole\Http\Request as SwooleRequest;
 
 
 trait Requestable
 {
+
     /**
      * Application route definitions.
      *
      * @var array
      */
     protected $routes = [];
+
+    protected $controller_namespace = "Appx\\Controller\\";
 
 
     /**
@@ -243,7 +240,7 @@ trait Requestable
     }
 
 
-  
+
     /**
      * 
      * Registering Application Routes
@@ -375,6 +372,9 @@ trait Requestable
                         $class = explode("." || "@", $handler)[0];
                         $parts = preg_split("/[.@]/", $handler);
                         $class = $parts[0];
+                        if (!class_exists($class)) {
+                            $class = $this->controller_namespace . $class;
+                        }
                         $method = $parts[1];
                         $initial = new $class;
                         call_user_func([$initial, $method], $request, $response, $param);
@@ -383,6 +383,9 @@ trait Requestable
                     } elseif (is_array($handler)) {
 
                         $class = $handler[0];
+                        if (!class_exists($class)) {
+                            $class = $this->controller_namespace . $class;
+                        }
                         $method = $handler[1];
 
                         $reflection = new ReflectionMethod($class, $method);
@@ -431,6 +434,9 @@ trait Requestable
                     $parts = preg_split("/[.@]/", $middleware);
                     $class = $parts[0];
                     $method = $parts[1];
+                    if (!class_exists($class)) {
+                        $class = $this->controller_namespace . $class;
+                    }
                     $initial = new $class;
                     call_user_func([$initial, $method], $request, $response, $next, $param);
                 } elseif (is_array($middleware)) {
@@ -438,7 +444,7 @@ trait Requestable
 
                     $class = $middleware[0];
                     if (!class_exists($class)) {
-                        throw new Error("Class $class does'nt exist");
+                        $class = $this->controller_namespace . $class;
                     }
                     $method = $middleware[1] ?? throw new Error("Method not found!");
                     $reflection = new ReflectionMethod($class, $method);
@@ -485,8 +491,9 @@ trait Requestable
     {
 
         if (method_exists($this, 'bootLaravel')) {
-            throw new CombineException("You can't add route if you using Laravel and Requestable at the same time");
+            throw new CombineException("You can't add route if you using Laravelable and Requestable at the same time");
         }
+
         if (strpos($path, '{') === false) {
             $this->routes[$path][$method] = [
                 "action" => $handler,
@@ -502,5 +509,10 @@ trait Requestable
         } else {
             throw new Error("Dynamic route must has `{` and `}`");
         }
+    }
+
+    public function setControllerNamespace($namespace){
+
+        $this->controller_namespace = $namespace;
     }
 }

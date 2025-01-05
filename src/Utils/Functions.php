@@ -43,6 +43,7 @@ use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Illuminate\Support\Stringable;
+use Oktaax\Server as OktaaxServer;
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -102,9 +103,11 @@ if (! function_exists('xcsrf_token') ) {
     }
 }
 
-if (! function_exists('stringable')) {
-    function stringable(string $string): Stringable
-    {
-        return new Stringable($string);
-    }
+if (! function_exists('xserver')) {
+/**
+ * @return \OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
+ */
+  function xserver(){
+    return OktaaxServer::get();
+  }
 }

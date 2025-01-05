@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -49,7 +50,11 @@ trait Laravelable
     private \Oktaax\Http\Request $request;
     private \Oktaax\Http\Response $response;
 
+    /**
+     * @var \Illuminate\Foundation\Application $app
+     */
     private $app;
+    
     private $laravel;
 
     /**

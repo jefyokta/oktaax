@@ -53,8 +53,8 @@ class Table
     /**
      * Initialize the global Swoole Table.
      *
-     * @param array $columns Format: ['column_name' => [type, size]]
-     * @param int $size Maximum number of rows for the table.
+     * @param SwooleTable $table
+     * 
      * 
      * @throws \RuntimeException If the table is already initialized.
      */

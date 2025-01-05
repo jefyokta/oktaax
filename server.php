@@ -1,5 +1,6 @@
 <?php
 
+use Appx\Controller\Home;
 use Oktaax\Http\Response;
 use Oktaax\Http\Support\Validation;
 use Oktaax\Websocket\Server;
@@ -8,7 +9,6 @@ use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Oktaax\Websocket\Client;
 use OpenSwoole\Coroutine;
-use OpenSwoole\Http\Server as OpenSwooleServer;
 
 require_once "vendor/autoload.php";
 
@@ -23,24 +23,38 @@ class Even implements Channel
 }
 
 $app = new class extends Oktaax {
-    // use HasWebsocket;
+    use HasWebsocket;
 };
 
-// $app->ws('even', function (Server $server, Client $client) {
-//     $server->reply(['name'=>'even','client'=>$client]);
-// });
+$app->setServer('task_worker_num', 2);
+$app->setServer('task_enable_coroutine', true);
+
+
 
 $array = ["jefy", 'okta', 'mipa', 'ipang', 'bangpan', 'alet', 'pupun', 'cibin'];
-
-$app->get("/", function ($req, Response $res) use ($array) {
-
-    foreach ($array as $a) {
-        $res->write($a . "\n");
-        Coroutine::sleep(1);
-    }
-    $res->end();
+$app->ws("a", function () {
+    // xserver()->push("k",1);
 });
+$app->get("/",'Home.index');
 
+
+
+$app->on('task', function () use ($app) {
+    echo "\nworker doin task\n";
+
+    go(function () use ($app) {
+
+        Coroutine::writeFile('server_info', json_encode([xserver(),$app], JSON_PRETTY_PRINT));
+    });
+    // });
+
+    return 1;
+});
+$app->on('finish', function ($serv, $id, $result) {
+    // xserver()->push(1,$result);
+
+    var_dump($result, ['fd' => $id]);
+});
 $app->listen(3000, function ($url) {
     echo "started at {$url}";
 });

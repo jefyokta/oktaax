@@ -41,19 +41,15 @@
 
 namespace Oktaax\Trait;
 
-use Closure;
 use Error;
-use InvalidArgumentException;
-use Oktaax\Http\Request as HttpRequest;
-use Oktaax\Websocket\Client;
-use Oktaax\Websocket\Server as WServer;
-use Oktaax\Websocket\Support\Table as SupportTable;
-use ReflectionFunction;
 use OpenSwoole\Table;
+use Oktaax\Websocket\Client;
 use OpenSwoole\Http\Request;
 use OpenSwoole\WebSocket\Frame;
 use OpenSwoole\WebSocket\Server;
-use Oktaax\Error\RecreateTableException;
+use Oktaax\Http\Request as HttpRequest;
+use Oktaax\Websocket\Server as WServer;
+use Oktaax\Websocket\Support\Table as SupportTable;
 
 /**
  * Trait HasWebsocket
@@ -67,12 +63,13 @@ trait HasWebsocket
 {
     public Table $userTable;
 
-    public $number = 1;
+
+
 
     private $hasChannel = false;
     private $userTableConfig = ['size' => 1024];
     /**
-     * Callback for handling the "onOpen" event.
+  
      *
      * @var array
      */
@@ -190,7 +187,10 @@ trait HasWebsocket
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         $this->port = $port;
         $this->boot();
-        $this->init()->onRequest();
+        $this->init();
+        $this->makeAGlobalServer();
+        $this->onRequest();
+        $this->bootEvents();
         $this->eventRegistery($hostOrcallback, $callback);
         $this->server->start();
     }
@@ -226,6 +226,7 @@ trait HasWebsocket
      */
     private function open(Server $server, Request $request): void
     {
+
         $httpRequest = new HttpRequest($request);
         $client = new Client($request->fd);
         $serv =  new WServer($server, $client);
@@ -266,23 +267,10 @@ trait HasWebsocket
     private function boot()
     {
         $this->userTable = new Table($this->userTableConfig['size']);
-        // if (is_callable($this->actions['table'])) {
-        //     $this->actions['table']($this->userTable);
-        // }
         $this->callIfCallable($this->actions['table'], $this->userTable);
-
         SupportTable::boot($this->userTable);
     }
-    public function test(callable $callback)
-    {
-
-        if (SupportTable::getTable() !== null) {
-            throw new RecreateTableException("Cannot recreated table!. Table has been created");
-        }
-
-        $this->callIfCallable($callback, $this->number);
-        var_dump($this->number);
-    }
+  
 
     private function callIfCallable(?callable $callback, &...$params)
     {
@@ -293,6 +281,11 @@ trait HasWebsocket
             } catch (\Throwable $th) {
                 throw new \RuntimeException($th->getMessage(), 0, $th);
             }
-      }
+        }
+    }
+
+    public function getHandledEvents()
+    {
+        return ["request", "start", "message", "open", "close"];
     }
 }
