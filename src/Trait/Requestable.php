@@ -62,7 +62,9 @@ trait Requestable
      */
     protected $routes = [];
 
-    protected $controller_namespace = "Appx\\Controller\\";
+    public string $controller_namespace = "Appx\\Controller\\";
+    public string $middleware_namespace = "Appx\\Middleware\\";
+
 
 
     /**
@@ -72,12 +74,7 @@ trait Requestable
      */
     protected $globalMiddleware = [];
 
-    /**
-     * Http Response
-     *
-     * @var OktaResponse
-     */
-    private OktaResponse $response;
+
 
 
     /**
@@ -90,8 +87,7 @@ trait Requestable
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
-            $this->response = $response;
-            $path = $request->request->server['request_uri'];
+            $path = $request->server['request_uri'];
             $file = $this->config->publicDir . $path;
             if (is_file($file) && file_exists($file)) {
                 $extension = pathinfo($file, PATHINFO_EXTENSION);
@@ -368,35 +364,26 @@ trait Requestable
 
             $middlewaresStack = array_merge($middlewares, [
                 function ($request, $response, $next, $param) use ($handler) {
-                    if (is_string($handler)) {
-                        $class = explode("." || "@", $handler)[0];
-                        $parts = preg_split("/[.@]/", $handler);
-                        $class = $parts[0];
-                        if (!class_exists($class)) {
-                            $class = $this->controller_namespace . $class;
-                        }
-                        $method = $parts[1];
-                        $initial = new $class;
-                        call_user_func([$initial, $method], $request, $response, $param);
-                    } elseif (is_callable($handler)) {
+                    if (is_callable($handler)) {
                         $handler($request, $response, $param);
-                    } elseif (is_array($handler)) {
-
-                        $class = $handler[0];
-                        if (!class_exists($class)) {
-                            $class = $this->controller_namespace . $class;
+                    } else {
+                        $parts = $handler;
+                        if (is_string($handler)) {
+                            $parts = preg_split("/[.@]/", $handler);
                         }
-                        $method = $handler[1];
+
+                        $class = $parts[0];
+                        $method = $parts[1] ?? throw new Error("Method not found!");
+
+                        if (! class_exists($class)) {
+                            if (!class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
+                        }
 
                         $reflection = new ReflectionMethod($class, $method);
-                        if ($reflection->isStatic()) {
-                            call_user_func([$class, $method], $request, $response, $param);
-                        } else {
-                            $instance = new $class;
-                            call_user_func([$instance, $method], $request, $response, $param);
+                        if (! $reflection->isStatic()) {
+                            $class = new $class;
                         }
-                    } else {
-                        throw new Error("Handler must be type of string/callable/array");
+                        call_user_func([$class, $method], $request, $response, $param);
                     }
                 }
             ]);
@@ -404,7 +391,6 @@ trait Requestable
         } else {
             $response->status(404);
             ob_start();
-
             require __DIR__ . "/../Views/HttpError/index.php";
             $err = ob_get_clean();
             $response->response->end($err);
@@ -420,42 +406,27 @@ trait Requestable
      * @param \Oktaax\Http\Response $response The HTTP response.
      * @param array $param Optional parameters to pass to middleware.
      */
-    private function runStackMidleware(array $stack, Request $request, OktaResponse $response, mixed $param = null)
+    private function runStackMidleware(array $stack, \Oktaax\Http\Request $request, \Oktaax\Http\Response $response, mixed $param = null)
     {
 
         $next = function ($param = null) use (&$stack, $request, $response, &$next) {
 
             if (!empty($stack)) {
                 $middleware = array_shift($stack);
-
                 if (is_callable($middleware)) {
                     $middleware($request, $response, $next, $param);
-                } elseif (is_string($middleware)) {
-                    $parts = preg_split("/[.@]/", $middleware);
-                    $class = $parts[0];
-                    $method = $parts[1];
-                    if (!class_exists($class)) {
-                        $class = $this->controller_namespace . $class;
-                    }
-                    $initial = new $class;
-                    call_user_func([$initial, $method], $request, $response, $next, $param);
-                } elseif (is_array($middleware)) {
-
-
-                    $class = $middleware[0];
-                    if (!class_exists($class)) {
-                        $class = $this->controller_namespace . $class;
-                    }
-                    $method = $middleware[1] ?? throw new Error("Method not found!");
-                    $reflection = new ReflectionMethod($class, $method);
-                    if ($reflection->isStatic()) {
-                        call_user_func([$class, $method], $request, $response, $param);
-                    } else {
-                        $instance = new $class;
-                        call_user_func([$instance, $method], $request, $response, $param);
-                    }
                 } else {
-                    throw new Error("Handler must be type of string/callable/array");
+                    if (is_string($middleware)) {
+                        $middleware = preg_split("/[.@]/", $middleware);
+                    }
+                    $class = $middleware[0];
+                    $method = $middleware[1];
+                    if (!class_exists($class) && is_string($middleware)) {
+                        $class = $this->middleware_namespace . $class;
+                    }
+                    $reflection = new ReflectionMethod($class, $method);
+                    $instance = $reflection->isStatic() ? $class : new $class;
+                    call_user_func([$instance, $method], $request, $response, $param);
                 }
             }
         };
@@ -509,10 +480,5 @@ trait Requestable
         } else {
             throw new Error("Dynamic route must has `{` and `}`");
         }
-    }
-
-    public function setControllerNamespace($namespace){
-
-        $this->controller_namespace = $namespace;
     }
 }

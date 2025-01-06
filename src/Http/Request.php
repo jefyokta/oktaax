@@ -446,6 +446,11 @@ class Request
         return isset($this->request->header['x-requested-with']) && $this->request->header['x-requested-with'] === 'XMLHttpRequest';
     }
 
+    public function xhr()
+    {
+        return $this->isAjax();
+    }
+
 
     public function __invoke($key)
     {

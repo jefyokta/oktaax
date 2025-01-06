@@ -304,7 +304,7 @@ class Response
 
     public function back($default = '/')
     {
-        $this->redirect($this->request->request->header['referer'] ?? $default);
+        $this->redirect($this->request->header['referer'] ?? $default);
     }
 
 
