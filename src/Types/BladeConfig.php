@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 namespace Oktaax\Types;
@@ -41,5 +42,5 @@ namespace Oktaax\Types;
 class BladeConfig
 {
 
-    public function __construct(public $viewDir, public ?string $cacheDir, public ?string $functionDir) {}
+    public function __construct(public $viewDir = 'views/', public ?string $cacheDir = $this->viewDir . "/cache", public ?string $functionDir = null) {}
 };
