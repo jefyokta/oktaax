@@ -42,5 +42,5 @@ namespace Oktaax\Types;
 class BladeConfig
 {
 
-    public function __construct(public $viewDir = 'views/', public ?string $cacheDir = $this->viewDir . "/cache", public ?string $functionDir = null) {}
+    public function __construct(public $viewDir = 'views/', public ?string $cacheDir =  "views/cache", public ?string $functionDir = null) {}
 };
