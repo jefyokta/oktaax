@@ -116,15 +116,11 @@ class Response
         $cacheDir = $this->config->blade->cacheDir ?? $viewsDir . "/cache";
 
         if (!is_dir($viewsDir)) {
-            if (!mkdir($viewsDir, 0755, true)) {
-                throw new \Exception("Error while creating: $viewsDir \n");
-            }
+                throw new \Exception("Directory doesnt exists!: $viewsDir \n");
         }
 
         if (!is_dir($cacheDir)) {
-            if (!mkdir($cacheDir, 0755, true)) {
-                throw new \Exception("Error while creating: $cacheDir \n");
-            }
+                throw new \Exception("Directory doesnt exists!: $cacheDir \n");
         }
 
         //blade

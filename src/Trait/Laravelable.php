@@ -54,7 +54,7 @@ trait Laravelable
      * @var \Illuminate\Foundation\Application $app
      */
     private $app;
-    
+
     private $laravel;
 
     /**
@@ -111,8 +111,6 @@ trait Laravelable
      * 
      * Bootstrap laravel application
      * 
-     * @param Laravel $laravel
-     * 
      * @return \Illuminate\Http\Response|mixed
      */
 
@@ -131,8 +129,10 @@ trait Laravelable
 
             $laravelRequest->headers->add($this->request->header);
 
-            $kernel = $this->app->make(\Illuminate\Contracts\Http\Kernel::class);
+            $kernel = $this->app
+                           ->make(\Illuminate\Contracts\Http\Kernel::class);
             $response = $kernel->handle($laravelRequest);
+
             $this->handleHeaders($response->headers->allPreserveCase());
         } catch (\Throwable $th) {
             $response = $this->app

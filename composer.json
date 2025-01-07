@@ -7,8 +7,7 @@
     "autoload": {
         "psr-4": {
             "Oktaax\\": "src/",
-            "Oktaax\\Http\\Middleware\\":"src/Http/Middlewares/",
-            "Appx\\":"app/"
+            "Oktaax\\Http\\Middleware\\":"src/Http/Middlewares/"
         },
         "files":[
             "src/Utils/Functions.php"
