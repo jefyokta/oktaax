@@ -71,6 +71,12 @@ class Response
      */
     public $status = 200;
 
+
+    /**
+     * @var Response instance of this classs
+     */
+    private static $instance;
+
     public Request $request;
 
 
@@ -86,6 +92,7 @@ class Response
         $this->header("X-Powered-By", "Oktaax");
         $this->config = $config;
         $this->request = $request;
+        self::$instance = &$this;
     }
 
     /**
@@ -324,6 +331,12 @@ class Response
         require __DIR__ . "/../Views/HttpError/index.php";
         $content = ob_get_clean();
         return $this->end($content);
+    }
+
+
+    public static function &getInstance(){
+        return self::$instance;
+
     }
 
 

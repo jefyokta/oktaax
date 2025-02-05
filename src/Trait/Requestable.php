@@ -364,26 +364,19 @@ trait Requestable
 
             $middlewaresStack = array_merge($middlewares, [
                 function ($request, $response, $next, $param) use ($handler) {
-                    if (is_callable($handler)) {
+                    if (!is_array($handler) || !is_string($handler)) {
                         $handler($request, $response, $param);
-                    } else {
+                    } else{
                         $parts = $handler;
                         if (is_string($handler)) {
                             $parts = preg_split("/[.@]/", $handler);
                         }
-
                         $class = $parts[0];
                         $method = $parts[1] ?? throw new Error("Method not found!");
-
                         if (! class_exists($class)) {
                             if (!class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
                         }
-
-                        $reflection = new ReflectionMethod($class, $method);
-                        if (! $reflection->isStatic()) {
-                            $class = new $class;
-                        }
-                        call_user_func([$class, $method], $request, $response, $param);
+                        call_user_func([new $class, $method], $request, $response, $param);
                     }
                 }
             ]);
@@ -424,9 +417,7 @@ trait Requestable
                     if (!class_exists($class) && is_string($middleware)) {
                         $class = $this->middleware_namespace . $class;
                     }
-                    $reflection = new ReflectionMethod($class, $method);
-                    $instance = $reflection->isStatic() ? $class : new $class;
-                    call_user_func([$instance, $method], $request, $response, $param);
+                    call_user_func([new $class, $method], $request, $response, $param);
                 }
             }
         };

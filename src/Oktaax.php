@@ -48,13 +48,10 @@ use Oktaax\Http\Request;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Interfaces\Server;
 use Oktaax\Interfaces\WithBlade;
-use Oktaax\Server as OktaaxServer;
 use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\BladeConfig;
 use Oktaax\Types\OktaaxConfig;
-use OpenSwoole\Http\Request as SwooleRequest;
-use OpenSwoole\Http\Response;
 use OpenSwoole\Http\Server as HttpServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
@@ -223,23 +220,7 @@ class Oktaax implements Server, WithBlade
     public function securely($cert, $key)
     {
 
-        if (!file_exists($cert)) {
-            Console::error("Certificate not found!");
-            throw new InvalidResourceException("Certificate not found!");
-        }
-
-        if (!file_exists($key)) {
-            Console::error("Key not found!");
-            throw new InvalidResourceException("Key not found!");
-        }
-        $this->setServer('ssl_cert_file', $cert);
-        $this->setServer('ssl_key_file', $key);
-
-        $this->config->sock_type = SWOOLE_SOCK_TCP | SWOOLE_SSL;
-        $this->config->mode = SWOOLE_BASE;
-        $this->protocol = 'https';
-
-        return $this;
+        $this->withSSL($cert, $key);
     }
 
 
@@ -260,7 +241,7 @@ class Oktaax implements Server, WithBlade
             $this->serverSettings = $setting;
         } else {
             $this->serverSettings[$setting] = $value;
-        } 
+        }
     }
 
 
@@ -332,7 +313,9 @@ class Oktaax implements Server, WithBlade
             $callback($this->protocol . "://" . $this->host . ":" . $this->port);
         }
         $this->makeAGlobalServer();
-
+        if (method_exists($this, 'eventRegistery')) {
+            call_user_func([$this, 'eventRegistery']);
+        }
         $this->bootEvents();
         $this->onRequest();
 
@@ -379,6 +362,8 @@ class Oktaax implements Server, WithBlade
             endforeach;
         endforeach;
     }
+
+
 
 
 
@@ -432,16 +417,16 @@ class Oktaax implements Server, WithBlade
         $this->swoolevents[$event] = $handler;
     }
 
-    public function getHandledEvents(){
+    public function getHandledEvents()
+    {
         return ['request'];
     }
 
     protected function makeAGlobalServer()
     {
 
-        new OktaaxServer($this->server);
+        new ServerBag($this->server);
     }
-
     protected function bootEvents()
     {
         foreach ($this->swoolevents as $event => $handler) {

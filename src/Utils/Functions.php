@@ -42,8 +42,7 @@ use Oktaax\Interfaces\Xsocket;
 use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
-use Illuminate\Support\Stringable;
-use Oktaax\Server as OktaaxServer;
+use Oktaax\ServerBag;
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -108,6 +107,6 @@ if (! function_exists('xserver')) {
  * @return \OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
  */
   function xserver(){
-    return OktaaxServer::get();
+    return ServerBag::get();
   }
 }

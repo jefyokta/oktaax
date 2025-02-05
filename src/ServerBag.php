@@ -3,7 +3,7 @@
 namespace Oktaax;
 
 
-class Server
+class ServerBag
 {
 
     protected static $serverinsance;

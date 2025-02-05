@@ -83,6 +83,10 @@ trait HasWebsocket
     private array $events = [];
 
 
+    protected $startParams = ["hostOrCallback" => null, "callback" => null];
+
+
+
 
     /**
      * Register a WebSocket event and its handler.
@@ -186,6 +190,10 @@ trait HasWebsocket
     {
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         $this->port = $port;
+
+        $this->startParams['hostOrCallback'] = $hostOrcallback;
+        $this->startParams['callback'] = $callback;
+
         $this->boot();
         $this->init();
         $this->makeAGlobalServer();
@@ -209,12 +217,12 @@ trait HasWebsocket
      * @param callable|null $callback A callback for the server start event if the host is not provided.
      * @return void
      */
-    private function eventRegistery(string|callable|null $hostOrCallback = null, ?callable $callback = null): void
+    protected function eventRegistery(): void
     {
         $this->server->on("Open", fn(Server $serv, Request $req) => $this->open($serv, $req));
         $this->server->on("Message", fn(Server $server, Frame $frame) => $this->messageHandler($server, $frame));
         $this->server->on("Close", fn(Server $server, $fd) => $this->close($server, $fd));
-        $this->server->on("Start", fn() => $this->start($hostOrCallback, $callback));
+        $this->server->on("Start", fn() => $this->start());
     }
 
     /**
@@ -249,15 +257,15 @@ trait HasWebsocket
      * @param callable|null $callback A callback for the server start event if the host is not provided.
      * @return void
      */
-    private function start(string|callable|null $hostOrCallback = null, ?callable $callback = null): void
+    private function start(): void
     {
         $protocol = $this->protocol === "https" ? "wss" : "ws";
         $url = "{$protocol}://{$this->host}:{$this->port}";
 
-        if (is_callable($hostOrCallback)) {
-            $hostOrCallback($url);
-        } elseif (is_callable($callback) && !is_null($callback)) {
-            $callback($url);
+        if (is_callable($this->startParams["hostOrCallback"])) {
+            $this->startParams["hostOrCallback"]($url);
+        } elseif (is_callable($this->startParams["callback"]) && !is_null($this->startParams["callback"])) {
+            $this->startParams["callback"]($url);
         }
     }
 
@@ -270,7 +278,7 @@ trait HasWebsocket
         $this->callIfCallable($this->actions['table'], $this->userTable);
         SupportTable::boot($this->userTable);
     }
-  
+
 
     private function callIfCallable(?callable $callback, &...$params)
     {
