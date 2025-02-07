@@ -44,7 +44,7 @@ namespace Oktaax\Http;
 use InvalidArgumentException;
 use Oktaax\Http\Support\Validation;
 use OpenSwoole\Http\Request as HttpRequest;
-
+use RequestBody;
 
 /**
  * @package Oktaax\Http
@@ -92,7 +92,7 @@ class Request
      * 
      */
 
-    public  $body;
+    public RequestBody $body;
 
     /**
      * Additional properties storage.
@@ -116,7 +116,7 @@ class Request
     {
         $this->request = $request;
         $this->post = $request->post;
-        $this->body = json_decode($this->request->rawContent()) ?? $this->post;
+        $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? $this->post);
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
         static::$instance = $this;
@@ -374,10 +374,7 @@ class Request
             $data = $this->request['post'];
         }
 
-
-
-        $errors = (new Validation)->validate($data, $rules) ?? null;
-        $this->errors = $errors;
+        $this->errors = (new Validation)->validate($data, $rules) ?? null;
 
         return new RequestValidated($data, !empty($errors) ? $errors : null);
     }

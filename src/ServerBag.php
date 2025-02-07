@@ -8,7 +8,7 @@ class ServerBag
 
     protected static $serverinsance;
 
-    public function __construct($server)
+    public function __construct(&$server)
     {
 
         static::$serverinsance = $server;
@@ -17,7 +17,7 @@ class ServerBag
      * Get Openswoole server instance
      * @return \OpenSwoole\Http\Server|\OpenSwoole\WebSocket\Server
      */
-    public static function get()
+    public static function &get()
     {
         return static::$serverinsance;
     }
