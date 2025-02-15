@@ -424,7 +424,6 @@ class Oktaax implements Server, WithBlade
 
     protected function makeAGlobalServer()
     {
-
         new ServerBag($this->server);
     }
     protected function bootEvents()

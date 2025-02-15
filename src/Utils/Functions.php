@@ -106,7 +106,9 @@ if (! function_exists('xserver')) {
 /**
  * @return \OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
  */
-  function xserver(){
+  function xserver():\OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
+  {
     return ServerBag::get();
   }
 }
+

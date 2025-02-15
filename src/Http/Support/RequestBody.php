@@ -1,5 +1,7 @@
 <?php 
+namespace Oktaax\Http\Support;
 
+use ArrayObject;
 
 class RequestBody extends ArrayObject{
 

@@ -11,7 +11,7 @@ class ServerBag
     public function __construct(&$server)
     {
 
-        static::$serverinsance = $server;
+        static::$serverinsance = &$server;
     }
     /**
      * Get Openswoole server instance

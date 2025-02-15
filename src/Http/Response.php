@@ -227,6 +227,19 @@ class Response
     }
 
     /**
+     * Send Http status code to client
+     * 
+     * @param int $statusCode The HTTP status code.
+     * 
+     * @return bool
+     * 
+     */
+    public function sendStatus(int $statusCode){
+       $this->status = $statusCode;
+       return $this->response->status($statusCode);
+    }
+
+    /**
      * End the response.
      *
      * @param mixed $content The content to send in the response.
@@ -344,4 +357,7 @@ class Response
     {
         return $this->response->write($data);
     }
+
+
+
 }
