@@ -60,8 +60,6 @@ if (! function_exists('oktaax')) {
      */
     function oktaax(): Server
     {
-
-
         return new Oktaax;
     }
 };

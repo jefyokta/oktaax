@@ -55,6 +55,10 @@ trait Laravelable
      */
     private $app;
 
+    /**
+     * @var Laravel
+     */
+
     private $laravel;
 
     /**
@@ -68,6 +72,8 @@ trait Laravelable
         $this->laravel = $laravel;
         $this->laravel->loadVendor();
         $this->app = $this->laravel->getApplication();
+        $this->setServer('enable_static_handler',true);
+        $this->setServer('document_root',$this->laravel->getPublicPath());
     }
 
     /**
@@ -96,7 +102,6 @@ trait Laravelable
 
             //laravel application
             try {
-                $this->laravelPublic();
                 $this->response->header("Host", $this->request->header['host']);
                 $responseFromLaravel = $this->bootstrapLaravel();
                 $this->response->status($responseFromLaravel->getStatusCode() ?? 500);
@@ -145,24 +150,6 @@ trait Laravelable
         return $response;
     }
 
-    /**
-     * 
-     * Serve public files
-     * 
-     * @return void
-     */
-    protected function laravelPublic()
-    {
-
-        $uri =   $this->request->uri;
-        if ($uri !== '/' && file_exists($this->laravel->getPublicPath() . $uri)) {
-
-            $mime  = require __DIR__ . "/../Utils/MimeTypes.php";
-            $mime = $mime[pathinfo($this->laravel->getPublicPath() . $uri, PATHINFO_EXTENSION)];
-            $this->response->header("Content-Type", $mime);
-            return $this->response->end(file_get_contents($this->laravel->getPublicPath() . $uri));
-        }
-    }
 
     /**
      * @param array $headers
@@ -207,6 +194,7 @@ trait Laravelable
         return  $this->response->end($content);
         throw $th;
     }
+
 
     /**
      * 

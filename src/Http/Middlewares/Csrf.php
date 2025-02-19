@@ -40,7 +40,6 @@ namespace Oktaax\Http\Middleware;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Oktaax\Console;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
@@ -94,8 +93,6 @@ class Csrf
 
         return function (Request $request, Response $response, $next) use ($appkey, $exp) {
             $token = self::generatetoken($appkey, $exp);
-
-
             $request->_token = $token;
             $next();
         };

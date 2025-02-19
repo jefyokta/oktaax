@@ -433,11 +433,13 @@ trait Requestable
      */
     private function init()
     {
-        if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
-            $this->protocol = "https";
-            $this->server = new HttpServer($this->host, $this->port, $this->config->mode, $this->config->sock_type);
-        } else {
-            $this->server = new HttpServer($this->host, $this->port);
+        if ($this->server) {
+            if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
+                $this->protocol = "https";
+                $this->server = new HttpServer($this->host, $this->port, $this->config->mode, $this->config->sock_type);
+            } else {
+                $this->server = new HttpServer($this->host, $this->port);
+            }
         }
     }
 
