@@ -52,10 +52,10 @@ class Logger
 {
 
 
-    public static function handle($path = "log")
+    public static function handle()
     {
 
-        return function (Request $request, Response $response, $next) use ($path) {
+        return function (Request $request, Response $response, $next) {
             try {
                 $start = microtime(true);
                 $next();

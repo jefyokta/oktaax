@@ -51,7 +51,6 @@ class OktaaxConfig
         public ?int $sock_type,
         public AppConfig $app,
         public BladeConfig $blade,
-        public string $publicDir,
 
     ) {}
 }

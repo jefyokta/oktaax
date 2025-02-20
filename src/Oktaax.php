@@ -154,7 +154,7 @@ class Oktaax implements Server, WithBlade
             null,
             new AppConfig(null, false, 300, 'Oktaax'),
             new BladeConfig('views/', 'views/cache', null),
-            'public/'
+         
         );
     }
 

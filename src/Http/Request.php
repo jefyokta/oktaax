@@ -41,10 +41,10 @@
 
 namespace Oktaax\Http;
 
-use InvalidArgumentException;
-use Oktaax\Http\Support\RequestBody ;
+use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
 use OpenSwoole\Http\Request as HttpRequest;
+use PHPUnit\TextUI\Configuration\Merger;
 
 /**
  * @package Oktaax\Http
@@ -245,7 +245,7 @@ class Request
      */
     public function has(string $key): bool
     {
-        return null !== $this->all()[$key] ?? null;
+        return null !== $this->all()[$key] ?? false;
     }
 
     /**
@@ -413,9 +413,6 @@ class Request
 
         return null;
     }
-
-
-
     /**
      * 
      * @param string $name
@@ -464,5 +461,10 @@ class Request
     {
 
         return array_merge($this->get ?? [], $this->bodies());
+    }
+
+    public function __toString()
+    {
+        return json_encode($this);
     }
 }

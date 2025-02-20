@@ -38,6 +38,7 @@
 
 namespace Oktaax\Trait;
 
+use Illuminate\Support\Facades\Route;
 use Oktaax\Types\Laravel;
 use OpenSwoole\Coroutine;
 use OpenSwoole\Http\Request as HttpRequest;
@@ -217,4 +218,6 @@ trait Laravelable
             return $response->getContent();
         }
     }
+
+
 }

@@ -115,7 +115,6 @@
         <table class="debug-info" style="white-space: wrap!important;padding:2em;width:100%">
             <?php foreach ($req->server as $key => $val): ?>
                 <tr>
-
                     <td><?= $key; ?></td>
                     <td>:</td>
                     <td><?= $val; ?></td>

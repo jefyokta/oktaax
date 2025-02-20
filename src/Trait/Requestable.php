@@ -88,17 +88,28 @@ trait Requestable
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
             $path = $request->server['request_uri'];
-            $file = $this->config->publicDir . $path;
-            if (is_file($file) && file_exists($file)) {
-                $extension = pathinfo($file, PATHINFO_EXTENSION);
-                $types = require __DIR__ . "/Utils/MimeTypes.php";
-                $mimetype = $types[$extension] ?? "application/octet-stream";
-                $response->header("Content-Type", $mimetype);
-                $response->sendfile($file);
-            } else {
+            // $file = $this->config->publicDir . $path;
+            // if (is_file($file) && file_exists($file)) {
+            //     $extension = pathinfo($file, PATHINFO_EXTENSION);
+            //     $types = require __DIR__ . "/Utils/MimeTypes.php";
+            //     $mimetype = $types[$extension] ?? "application/octet-stream";
+            //     $response->header("Content-Type", $mimetype);
+            //     $response->sendfile($file);
+            // } else {
                 $this->AppHandler($request, $response);
-            }
+            // }
         });
+    }
+
+
+    public function documentRoot(string $directory){
+
+        if($this->serverSettings['document_root'] ?? false){
+            return new Error("Cannot Redeclare dpcument root");
+        }
+
+        $this->setServer('enable_static_handler',true);
+        $this->setServer('document_root',$directory);
     }
 
     /**
@@ -318,10 +329,7 @@ trait Requestable
         foreach ($this->routes as $pattern => $methods) {
             if (isset($methods[$method]) && $methods[$method]['isDynamic']) {
                 $regex = preg_replace('/\{([a-zA-Z_]+)\}/', '([^/]+)', str_replace('/', '\/', $pattern));
-
                 $regex = "#^$regex$#";
-
-
                 if (preg_match($regex, $route, $matches)) {
                     array_shift($matches);
 

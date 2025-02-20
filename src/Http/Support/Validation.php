@@ -43,7 +43,7 @@ namespace Oktaax\Http\Support;
 class Validation
 {
     protected static $rules;
-    public static  array $errors = [];
+    public  array $errors = [];
 
     public function register(string $rule, callable $callback)
     {
@@ -163,6 +163,6 @@ class Validation
 
     public function addError(string $field, string $rule, string $message): void
     {
-        static::$errors[$field][$rule] = $message;
+        $this->errors[$field][$rule] = $message;
     }
 }
