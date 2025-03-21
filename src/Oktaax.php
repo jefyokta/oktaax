@@ -44,14 +44,13 @@ namespace Oktaax;
 
 use Error;
 use Oktaax\Http\Middleware\Csrf;
-use Oktaax\Http\Request;
-use Oktaax\Http\Response as OktaResponse;
+
 use Oktaax\Interfaces\Server;
-use Oktaax\Interfaces\WithBlade;
+use Oktaax\Interfaces\View;
 use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
-use Oktaax\Types\BladeConfig;
 use Oktaax\Types\OktaaxConfig;
+use Oktaax\Views\PhpView;
 use OpenSwoole\Http\Server as HttpServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
@@ -65,7 +64,7 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
  */
 
 
-class Oktaax implements Server, WithBlade
+class Oktaax implements Server
 {
     use Requestable;
     /**
@@ -146,44 +145,23 @@ class Oktaax implements Server, WithBlade
     {
 
         $this->config = new OktaaxConfig(
-            "views/",
-            "php",
+            new PhpView("views/"),
             'log',
             false,
             null,
             null,
             new AppConfig(null, false, 300, 'Oktaax'),
-            new BladeConfig('views/', 'views/cache', null),
+            'public/'
+
          
         );
     }
 
-    public function setView($viewDir, $render_engine)
+    public function setView(View $view)
     {
-        $this->config->viewDir = $viewDir;
-        $this->config->render_engine = $render_engine;
+        $this->config->view = $view;
         return $this;
     }
-
-    /** 
-     * Set blade  configuration
-     * 
-     * @param BladeConfig $bladeConfig
-
-     * @return static
-     * 
-     */
-    public function blade(
-        BladeConfig $bladeConfig
-    ): static {
-        $this->config->viewDir = $bladeConfig->viewDir;
-        $this->config->render_engine = "blade";
-        $this->config->blade->cacheDir = $bladeConfig->cacheDir;
-        $this->config->blade->functionDir = $bladeConfig->functionDir;
-        return $this;
-    }
-
-
     /**
      * Enable SSL for the server.
      *
@@ -432,4 +410,6 @@ class Oktaax implements Server, WithBlade
             $this->server->on($event, $handler);
         }
     }
+
+    
 };

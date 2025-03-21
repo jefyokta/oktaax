@@ -41,11 +41,9 @@
 
 namespace Oktaax\Http;
 
-use Oktaax\Blade\Blade;
-use Oktaax\Console;
-use Oktaax\Error\ViewNotFound;
 use OpenSwoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
+use Oktaax\Interfaces\View;
 use Oktaax\Types\OktaaxConfig;
 
 /**
@@ -77,6 +75,8 @@ class Response
      */
     private static $instance;
 
+    private View $view;
+
     public Request $request;
 
 
@@ -91,6 +91,7 @@ class Response
         $this->response = $response;
         $this->header("X-Powered-By", "Oktaax");
         $this->config = $config;
+        $this->view  = $this->config->view;
         $this->request = $request;
         self::$instance = &$this;
     }
@@ -119,52 +120,17 @@ class Response
      */
     public function render(string $view, array $data = [])
     {
-        $viewsDir = $this->config->viewDir;
-        $cacheDir = $this->config->blade->cacheDir ?? $viewsDir . "/cache";
-
-        if (!is_dir($viewsDir)) {
-                throw new \Exception("Directory doesnt exists!: $viewsDir \n");
+        try {
+            return $this
+            ->end(
+                $this->view
+                    ->render($view, $data)
+            );
+        } catch (\Throwable $th) {
+            $this->status(500);
+            throw $th;
         }
-
-        if (!is_dir($cacheDir)) {
-                throw new \Exception("Directory doesnt exists!: $cacheDir \n");
-        }
-
-        //blade
-        if ($this->config->render_engine === 'blade') {
-            try {
-                $blade = new Blade($viewsDir, $cacheDir, $this->config, $this->request);
-                $request = ["request" => $this->request];
-                $data = array_merge($request, $data);
-
-                $viewContent = $blade->render($view, $data);
-                $this->response->header("Content-Type", "text/html");
-                return $this->response->end($viewContent);
-            } catch (\Throwable $th) {
-                $this->response->status(500);
-                throw $th;
-            }
-        }
-        // php
-        else {
-            try {
-                $viewFile = $viewsDir . '/' . $view . '.php';
-
-                if (file_exists($viewFile)) {
-                    ob_start();
-                    extract($data);
-                    include $viewFile;
-                    $viewContent = ob_get_clean();
-                    $this->response->header("Content-Type", "text/html");
-                    return   $this->response->end($viewContent);
-                } else {
-                    throw new ViewNotFound("View file not found: $viewFile");
-                }
-            } catch (\Throwable $th) {
-                $this->response->status(500);
-                $this->response->end("error: " . $th->getMessage() . " file: " . $th->getFile() . " line: " . $th->getLine());
-            }
-        }
+   
     }
 
     /**
@@ -234,9 +200,10 @@ class Response
      * @return bool
      * 
      */
-    public function sendStatus(int $statusCode){
-       $this->status = $statusCode;
-       return $this->response->status($statusCode);
+    public function sendStatus(int $statusCode)
+    {
+        $this->status = $statusCode;
+        return $this->response->status($statusCode);
     }
 
     /**
@@ -347,9 +314,9 @@ class Response
     }
 
 
-    public static function &getInstance(){
+    public static function &getInstance()
+    {
         return self::$instance;
-
     }
 
 
@@ -357,7 +324,4 @@ class Response
     {
         return $this->response->write($data);
     }
-
-
-
 }

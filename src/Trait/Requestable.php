@@ -107,6 +107,7 @@ trait Requestable
         if($this->serverSettings['document_root'] ?? false){
             return new Error("Cannot Redeclare dpcument root");
         }
+        $this->config->publicDir = $directory;
 
         $this->setServer('enable_static_handler',true);
         $this->setServer('document_root',$directory);

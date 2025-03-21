@@ -1,6 +1,7 @@
 
 vendor/
 log
+example/
 /index.php
 /views/
 /public

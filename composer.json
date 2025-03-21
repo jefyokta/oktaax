@@ -24,8 +24,6 @@
     "require": {
         "php": ">=8.0",
         "ext-openswoole": "*",
-        "illuminate/view": "^11.23",
-        "illuminate/container": "^11.23",
         "firebase/php-jwt": "^6.10"
     },
     "repositories": [

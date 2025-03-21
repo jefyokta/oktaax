@@ -48,11 +48,10 @@ use Oktaax\Oktaax;
      /**
       * Set view configuration.
       *
-      * @param string $viewDir
-      * @param 'blade'|'php' $render_engine
+      * @param View $view
       * @return static
       */
-     public function setView(string $viewDir, string $render_engine);
+     public function setView(View $view);
  
      /**
       * Enable SSL for the server.
