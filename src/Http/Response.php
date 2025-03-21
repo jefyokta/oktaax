@@ -41,6 +41,7 @@
 
 namespace Oktaax\Http;
 
+use Error;
 use OpenSwoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Interfaces\View;
@@ -323,5 +324,20 @@ class Response
     public function write(string $data)
     {
         return $this->response->write($data);
+    }
+
+    public function __callStatic($name, $arguments)
+    {
+
+        if (method_exists($this,$name)) {
+            return $this->{$name}(...$arguments);
+        }
+        else if(method_exists($this->response,$name)){
+            return $this->response->$name(...$arguments);
+
+        }else{
+            throw new Error("Method {$name} does'nt exist!");
+        }
+        
     }
 }

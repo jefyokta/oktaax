@@ -42,8 +42,6 @@ use Oktaax\Interfaces\View;
 
 class OktaaxConfig
 {
-
-
     public function __construct(
         public View $view,
         public string $logDir,

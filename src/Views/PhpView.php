@@ -5,6 +5,11 @@ namespace Oktaax\Views;
 use Oktaax\Error\ViewNotFound;
 use Oktaax\Interfaces\View;
 
+/**
+ * The default template engine for oktaax
+ * Before version 3, the default template engine was Blade,
+ * but we chose to replace it with traditional PHP to simplify the library.
+ */
 class PhpView implements View
 {
 

@@ -2,7 +2,7 @@
     "name": "jefyokta/oktaax",
     "description": "Oktaax a openswoole http server library",
     "type": "library",
-    "keywords":["http-library","openswoole","php-server","openswoole-library","express.php","express-php","php-microframework","event-driven","php-websocket","websocket","php","real-time"],
+    "keywords":["http-library","openswoole","php-server","openswoole-library","php-microframework","event-driven","php-websocket","websocket","php","real-time"],
     "license": "MIT",
     "autoload": {
         "psr-4": {

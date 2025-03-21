@@ -137,26 +137,7 @@ use Oktaax\Oktaax;
       */
      public function patch(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
  
-     /**
-      * Define an OPTIONS route.
-      *
-      * @param string $path
-      * @param string|callable|array $callback
-      * @param string|callable|array ...$middlewares
-      * @return static
-      */
-     public function options(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
- 
-     /**
-      * Define a HEAD route.
-      *
-      * @param string $path
-      * @param string|callable|array $callback
-      * @param string|callable|array ...$middlewares
-      * @return static
-      */
-     public function head(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
- 
+
      /**
       * Register global middleware.
       *
