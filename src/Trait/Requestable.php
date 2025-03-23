@@ -96,21 +96,22 @@ trait Requestable
             //     $response->header("Content-Type", $mimetype);
             //     $response->sendfile($file);
             // } else {
-                $this->AppHandler($request, $response);
+            $this->AppHandler($request, $response);
             // }
         });
     }
 
 
-    public function documentRoot(string $directory){
+    public function documentRoot(string $directory)
+    {
 
-        if($this->serverSettings['document_root'] ?? false){
+        if ($this->serverSettings['document_root'] ?? false) {
             return new Error("Cannot Redeclare dpcument root");
         }
         $this->config->publicDir = $directory;
 
-        $this->setServer('enable_static_handler',true);
-        $this->setServer('document_root',$directory);
+        $this->setServer('enable_static_handler', true);
+        $this->setServer('document_root', $directory);
     }
 
     /**
@@ -315,7 +316,7 @@ trait Requestable
      * @param string $route
      * @param string $method
      * @param \Oktaax\Http\Request &$request
-     * @return array
+     * @return array{"route":string,"handler":callable|string|array,"middlewares":array} | false
      * 
      */
     private function matchRoute(string $route, string $method, Request &$request)
@@ -366,37 +367,44 @@ trait Requestable
     private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
         $match = $this->matchRoute($path, $method, $request);
-
-        if ($match !== false) {
-            $handler = $match['handler'];
-            $middlewares = $match['middlewares'];
-
-            $middlewaresStack = array_merge($middlewares, [
-                function ($request, $response, $next, $param) use ($handler) {
-                    if (!is_array($handler) || !is_string($handler)) {
-                        $handler($request, $response, $param);
-                    } else{
-                        $parts = $handler;
-                        if (is_string($handler)) {
-                            $parts = preg_split("/[.@]/", $handler);
-                        }
-                        $class = $parts[0];
-                        $method = $parts[1] ?? throw new Error("Method not found!");
-                        if (! class_exists($class)) {
-                            if (!class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
-                        }
-                        call_user_func([new $class, $method], $request, $response, $param);
-                    }
-                }
-            ]);
-            $this->runStackMidleware($middlewaresStack, $request, $response);
-        } else {
+        if (!$match) {
             $response->status(404);
             ob_start();
             require __DIR__ . "/../Views/HttpError/index.php";
             $err = ob_get_clean();
             $response->response->end($err);
         }
+        $handler = $match['handler'];
+        $middlewares = $match['middlewares'];
+
+        $middlewaresStack = array_merge($middlewares, [
+            function ($request, OktaResponse $response, $next, $param) use ($handler) {
+                $res = null;
+                if (!is_array($handler) || !is_string($handler)) {
+                    $res =  $handler($request, $response, $param);
+                } else {
+                    $parts = $handler;
+                    if (is_string($handler)) {
+                        $parts = preg_split("/[.@]/", $handler);
+                    }
+                    $class = $parts[0];
+                    $method = $parts[1] ?? throw new Error("Method not found!");
+                    if (! class_exists($class)) {
+                        if (! class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
+                    }
+                    $res =  call_user_func([new $class, $method], $request, $response, $param);
+                }
+                if (is_string($res) && !$res instanceof OktaResponse && $response->response->isWritable()) {
+                    $response->end($res);
+                } elseif ($res !== null) {
+                    throw new Error("Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".");
+                } else {
+                    $res->end();
+                }
+                
+            }
+        ]);
+        $this->runStackMidleware($middlewaresStack, $request, $response);
     }
 
 

@@ -326,14 +326,15 @@ class Response
         return $this->response->write($data);
     }
 
-    public function __callStatic($name, $arguments)
+    public static function __callStatic($name, $arguments)
     {
+        $instance = self::$instance;
 
-        if (method_exists($this,$name)) {
-            return $this->{$name}(...$arguments);
+        if (method_exists($instance,$name)) {
+            return $instance->{$name}(...$arguments);
         }
-        else if(method_exists($this->response,$name)){
-            return $this->response->$name(...$arguments);
+        else if(method_exists($instance->response,$name)){
+            return $instance->response->$name(...$arguments);
 
         }else{
             throw new Error("Method {$name} does'nt exist!");
