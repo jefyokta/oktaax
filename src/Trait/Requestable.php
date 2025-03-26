@@ -68,7 +68,7 @@ trait Requestable
 
 
     /**
-     * Global middleware stack.
+     * Global ha$handlerstack.
      *
      * @var callable[]
      */
@@ -301,7 +301,7 @@ trait Requestable
 
         $stack =  array_merge($this->globalMiddleware, [
             function ($request, $response, $next) use ($path, $method) {
-                $this->proccesRequest($request, $response, $method, $path, $next);
+                $this->processRequest($request, $response, $method, $path, $next);
             }
         ]);
 
@@ -364,7 +364,7 @@ trait Requestable
      * 
      * 
      */
-    private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
+    private function processRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
         $match = $this->matchRoute($path, $method, $request);
         if (!$match) {
@@ -373,35 +373,28 @@ trait Requestable
             require __DIR__ . "/../Views/HttpError/index.php";
             $err = ob_get_clean();
             $response->response->end($err);
+            return;
         }
         $handler = $match['handler'];
         $middlewares = $match['middlewares'];
 
-        $middlewaresStack = array_merge($middlewares, [
+        $middlewaresStack = array_merge($middlewares ?? [], [
             function ($request, OktaResponse $response, $next, $param) use ($handler) {
                 $res = null;
                 if (!is_array($handler) || !is_string($handler)) {
                     $res =  $handler($request, $response, $param);
                 } else {
-                    $parts = $handler;
-                    if (is_string($handler)) {
-                        $parts = preg_split("/[.@]/", $handler);
-                    }
-                    $class = $parts[0];
-                    $method = $parts[1] ?? throw new Error("Method not found!");
-                    if (! class_exists($class)) {
-                        if (! class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
-                    }
-                    $res =  call_user_func([new $class, $method], $request, $response, $param);
+                    $res = $this->callMethod($handler, $this->controller_namespace, $request, $response, $param);
                 }
-                if (is_string($res) && !$res instanceof OktaResponse && $response->response->isWritable()) {
+                if (is_string($res) && $response->response->isWritable()) {
                     $response->end($res);
                 } elseif ($res !== null) {
-                    throw new Error("Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".");
+                    $message ="Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".";
+                    // $response->status(500)->render($message);
+                    throw new Error($message);
                 } else {
-                    $res->end();
+                    $response->end();
                 }
-                
             }
         ]);
         $this->runStackMidleware($middlewaresStack, $request, $response);
@@ -426,15 +419,7 @@ trait Requestable
                 if (is_callable($middleware)) {
                     $middleware($request, $response, $next, $param);
                 } else {
-                    if (is_string($middleware)) {
-                        $middleware = preg_split("/[.@]/", $middleware);
-                    }
-                    $class = $middleware[0];
-                    $method = $middleware[1];
-                    if (!class_exists($class) && is_string($middleware)) {
-                        $class = $this->middleware_namespace . $class;
-                    }
-                    call_user_func([new $class, $method], $request, $response, $param);
+                  $this->callMethod($middleware,"",$request, $response, $next, $param);
                 }
             }
         };
@@ -490,5 +475,13 @@ trait Requestable
         } else {
             throw new Error("Dynamic route must has `{` and `}`");
         }
+    }
+
+    private function callMethod($handler, $namespace, ...$param)
+    {
+        if (is_string($handler)) {
+            $handler = preg_split("/[.@]/", $handler);
+        }
+        return [$namespace . $handler, $handler](...$param);
     }
 }

@@ -168,7 +168,7 @@ class Server implements WebSocketServer
         $this->swooleWebsocket->disconnect($this->getSenderFd(), $code, $reason);
     }
 
-    public function reject($fd, $reason, $code = \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL)
+    public function reject($fd, $reason, $code = \OpenSwoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
     }
