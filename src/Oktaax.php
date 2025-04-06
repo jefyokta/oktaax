@@ -43,15 +43,19 @@ namespace Oktaax;
 
 
 use Error;
+use Exception;
 use Oktaax\Http\Middleware\Csrf;
 
 use Oktaax\Interfaces\Server;
 use Oktaax\Interfaces\View;
+use Oktaax\Overload\GlobalMiddleware;
+use Oktaax\Overload\RouteApplication;
 use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\OktaaxConfig;
 use Oktaax\Views\PhpView;
 use OpenSwoole\Http\Server as HttpServer;
+use ReflectionMethod;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
@@ -153,8 +157,11 @@ class Oktaax implements Server
             new AppConfig(null, false, 300, 'Oktaax'),
             'public/'
 
-         
+
         );
+
+        $this->globalMiddlewares = new GlobalMiddleware;
+        $this->routeApp = new RouteApplication;
     }
 
     public function setView(View $view)
@@ -410,6 +417,19 @@ class Oktaax implements Server
             $this->server->on($event, $handler);
         }
     }
-
-    
+    public function __call($name, $arguments)
+    {
+        $argCount = count($arguments);
+        $classes = [$this->globalMiddlewares, $this->routeApp];
+        foreach ($classes as $class) {
+            $instance = $class;
+            if (method_exists($instance, $name)) {
+                $method = new ReflectionMethod($instance, $name);
+                if ($method->getNumberOfParameters() === $argCount) {
+                    return $method->invoke($instance, ...$arguments);
+                }
+            }
+        }
+        throw new Exception(sprintf("Method %s with %s argument(s) not found!", $name, $argCount));
+    }
 };

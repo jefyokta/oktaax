@@ -96,7 +96,7 @@ if (! function_exists('xcsrf_token') ) {
 
     function xcsrf_token()
     {
-        return xrequest()->_token;
+        return xrequest()?->_token;
     }
 }
 

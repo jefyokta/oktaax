@@ -163,6 +163,8 @@ class Response
             $samesite =  $samesite === null ? "Lax" : $samesite;
             $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);
         }
+
+        return $this;
     }
 
     /**

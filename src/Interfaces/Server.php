@@ -138,15 +138,6 @@ use Oktaax\Oktaax;
      public function patch(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
  
 
-     /**
-      * Register global middleware.
-      *
-      * @param callable $globalMiddleware
-      * @return static
-      */
-     public function use(callable $globalMiddleware);
-
-
      public function path(string $path, Oktaax $app);
 
 

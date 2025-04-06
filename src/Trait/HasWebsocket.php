@@ -62,10 +62,6 @@ use Oktaax\Websocket\Support\Table as SupportTable;
 trait HasWebsocket
 {
     public Table $userTable;
-
-
-
-
     private $hasChannel = false;
     private $userTableConfig = ['size' => 1024];
     /**
@@ -92,7 +88,7 @@ trait HasWebsocket
      * Register a WebSocket event and its handler.
      *
      * @param string $event The event name to register.
-     * @param callable|array $handler A callable or an array representing a class and method.
+     * @param callable(\Oktaax\Websocket\Server,\Oktaax\Websocket\Client)|array $handler A callable or an array representing a class and method.
      * @return static Returns the current instance for method chaining.
      */
     public function ws(string $event, callable|array $handler)
@@ -118,6 +114,9 @@ trait HasWebsocket
         return $this;
     }
 
+    /**
+     * @param callable(\Oktaax\Websocket\Server, \Oktaax\Http\Request) $callback
+     */
     public function gate(callable $callback)
     {
 

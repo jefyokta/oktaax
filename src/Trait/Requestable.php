@@ -43,15 +43,19 @@ namespace Oktaax\Trait;
 
 use Error;
 use Oktaax\Oktaax;
-use ReflectionMethod;
 use Oktaax\Http\Request;
 use OpenSwoole\Http\Response;
 use Oktaax\Error\CombineException;
 use Oktaax\Http\Response as OktaResponse;
+use Oktaax\Overload\GlobalMiddleware;
+use Oktaax\Overload\RouteApplication;
 use OpenSwoole\Http\Server as HttpServer;
 use OpenSwoole\Http\Request as SwooleRequest;
 
-
+/**
+ * @method void use($middleware)
+ * @method void use(string $route,Oktaax $app)
+ */
 trait Requestable
 {
 
@@ -61,11 +65,10 @@ trait Requestable
      * @var array
      */
     protected $routes = [];
-
     public string $controller_namespace = "Appx\\Controller\\";
     public string $middleware_namespace = "Appx\\Middleware\\";
 
-
+    private array $overloads = [GlobalMiddleware::class, RouteApplication::class];
 
     /**
      * Global ha$handlerstack.
@@ -74,8 +77,18 @@ trait Requestable
      */
     protected $globalMiddleware = [];
 
+    protected GlobalMiddleware $globalMiddlewares;
+
+    protected RouteApplication $routeApp;
 
 
+
+    // public function __construct()
+    // {
+    //     parent::__construct();
+    //     $this->globalMiddlewares = new GlobalMiddleware;
+    //     $this->routeApp = new RouteApplication;
+    // }
 
     /**
      * Application on request event
@@ -234,19 +247,7 @@ trait Requestable
     }
 
 
-    /**
-     * Register a global middleware.
-     *
-     * @param callable $globalMiddleware The middleware callback.
-     * @return static
-     */
 
-    public function use(callable $globalMiddleware)
-    {
-        $this->globalMiddleware[] = $globalMiddleware;
-
-        return $this;
-    }
 
 
 
@@ -295,11 +296,7 @@ trait Requestable
             $method = $request->server['request_method'];
         }
 
-        if (!empty($this->pathMiddlewares)) {
-            $this->handlerPathMiddleware();
-        }
-
-        $stack =  array_merge($this->globalMiddleware, [
+        $stack =  array_merge($this->globalMiddlewares->getMiddlewares(), [
             function ($request, $response, $next) use ($path, $method) {
                 $this->processRequest($request, $response, $method, $path, $next);
             }
@@ -389,8 +386,7 @@ trait Requestable
                 if (is_string($res) && $response->response->isWritable()) {
                     $response->end($res);
                 } elseif ($res !== null) {
-                    $message ="Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".";
-                    // $response->status(500)->render($message);
+                    $message = "Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".";
                     throw new Error($message);
                 } else {
                     $response->end();
@@ -419,7 +415,7 @@ trait Requestable
                 if (is_callable($middleware)) {
                     $middleware($request, $response, $next, $param);
                 } else {
-                  $this->callMethod($middleware,"",$request, $response, $next, $param);
+                    $this->callMethod($middleware, "", $request, $response, $next, $param);
                 }
             }
         };
