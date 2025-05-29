@@ -43,8 +43,12 @@ use Error;
 use Oktaax\Error\EventNotDecleared;
 use Oktaax\Interfaces\Channel;
 use Oktaax\Interfaces\WebSocketServer;
-use OpenSwoole\Coroutine;
-use OpenSwoole\WebSocket\Server as SWServer;
+use Swoole\Coroutine;
+use Swoole\WebSocket\Server as SWServer;
+
+/**
+ * @method mixed broadcast(callable(\Oktaax\Websocket\Client) $callback = null, int $delay = 0, $opcode = 1, $flags = 1)
+ */
 
 class Server implements WebSocketServer
 {
@@ -56,7 +60,7 @@ class Server implements WebSocketServer
     public static $eventDefault = 'general';
 
     private $messages = [
-        "event"=>null,
+        "event" => null,
         "message" => null
     ];
 
@@ -118,7 +122,7 @@ class Server implements WebSocketServer
     public function toChannel($channel): static
     {
         if (! new $channel instanceof Channel) {
-            throw new Error("$channel must implements Oktaax\\Interfaces\\Channel");
+            throw new Error("$channel must implements \Oktaax\\Interfaces\\Channel");
         }
 
         foreach ($this->swooleWebsocket->connections as $c) {
@@ -163,12 +167,12 @@ class Server implements WebSocketServer
         return $this->client->data;
     }
 
-    public function kickSender($reason = 'Kicked by server', $code = SWServer::WEBSOCKET_CLOSE_NORMAL)
+    public function kickSender($reason = 'Kicked by server', $code = WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($this->getSenderFd(), $code, $reason);
     }
 
-    public function reject($fd, $reason, $code = \Swoole\WebSocket\Server::WEBSOCKET_CLOSE_NORMAL)
+    public function reject($fd, $reason, $code = WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
     }

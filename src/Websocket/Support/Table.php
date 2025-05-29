@@ -39,7 +39,7 @@
 namespace Oktaax\Websocket\Support;
 
 use Illuminate\Support\Collection;
-use OpenSwoole\Table as SwooleTable;
+use Swoole\Table as SwooleTable;
 
 class Table
 {

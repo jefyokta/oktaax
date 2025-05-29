@@ -6,19 +6,19 @@ namespace Oktaax;
 class ServerBag
 {
 
-    protected static $serverinsance;
+    protected static $serverinstance;
 
     public function __construct(&$server)
     {
 
-        static::$serverinsance = &$server;
+        static::$serverinstance = &$server;
     }
     /**
      * Get Openswoole server instance
-     * @return \OpenSwoole\Http\Server|\OpenSwoole\WebSocket\Server
+     * @return \Swoole\Http\Server|\Swoole\WebSocket\Server
      */
     public static function &get()
     {
-        return static::$serverinsance;
+        return static::$serverinstance;
     }
 }

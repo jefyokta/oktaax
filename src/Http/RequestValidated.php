@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 
@@ -108,5 +109,15 @@ class RequestValidated
     public function getError()
     {
         isset($this->errors) ? current(current($this->errors)) : null;
+    }
+
+    public function throw()
+    {
+
+        if (Request::getInstance()->isAjax()) {
+            return  Response::getInstance()->json(new ResponseJson([], '', json_encode($this->errors)));
+        }
+
+        return Response::getInstance()->cookie('error',json_encode($this->errors),60)->back();
     }
 };

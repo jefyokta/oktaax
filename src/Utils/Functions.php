@@ -96,15 +96,15 @@ if (! function_exists('xcsrf_token') ) {
 
     function xcsrf_token()
     {
-        return xrequest()->_token;
+        return xrequest()?->_token;
     }
 }
 
 if (! function_exists('xserver')) {
 /**
- * @return \OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
+ * @return \Swoole\Http\Server|\Swoole\Websocket\Server
  */
-  function xserver():\OpenSwoole\Http\Server|\OpenSwoole\Websocket\Server
+  function xserver():\Swoole\Http\Server|\Swoole\Websocket\Server
   {
     return ServerBag::get();
   }

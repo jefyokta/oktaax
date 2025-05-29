@@ -42,16 +42,21 @@ namespace Oktaax\Trait;
 
 
 use Error;
+use Oktaax\Console;
 use Oktaax\Oktaax;
-use ReflectionMethod;
 use Oktaax\Http\Request;
-use OpenSwoole\Http\Response;
+use Swoole\Http\Response;
 use Oktaax\Error\CombineException;
 use Oktaax\Http\Response as OktaResponse;
-use OpenSwoole\Http\Server as HttpServer;
-use OpenSwoole\Http\Request as SwooleRequest;
+use Oktaax\Overload\GlobalMiddleware;
+use Oktaax\Overload\RouteApplication;
+use Swoole\Http\Server as HttpServer;
+use Swoole\Http\Request as SwooleRequest;
 
-
+/**
+ * @method void use($middleware)
+ * @method void use(string $route,Oktaax $app)
+ */
 trait Requestable
 {
 
@@ -61,56 +66,52 @@ trait Requestable
      * @var array
      */
     protected $routes = [];
-
     public string $controller_namespace = "Appx\\Controller\\";
     public string $middleware_namespace = "Appx\\Middleware\\";
 
-
+    private array $overloads = [GlobalMiddleware::class, RouteApplication::class];
 
     /**
-     * Global middleware stack.
+     * Global ha$handlerstack.
      *
      * @var callable[]
      */
     protected $globalMiddleware = [];
 
+    protected GlobalMiddleware $globalMiddlewares;
 
-
+    protected RouteApplication $routeApp;
 
     /**
      * Application on request event
      * 
      */
+
     protected function onRequest()
     {
+      
 
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
+
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
-            $path = $request->server['request_uri'];
-            // $file = $this->config->publicDir . $path;
-            // if (is_file($file) && file_exists($file)) {
-            //     $extension = pathinfo($file, PATHINFO_EXTENSION);
-            //     $types = require __DIR__ . "/Utils/MimeTypes.php";
-            //     $mimetype = $types[$extension] ?? "application/octet-stream";
-            //     $response->header("Content-Type", $mimetype);
-            //     $response->sendfile($file);
-            // } else {
-                $this->AppHandler($request, $response);
-            // }
+
+            $this->AppHandler($request, $response);
         });
+   
     }
 
 
-    public function documentRoot(string $directory){
+    public function documentRoot(string $directory)
+    {
 
-        if($this->serverSettings['document_root'] ?? false){
-            return new Error("Cannot Redeclare dpcument root");
+        if ($this->serverSettings['document_root'] ?? false) {
+            return new Error("Cannot Redeclare document root");
         }
         $this->config->publicDir = $directory;
 
-        $this->setServer('enable_static_handler',true);
-        $this->setServer('document_root',$directory);
+        $this->setServer('enable_static_handler', true);
+        $this->setServer('document_root', $directory);
     }
 
     /**
@@ -233,19 +234,7 @@ trait Requestable
     }
 
 
-    /**
-     * Register a global middleware.
-     *
-     * @param callable $globalMiddleware The middleware callback.
-     * @return static
-     */
 
-    public function use(callable $globalMiddleware)
-    {
-        $this->globalMiddleware[] = $globalMiddleware;
-
-        return $this;
-    }
 
 
 
@@ -255,16 +244,19 @@ trait Requestable
      * @param string $path
      * @param  Oktaax $app
      */
-    public function path(string $path, Oktaax $app)
+    protected function path(string $path, Oktaax $app)
     {
 
         $routes =  $app->getRoutes();
+        // if (str_starts_with($path, '/')) {
+        //     $path = substr($path, 1);
+        // }
         foreach ($routes as $route => $methods) {
             foreach ($methods as $method => $handler) {
-                $this->routes[str_ends_with($path, '/') ? $path : $path . "/" . $route][$method] = $handler;
+                // Console::json(['Routes'=>$routes,"methods"=>$methods]);
+                $this->routes[$path . $route][$method] = $handler;
             }
         }
-
         return $this;
     }
 
@@ -294,13 +286,9 @@ trait Requestable
             $method = $request->server['request_method'];
         }
 
-        if (!empty($this->pathMiddlewares)) {
-            $this->handlerPathMiddleware();
-        }
-
-        $stack =  array_merge($this->globalMiddleware, [
+        $stack =  array_merge($this->globalMiddlewares->getMiddlewares(), [
             function ($request, $response, $next) use ($path, $method) {
-                $this->proccesRequest($request, $response, $method, $path, $next);
+                $this->processRequest($request, $response, $method, $path, $next);
             }
         ]);
 
@@ -315,7 +303,7 @@ trait Requestable
      * @param string $route
      * @param string $method
      * @param \Oktaax\Http\Request &$request
-     * @return array
+     * @return array{"route":string,"handler":callable|string|array,"middlewares":array} | false
      * 
      */
     private function matchRoute(string $route, string $method, Request &$request)
@@ -363,40 +351,39 @@ trait Requestable
      * 
      * 
      */
-    private function proccesRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
+    private function processRequest(Request $request, OktaResponse $response, string $method, string $path, $next)
     {
         $match = $this->matchRoute($path, $method, $request);
-
-        if ($match !== false) {
-            $handler = $match['handler'];
-            $middlewares = $match['middlewares'];
-
-            $middlewaresStack = array_merge($middlewares, [
-                function ($request, $response, $next, $param) use ($handler) {
-                    if (!is_array($handler) || !is_string($handler)) {
-                        $handler($request, $response, $param);
-                    } else{
-                        $parts = $handler;
-                        if (is_string($handler)) {
-                            $parts = preg_split("/[.@]/", $handler);
-                        }
-                        $class = $parts[0];
-                        $method = $parts[1] ?? throw new Error("Method not found!");
-                        if (! class_exists($class)) {
-                            if (!class_exists($class = $this->controller_namespace . $class)) throw new \Exception("Class {$class} not found!", 1);
-                        }
-                        call_user_func([new $class, $method], $request, $response, $param);
-                    }
-                }
-            ]);
-            $this->runStackMidleware($middlewaresStack, $request, $response);
-        } else {
+        if (!$match) {
             $response->status(404);
             ob_start();
             require __DIR__ . "/../Views/HttpError/index.php";
             $err = ob_get_clean();
             $response->response->end($err);
+            return;
         }
+        $handler = $match['handler'];
+        $middlewares = $match['middlewares'];
+
+        $middlewaresStack = array_merge($middlewares ?? [], [
+            function ($request, OktaResponse $response, $next, $param) use ($handler) {
+                $res = null;
+                if (!is_array($handler) || !is_string($handler)) {
+                    $res =  $handler($request, $response, $param);
+                } else {
+                    $res = $this->callMethod($handler, $this->controller_namespace, $request, $response, $param);
+                }
+                if (is_string($res) && $response->response->isWritable()) {
+                    $response->end($res);
+                } elseif ($res !== null) {
+                    $message = "Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".";
+                    throw new Error($message);
+                } else {
+                    $response->end();
+                }
+            }
+        ]);
+        $this->runStackMidleware($middlewaresStack, $request, $response);
     }
 
 
@@ -418,15 +405,7 @@ trait Requestable
                 if (is_callable($middleware)) {
                     $middleware($request, $response, $next, $param);
                 } else {
-                    if (is_string($middleware)) {
-                        $middleware = preg_split("/[.@]/", $middleware);
-                    }
-                    $class = $middleware[0];
-                    $method = $middleware[1];
-                    if (!class_exists($class) && is_string($middleware)) {
-                        $class = $this->middleware_namespace . $class;
-                    }
-                    call_user_func([new $class, $method], $request, $response, $param);
+                    $this->callMethod($middleware, "", $request, $response, $next, $param);
                 }
             }
         };
@@ -442,6 +421,7 @@ trait Requestable
      */
     private function init()
     {
+
         if ($this->server) {
             if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
                 $this->protocol = "https";
@@ -481,6 +461,25 @@ trait Requestable
             ];
         } else {
             throw new Error("Dynamic route must has `{` and `}`");
+        }
+    }
+
+    private function callMethod($handler, $namespace, ...$param)
+    {
+        if (is_string($handler)) {
+            $handler = preg_split("/[.@]/", $handler);
+        }
+        return [$namespace . $handler, $handler](...$param);
+    }
+
+    protected function httpPrepare()
+    {
+
+        if ($apps = $this->routeApp->getRoute()) {
+
+            foreach ($apps as $route => $app) {
+                $this->path($route, $app);
+            }
         }
     }
 }

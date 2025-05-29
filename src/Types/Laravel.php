@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -37,7 +38,11 @@
 
 namespace Oktaax\Types;
 
+use Closure;
+use Oktaax\Http\Response;
 use Oktaax\Interfaces\Application;
+
+
 
 class Laravel implements Application
 {
@@ -49,7 +54,14 @@ class Laravel implements Application
     private $app;
     private $interactWithSocket = false;
 
-    public function __construct( $directory)
+    readonly public bool $https;
+
+    /**
+     * @var array<string,callback(mixed $res, Response $response )>
+     */
+    private $responses;
+
+    public function __construct($directory)
     {
         $this->directory = $directory;
     }
@@ -89,7 +101,7 @@ class Laravel implements Application
 
     public function getApplication()
     {
-        return  require_once $this->directory . "/bootstrap/app.php";;
+        return $this->app =  require_once $this->directory . "/bootstrap/app.php";;
     }
 
     /**
@@ -101,9 +113,7 @@ class Laravel implements Application
 
     public function loadVendor()
     {
-        require_once $this->directory . "/vendor/autoload.php";
-
-        ;
+        require_once $this->directory . "/vendor/autoload.php";;
     }
 
     /**
@@ -131,11 +141,20 @@ class Laravel implements Application
 
         return $this->directory . "/storage";
     }
- 
+
 
 
     public function getDirectory()
     {
         return $this->directory;
+    }
+
+
+    public function secure()
+    {
+
+        $this->https = true;
+
+        return $this;
     }
 }

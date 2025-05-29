@@ -42,7 +42,7 @@
 namespace Oktaax\Http;
 
 use Error;
-use OpenSwoole\Http\Response as SwooleResponse;
+use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\OktaaxConfig;
@@ -123,15 +123,14 @@ class Response
     {
         try {
             return $this
-            ->end(
-                $this->view
-                    ->render($view, $data)
-            );
+                ->end(
+                    $this->view
+                        ->render($view, $data)
+                );
         } catch (\Throwable $th) {
             $this->status(500);
             throw $th;
         }
-   
     }
 
     /**
@@ -163,6 +162,8 @@ class Response
             $samesite =  $samesite === null ? "Lax" : $samesite;
             $this->response->cookie($name, $value, $expires, $path, $domain, $secure, $httponly, $samesite, $priority);
         }
+
+        return $this;
     }
 
     /**
@@ -228,12 +229,15 @@ class Response
      * Http redirect
      * 
      * @param string $location
+     * @param int $status
      * 
      */
-    public function redirect(string $location)
+    public function redirect(string $location, int $status = 302)
     {
-        $this->response->redirect($location, 302);
+        $this->response->redirect($location, $status);
     }
+
+
 
     /**
      * 
@@ -326,18 +330,10 @@ class Response
         return $this->response->write($data);
     }
 
-    public function __callStatic($name, $arguments)
+
+    public function getSwooleResponse()
     {
 
-        if (method_exists($this,$name)) {
-            return $this->{$name}(...$arguments);
-        }
-        else if(method_exists($this->response,$name)){
-            return $this->response->$name(...$arguments);
-
-        }else{
-            throw new Error("Method {$name} does'nt exist!");
-        }
-        
+        return $this->response;;
     }
 }

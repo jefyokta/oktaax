@@ -49,7 +49,7 @@ class Validation
     {
 
         if (isset(static::$rules[$rule]) || method_exists($this, $rule)) {
-            throw new \InvalidArgumentException("Validation rule $rule is already registered.");
+            throw new \InvalidArgumentException(sprintf("Validation rule %s is already registered.",$rule));
         }
         static::$rules[$rule] = $callback;
 

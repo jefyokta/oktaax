@@ -43,7 +43,7 @@ namespace Oktaax\Http;
 
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
-use OpenSwoole\Http\Request as HttpRequest;
+use Swoole\Http\Request as HttpRequest;
 use PHPUnit\TextUI\Configuration\Merger;
 
 /**
@@ -70,7 +70,7 @@ class Request
     /**
      * The original Swoole HTTP Request instance.
      * 
-     * @var \OpenSwoole\Http\Request
+     * @var \Swoole\Http\Request
      */
 
     public $request;

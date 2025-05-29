@@ -47,8 +47,8 @@ use Oktaax\Interfaces\Server as InterfacesServer;
 use Oktaax\Interfaces\WithBlade;
 use Oktaax\Interfaces\Xsocket;
 use Oktaax\Trait\HasWebsocket as HasWebsocket;
-use OpenSwoole\Http\Server;
-use OpenSwoole\WebSocket\Server as WebSocketServer;
+use Swoole\Http\Server;
+use Swoole\WebSocket\Server as WebSocketServer;
 
 /**
  * 
@@ -58,7 +58,7 @@ use OpenSwoole\WebSocket\Server as WebSocketServer;
  * 
  * 
  */
-class Oktaa extends Oktaax implements InterfacesServer,  WithBlade
+class Oktaa extends Oktaax implements InterfacesServer
 {
 
     use HasWebsocket;
@@ -77,26 +77,7 @@ class Oktaa extends Oktaax implements InterfacesServer,  WithBlade
      * @override
      */
 
-    protected array $config = [
-        "viewsDir" => "views/",
-        "logDir" => "log",
-        "render_engine" => null,
-        "blade" => [
-            "cacheDir" => null,
-            "functionsDir" => null
-        ],
-        "useOktaMiddleware" => true,
-        "sock_type" => null,
-        "mode" => null,
-        "withWebsocket" => false,
-        "publicDir" => "public",
-        "app" => [
-            "key" => null,
-            "name" => "oktaax",
-            "useCsrf" => false,
-            "csrfExp" => (60 * 5)
-        ]
-    ];
+    protected array $config ;
 
     /**
      * 
