@@ -23,4 +23,4 @@ watermark
 src/Task/
 src/Trait/Taskable.php
 src/Auditor
-test/
+tests/
