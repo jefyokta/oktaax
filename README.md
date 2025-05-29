@@ -13,8 +13,7 @@
 
 ### Requirements
 - PHP 8.1+  
-- OpenSwoole PHP extension  
-*(Note: OpenSwoole does not support PHP 8.4 yet.)*
+- Swoole PHP extension  
 
 ---
 
