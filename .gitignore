@@ -12,3 +12,14 @@ test2/
 index.html
 test.mp4
 watermark
+
+/*.php
+/*.so
+/*.c
+/*.html
+/*.rest
+/*.crt
+/*.key
+src/Task/
+src/Trait/Taskable.php
+src/Auditor

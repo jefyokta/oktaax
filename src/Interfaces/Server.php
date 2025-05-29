@@ -138,7 +138,6 @@ use Oktaax\Oktaax;
      public function patch(string $path, string|callable|array $callback, string|callable|array ...$middlewares);
  
 
-     public function path(string $path, Oktaax $app);
 
 
      public function getRoutes();

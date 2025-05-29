@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 
@@ -46,7 +47,7 @@ use Exception;
 use Oktaax\Console;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
-use OpenSwoole\Coroutine;
+use Swoole\Coroutine;
 
 class Logger
 {
@@ -72,11 +73,11 @@ class Logger
                         $content = ob_get_clean();
                         $response->end($content);
                     }
-                 }
+                }
+            
                 Console::info("{$request->server['request_method']}{$request->server['request_uri']}..........[$response->status]  [took {$took}s]");
             } catch (\Throwable | Exception $th) {
                 Console::error($th->getMessage());
-
                 $file =  Coroutine::readFile($th->getFile());
                 $lines = explode("\n", $file);
                 $code = $lines[$th->getLine() - 1];
@@ -92,7 +93,7 @@ class Logger
                 require __DIR__ . "/../../Views/Error/index.php";
                 $content = ob_get_clean();
 
-          
+
 
                 return   $response->end($content);
             }

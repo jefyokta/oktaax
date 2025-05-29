@@ -15,7 +15,7 @@ class ServerBag
     }
     /**
      * Get Openswoole server instance
-     * @return \OpenSwoole\Http\Server|\OpenSwoole\WebSocket\Server
+     * @return \Swoole\Http\Server|\Swoole\WebSocket\Server
      */
     public static function &get()
     {

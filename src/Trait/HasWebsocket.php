@@ -42,11 +42,11 @@
 namespace Oktaax\Trait;
 
 use Error;
-use OpenSwoole\Table;
+use Swoole\Table;
 use Oktaax\Websocket\Client;
-use OpenSwoole\Http\Request;
-use OpenSwoole\WebSocket\Frame;
-use OpenSwoole\WebSocket\Server;
+use Swoole\Http\Request;
+use Swoole\WebSocket\Frame;
+use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
@@ -69,7 +69,7 @@ trait HasWebsocket
      *
      * @var array
      */
-    private $actions = ["gate" => null, 'table' => null];
+    private $actions = ["gate" => null, 'table' => null, "withOutEvent"=>null];
 
     /**
      * Registered WebSocket events and their handlers.
@@ -140,10 +140,25 @@ trait HasWebsocket
         // $serv->table = $this->table;
 
         if (!$request?->event ?? false) {
-            $serv->reply('Event Needed!');
+            if (is_callable($this->actions["withOutEvent"])) {
+                $this->actions["withOutEvent"]($serv, $client);
+            }
+            else{
+                $serv->reply('Event Needed!');
+            }
         } else {
             $this->serve($serv, $client, $request->event);
         }
+    }
+
+    /**
+     * 
+     * 
+     * @param callable(WServer $server, Client $client) $callback
+     */
+    public function withOutEvent($callback)
+    {
+        $this->actions["withOutEvent"] = $callback;
     }
 
     /**
@@ -189,10 +204,12 @@ trait HasWebsocket
     {
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
         $this->port = $port;
-
         $this->startParams['hostOrCallback'] = $hostOrcallback;
         $this->startParams['callback'] = $callback;
 
+        if (method_exists($this, 'httpPrepare')) {
+            $this->httpPrepare();
+        }
         $this->boot();
         $this->init();
         $this->makeAGlobalServer();

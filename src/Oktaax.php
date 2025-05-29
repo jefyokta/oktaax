@@ -41,9 +41,12 @@
 
 namespace Oktaax;
 
-
+use Oktaax\Auditor\Counter;
 use Error;
 use Exception;
+use Oktaax\Auditor\Auditor;
+use Oktaax\Auditor\Factory;
+use Oktaax\Auditor\Memory;
 use Oktaax\Http\Middleware\Csrf;
 
 use Oktaax\Interfaces\Server;
@@ -54,8 +57,9 @@ use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\OktaaxConfig;
 use Oktaax\Views\PhpView;
-use OpenSwoole\Http\Server as HttpServer;
+use Swoole\Http\Server as HttpServer;
 use ReflectionMethod;
+use Swoole\Timer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
@@ -66,15 +70,21 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
  * 
  * 
  */
-
-
+/**
+ * @method bool listen(int $port)
+ * @method bool listen(int $port, callable(string $url) $callback)
+ * @method bool listen(int $port, string $host)
+ * @method bool listen(int $port, string $host, callable(string $url) $callback)
+ * @method Oktaax setServer(string $key, mixed $value);
+ * @method Oktaax setServer(array $settings);
+ */
 class Oktaax implements Server
 {
     use Requestable;
     /**
      * Swoole HTTP server instance.
      *
-     * @var \OpenSwoole\WebSocket\Server
+     * @var \Swoole\WebSocket\Server
      * 
      */
 
@@ -157,12 +167,23 @@ class Oktaax implements Server
             new AppConfig(null, false, 300, 'Oktaax'),
             'public/'
 
-
         );
 
         $this->globalMiddlewares = new GlobalMiddleware;
         $this->routeApp = new RouteApplication;
+
+        // $this->on('workerStart', function ($server, $workerId) {
+
+        //     Timer::tick(5000, function () use ($server, $workerId) {
+        //         echo $workerId.".\n";
+
+        //         Factory::auditWith(Counter::class, $server, $workerId);
+        //     });
+        // });
+
+        $this->swoolevents["workerStop"] = function () {};
     }
+
 
     public function setView(View $view)
     {
@@ -227,6 +248,8 @@ class Oktaax implements Server
         } else {
             $this->serverSettings[$setting] = $value;
         }
+
+        return $this;
     }
 
 
@@ -279,12 +302,16 @@ class Oktaax implements Server
 
 
         $this->port = $port;
-
         $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
-
+        $this->httpPrepare();
         $this->init();
 
-        $this->server->set($this->serverSettings);
+
+        $this->server->set(
+
+            $this->serverSettings ?? []
+
+        );
 
 
 

@@ -42,15 +42,16 @@ namespace Oktaax\Trait;
 
 
 use Error;
+use Oktaax\Console;
 use Oktaax\Oktaax;
 use Oktaax\Http\Request;
-use OpenSwoole\Http\Response;
+use Swoole\Http\Response;
 use Oktaax\Error\CombineException;
 use Oktaax\Http\Response as OktaResponse;
 use Oktaax\Overload\GlobalMiddleware;
 use Oktaax\Overload\RouteApplication;
-use OpenSwoole\Http\Server as HttpServer;
-use OpenSwoole\Http\Request as SwooleRequest;
+use Swoole\Http\Server as HttpServer;
+use Swoole\Http\Request as SwooleRequest;
 
 /**
  * @method void use($middleware)
@@ -81,37 +82,23 @@ trait Requestable
 
     protected RouteApplication $routeApp;
 
-
-
-    // public function __construct()
-    // {
-    //     parent::__construct();
-    //     $this->globalMiddlewares = new GlobalMiddleware;
-    //     $this->routeApp = new RouteApplication;
-    // }
-
     /**
      * Application on request event
      * 
      */
+
     protected function onRequest()
     {
+      
 
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
+
             $request = new Request($request);
             $response = new OktaResponse($response, $request, $this->config);
-            $path = $request->server['request_uri'];
-            // $file = $this->config->publicDir . $path;
-            // if (is_file($file) && file_exists($file)) {
-            //     $extension = pathinfo($file, PATHINFO_EXTENSION);
-            //     $types = require __DIR__ . "/Utils/MimeTypes.php";
-            //     $mimetype = $types[$extension] ?? "application/octet-stream";
-            //     $response->header("Content-Type", $mimetype);
-            //     $response->sendfile($file);
-            // } else {
+
             $this->AppHandler($request, $response);
-            // }
         });
+   
     }
 
 
@@ -119,7 +106,7 @@ trait Requestable
     {
 
         if ($this->serverSettings['document_root'] ?? false) {
-            return new Error("Cannot Redeclare dpcument root");
+            return new Error("Cannot Redeclare document root");
         }
         $this->config->publicDir = $directory;
 
@@ -257,16 +244,19 @@ trait Requestable
      * @param string $path
      * @param  Oktaax $app
      */
-    public function path(string $path, Oktaax $app)
+    protected function path(string $path, Oktaax $app)
     {
 
         $routes =  $app->getRoutes();
+        // if (str_starts_with($path, '/')) {
+        //     $path = substr($path, 1);
+        // }
         foreach ($routes as $route => $methods) {
             foreach ($methods as $method => $handler) {
-                $this->routes[str_ends_with($path, '/') ? $path : $path . "/" . $route][$method] = $handler;
+                // Console::json(['Routes'=>$routes,"methods"=>$methods]);
+                $this->routes[$path . $route][$method] = $handler;
             }
         }
-
         return $this;
     }
 
@@ -431,6 +421,7 @@ trait Requestable
      */
     private function init()
     {
+
         if ($this->server) {
             if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
                 $this->protocol = "https";
@@ -479,5 +470,16 @@ trait Requestable
             $handler = preg_split("/[.@]/", $handler);
         }
         return [$namespace . $handler, $handler](...$param);
+    }
+
+    protected function httpPrepare()
+    {
+
+        if ($apps = $this->routeApp->getRoute()) {
+
+            foreach ($apps as $route => $app) {
+                $this->path($route, $app);
+            }
+        }
     }
 }

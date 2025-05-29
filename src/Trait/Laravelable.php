@@ -39,10 +39,14 @@
 namespace Oktaax\Trait;
 
 use Illuminate\Support\Facades\Route;
+use Oktaax\Console;
 use Oktaax\Types\Laravel;
-use OpenSwoole\Coroutine;
-use OpenSwoole\Http\Request as HttpRequest;
-use OpenSwoole\Http\Response;
+use Swoole\Coroutine;
+use Swoole\Http\Request as HttpRequest;
+use Swoole\Http\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+
+use function PHPSTORM_META\type;
 
 trait Laravelable
 {
@@ -62,6 +66,8 @@ trait Laravelable
 
     private $laravel;
 
+
+
     /**
      * 
      * Register laravel application
@@ -73,8 +79,14 @@ trait Laravelable
         $this->laravel = $laravel;
         $this->laravel->loadVendor();
         $this->app = $this->laravel->getApplication();
-        $this->setServer('enable_static_handler',true);
-        $this->setServer('document_root',$this->laravel->getPublicPath());
+
+        if ($this->laravel->https) {
+            $this->app->booting(function () {
+                $this->app['url']->forceScheme('https');
+            });
+        }
+        $this->setServer('enable_static_handler', true);
+        $this->setServer('document_root', $this->laravel->getPublicPath());
     }
 
     /**
@@ -136,7 +148,7 @@ trait Laravelable
             $laravelRequest->headers->add($this->request->header);
 
             $kernel = $this->app
-                           ->make(\Illuminate\Contracts\Http\Kernel::class);
+                ->make(\Illuminate\Contracts\Http\Kernel::class);
             $response = $kernel->handle($laravelRequest);
 
             $this->handleHeaders($response->headers->allPreserveCase());
@@ -205,19 +217,63 @@ trait Laravelable
      */
     protected function endResponse($response)
     {
-        return  $this->response->end($this->matchResponse($response));
+        $content =  $this->resolveResponse($response);
+        if ($content === false) {
+            return;
+        } else {
+            return $this->response->end($content);
+        }
     }
 
 
-    private function matchResponse($response)
+
+    private function resolveResponse($response)
     {
-        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
-            return $response->getFile()->getContent();
-        }
-        if ($response instanceof \Illuminate\Http\Response) {
+
+        try {
+
+            // return $response;
+            if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
+                return $response->getFile()->getContent();
+            }
+
+            if ($response instanceof \Illuminate\Http\RedirectResponse) {
+                $response->getTargetUrl();
+                $this->response->redirect($response->getTargetUrl());
+                return false;
+            }
+            if ($response instanceof \Illuminate\Http\Response) {
+                return $response->getContent();
+            }
+
+            // if ($response instanceof StreamedResponse) {
+
+            //     stream_wrapper_unregister('php');
+            //     stream_wrapper_register('php', LaravelStream::class);
+
+            //     LaravelStream::$writer = function ($data)  {
+            //         $this->response->write($data);
+            //     };
+
+             
+            //     $response->sendContent();
+
+
+            //     stream_wrapper_restore('php');
+
+            //     $this->response->end();
+
+
+            //     return false;
+            // }
+
+
+            if ($response instanceof \Illuminate\Http\JsonResponse) {
+                return $response->getContent();
+            }
             return $response->getContent();
+        } catch (\Throwable $th) {
+            return "unregistered laravel response";
         }
     }
-
-
 }
