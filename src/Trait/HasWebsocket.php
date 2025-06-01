@@ -69,7 +69,7 @@ trait HasWebsocket
      *
      * @var array
      */
-    private $actions = ["gate" => null, 'table' => null, "withOutEvent"=>null];
+    private $actions = ["gate" => null, 'table' => null, "withOutEvent" => null, "exit" => null];
 
     /**
      * Registered WebSocket events and their handlers.
@@ -115,12 +115,21 @@ trait HasWebsocket
     }
 
     /**
-     * @param callable(\Oktaax\Websocket\Server, \Oktaax\Http\Request) $callback
+     * @param callable(\Oktaax\Websocket\Server, \Oktaax\Http\Request ) $callback
      */
     public function gate(callable $callback)
     {
 
         $this->actions['gate'] = $callback;
+    }
+
+    /**
+     * @param callable(\Oktaax\Websocket\Server, int) $callback
+     */
+    public function exit(callable $callback)
+    {
+
+        $this->actions['exit'] = $callback;
     }
 
     /**
@@ -142,8 +151,7 @@ trait HasWebsocket
         if (!$request?->event ?? false) {
             if (is_callable($this->actions["withOutEvent"])) {
                 $this->actions["withOutEvent"]($serv, $client);
-            }
-            else{
+            } else {
                 $serv->reply('Event Needed!');
             }
         } else {
@@ -264,6 +272,7 @@ trait HasWebsocket
     {
 
         SupportTable::remove($fd);
+        $this->callIfCallable($this->actions["exit"], $server, $fd);
     }
 
     /**
@@ -299,7 +308,6 @@ trait HasWebsocket
     private function callIfCallable(?callable $callback, &...$params)
     {
         if (is_callable($callback)) {
-
             try {
                 $callback(...$params);
             } catch (\Throwable $th) {

@@ -85,7 +85,9 @@ class Server implements WebSocketServer
                 "message" => $data
             ], JSON_PRETTY_PRINT);
         }
-        $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
+        if ($this->swooleWebsocket->isEstablished($fd)) {
+            $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
+        }
     }
 
 

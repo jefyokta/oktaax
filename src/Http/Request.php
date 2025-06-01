@@ -116,7 +116,7 @@ class Request
     {
         $this->request = $request;
         $this->post = $request->post;
-        $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post??[],[]));
+        $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post ?? [], []));
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
         static::$instance = $this;
@@ -433,6 +433,10 @@ class Request
     {
         return isset($this->request->header[$key]);
     }
+    public function isInertia()
+    {
+        return $this->hasHeader('x-inertia');
+    }
 
 
     public function isAjax()
@@ -466,5 +470,10 @@ class Request
     public function __toString()
     {
         return json_encode($this);
+    }
+
+    public function get($key)
+    {
+        return $this->request->get[$key];
     }
 }
