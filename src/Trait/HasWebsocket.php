@@ -271,7 +271,6 @@ trait HasWebsocket
     private function close(Server $server, $fd)
     {
 
-        SupportTable::remove($fd);
         $this->callIfCallable($this->actions["exit"], $server, $fd);
     }
 
