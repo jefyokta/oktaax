@@ -262,16 +262,14 @@ trait HasWebsocket
         $httpRequest = new HttpRequest($request);
         $client = new Client($request->fd);
         $serv =  new WServer($server, $client);
-        if (is_callable($this->actions['gate'])) {
-            $this->actions['gate']($serv, $httpRequest);
-        }
+        $this->callIfCallable($this->actions['gate'], $serv, $httpRequest);
     }
 
 
     private function close(Server $server, $fd)
     {
-
-        $this->callIfCallable($this->actions["exit"], $server, $fd);
+        $s = new WServer($server, $fd);
+        $this->callIfCallable($this->actions["exit"], $s, $fd);
     }
 
     /**
@@ -283,8 +281,11 @@ trait HasWebsocket
      */
     private function start(): void
     {
-        $protocol = $this->protocol === "https" ? "wss" : "ws";
-        $url = "{$protocol}://{$this->host}:{$this->port}";
+        $protocol = match ($this->protocol) {
+            "http" => ["http", "ws"],
+            "https" => ["https", "wss"],
+        };
+        $url = "Websocket: {$protocol[1]}://{$this->host}:{$this->port}\nHttp: {$protocol[0]}://{$this->host}:{$this->port}";
 
         if (is_callable($this->startParams["hostOrCallback"])) {
             $this->startParams["hostOrCallback"]($url);

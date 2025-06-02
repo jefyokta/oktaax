@@ -41,6 +41,7 @@ namespace Oktaax\Websocket;
 
 use Oktaax\Interfaces\Channel;
 use Oktaax\Websocket\Support\Member;
+use Oktaax\Websocket\Support\Table;
 
 class Client
 {
@@ -89,5 +90,9 @@ class Client
     public function __set($name, $value)
     {
         $this->identify[$name] = $value;
+    }
+
+    public function info(){
+        return Table::get($this->fd);
     }
 }

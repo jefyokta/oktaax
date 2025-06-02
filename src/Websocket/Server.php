@@ -56,13 +56,7 @@ class Server implements WebSocketServer
     public int|array $fds = [];
 
     protected Client $client;
-    public $event;
-    public static $eventDefault = 'general';
-
-    private $messages = [
-        "event" => null,
-        "message" => null
-    ];
+ 
 
     public SWServer $swooleWebsocket;
 
@@ -70,21 +64,12 @@ class Server implements WebSocketServer
     {
         $this->client = $client;
         $this->swooleWebsocket = $server;
-        $this->messages["event"] = static::$eventDefault ?? null;
     }
 
 
     private function push($fd, $data, $opcode = 1, $flags = 1)
     {
-        if (is_null($this->event) && null === static::$eventDefault) {
-            throw new EventNotDecleared("Cannot push a message without event");
-        }
-        if (is_array($data) || is_object($data)) {
-            $data = json_encode([
-                "event" => $this->event ?? static::$eventDefault,
-                "message" => $data
-            ], JSON_PRETTY_PRINT);
-        }
+        $data = is_scalar($data) ? $data : json_encode($data);
         if ($this->swooleWebsocket->isEstablished($fd)) {
             $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
         }
@@ -178,16 +163,5 @@ class Server implements WebSocketServer
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
     }
-    public function event($eventName)
-    {
 
-        $this->event = $eventName;
-        return $this;
-    }
-
-    public static function setDefaultEvent($eventName)
-    {
-
-        static::$eventDefault = $eventName;
-    }
 };
