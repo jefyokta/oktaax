@@ -268,7 +268,7 @@ trait HasWebsocket
 
     private function close(Server $server, $fd)
     {
-        $s = new WServer($server, $fd);
+        $s = new WServer($server, new Client($fd));
         $this->callIfCallable($this->actions["exit"], $s, $fd);
     }
 
