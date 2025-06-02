@@ -1,9 +1,9 @@
 <?php
-
+namespace Oktaax\Http;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
-namespace Oktaax\Http;
+
 
 class Inertia
 {
