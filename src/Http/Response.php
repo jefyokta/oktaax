@@ -141,7 +141,7 @@ class Response
     public function json(ResponseJson $json)
     {
         $this->header("Content-Type", "application/json");
-        $this->response->end(json_encode($json->get()));
+        $this->end(json_encode($json->get()));
     }
 
     /**
