@@ -66,8 +66,8 @@ class Validation
                 $this->applyRule($data, $field, $rule);
             }
         }
-        $errors = static::$errors;
-        static::$errors = [];
+        $errors = $this->errors;
+        $this->errors = [];
         return $errors;
     }
 

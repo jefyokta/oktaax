@@ -371,7 +371,7 @@ class Request
     public function validate(array $rules, array|null $data = null)
     {
         if (is_null($data)) {
-            $data = $this->request['post'];
+            $data = $this->request->server["post"];
         }
 
         $this->errors = (new Validation)->validate($data, $rules) ?? null;
