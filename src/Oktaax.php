@@ -41,12 +41,8 @@
 
 namespace Oktaax;
 
-use Oktaax\Auditor\Counter;
 use Error;
 use Exception;
-use Oktaax\Auditor\Auditor;
-use Oktaax\Auditor\Factory;
-use Oktaax\Auditor\Memory;
 use Oktaax\Http\Middleware\Csrf;
 
 use Oktaax\Interfaces\Server;
@@ -59,7 +55,6 @@ use Oktaax\Types\OktaaxConfig;
 use Oktaax\Views\PhpView;
 use Swoole\Http\Server as HttpServer;
 use ReflectionMethod;
-use Swoole\Timer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
@@ -97,11 +92,7 @@ class Oktaax implements Server
      */
     protected array $serverSettings = [];
 
-
-
     protected $swoolevents = [];
-
-
 
 
     /**
@@ -181,7 +172,6 @@ class Oktaax implements Server
         //     });
         // });
 
-        $this->swoolevents["workerStop"] = function () {};
     }
 
 
@@ -226,7 +216,7 @@ class Oktaax implements Server
     public function securely($cert, $key)
     {
 
-        $this->withSSL($cert, $key);
+        return  $this->withSSL($cert, $key);
     }
 
 
@@ -308,9 +298,7 @@ class Oktaax implements Server
 
 
         $this->server->set(
-
-            $this->serverSettings ?? []
-
+            $this->serverSettings ?? []       
         );
 
 
@@ -459,4 +447,5 @@ class Oktaax implements Server
         }
         throw new Exception(sprintf("Method %s with %s argument(s) not found!", $name, $argCount));
     }
+
 };

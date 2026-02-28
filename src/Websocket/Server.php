@@ -39,24 +39,31 @@
 
 namespace Oktaax\Websocket;
 
-use Error;
-use Oktaax\Error\EventNotDecleared;
+use Oktaax\Contracts\OverloadClass;
 use Oktaax\Interfaces\Channel;
 use Oktaax\Interfaces\WebSocketServer;
+use Oktaax\Trait\Overloadable;
+use Oktaax\Websocket\Overload\PushWithEvent;
+use Oktaax\Websocket\Support\Table;
+use Stringable;
 use Swoole\Coroutine;
+use Swoole\Table as SwooleTable;
 use Swoole\WebSocket\Server as SWServer;
+use TypeError;
 
 /**
  * @method mixed broadcast(callable(\Oktaax\Websocket\Client) $callback = null, int $delay = 0, $opcode = 1, $flags = 1)
+ * @method mixed broadcast(\Oktaax\Websocket\Event | string $message = null, int $delay = 0, $opcode = 1, $flags = 1)
  */
 
-class Server implements WebSocketServer
+class Server implements WebSocketServer 
 {
+    use Overloadable;
 
     public int|array $fds = [];
 
     protected Client $client;
- 
+
 
     public SWServer $swooleWebsocket;
 
@@ -64,7 +71,9 @@ class Server implements WebSocketServer
     {
         $this->client = $client;
         $this->swooleWebsocket = $server;
+        self::classRegister(PushWithEvent::class);
     }
+
 
 
     private function push($fd, $data, $opcode = 1, $flags = 1)
@@ -75,29 +84,56 @@ class Server implements WebSocketServer
         }
     }
 
-
-
-    public function broadcast(mixed $data, int $delay = 0, $opcode = 1, $flags = 1): void
+    private function normalizeMessage(Event|string|array $message, Client $client): string
     {
-        $receivers = $this->fds ?? $this->swooleWebsocket->connections;
+        if ($message instanceof Event) {
+            return $message->client($client);
+        }
+
+        if (is_string($message) && class_exists($message) && is_subclass_of($message, Event::class)) {
+            return (new $message)->client($client);
+        }
+
+        if (is_string($message)) {
+            return $message;
+        }
+
+        return json_encode($message);
+    }
+
+    public function broadcast(mixed $data, int $delay = 0, int $opcode = 1, int $flags = 1): void
+    {   
+        $receivers = $this->fds ?? Table::getTable();
+
+        $send = function (int $fd) use ($data, $opcode, $flags) {
+
+            $client = new Client($fd);
+
+            $payload = is_callable($data)
+                ? $data($client)
+                : $data;
+
+            $message = $this->normalizeMessage($payload, $client);
+
+            $this->push($fd, $message, $opcode, $flags);
+        };
 
         if (is_int($receivers)) {
-            $message = is_callable($data) ? $data(new Client($receivers)) : $data;
-            $this->push($receivers, $message, $opcode, $flags);
-        } else {
+            $send($receivers);
+            return;
+        }
 
-            if (is_array($receivers)) {
-                foreach ($receivers as $fd) {
-                    $message = is_callable($data) ? $data(new Client($fd)) : $data;
-                    $this->push($fd, $message, $opcode, $flags);
+        if (is_array($receivers) || $receivers instanceof SwooleTable) {
+            foreach ($receivers as $fd) {
+                $send($fd);
 
-                    if ($delay > 0) {
-                        Coroutine::sleep($delay);
-                    }
+                if ($delay > 0) {
+                    Coroutine::sleep($delay);
                 }
             }
         }
     }
+
 
 
     public function to(int|array $fds): static
@@ -108,12 +144,19 @@ class Server implements WebSocketServer
 
     public function toChannel($channel): static
     {
-        if (! new $channel instanceof Channel) {
-            throw new Error("$channel must implements \Oktaax\\Interfaces\\Channel");
+        if (!class_exists((string)$channel)) {
+            throw new TypeError("Class {$channel} does not exist.");
         }
 
-        foreach ($this->swooleWebsocket->connections as $c) {
-            if ((new $channel)->eligible(new Client($c))) {
+        if (!is_subclass_of($channel, Channel::class)) {
+            throw new TypeError(
+                "Param must be subclass of " . Channel::class . ", {$channel} given"
+            );
+        }
+        $channel = new Channel;
+
+        foreach (Table::getTable() as $c) {
+            if ($channel->eligible(new Client($c))) {
                 $this->fds[] = $c;
             }
         }
@@ -163,5 +206,4 @@ class Server implements WebSocketServer
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
     }
-
 };

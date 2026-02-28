@@ -51,8 +51,6 @@ use Swoole\Coroutine;
 
 class Logger
 {
-
-
     public static function handle()
     {
 

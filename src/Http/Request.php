@@ -41,16 +41,17 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
 use Swoole\Http\Request as HttpRequest;
-use PHPUnit\TextUI\Configuration\Merger;
+use Stringable;
 
 /**
  * @package Oktaax\Http
  */
 
-class Request
+class Request implements Stringable
 {
 
     /**
@@ -119,7 +120,11 @@ class Request
         $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post ?? [], []));
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
-        static::$instance = $this;
+        static::$instance = &$this;
+    }
+    static function create(HttpRequest $request){
+
+        return new static($request);
     }
 
     /**
@@ -245,7 +250,7 @@ class Request
      */
     public function has(string $key): bool
     {
-        return null !== $this->all()[$key] ?? false;
+        return isset($this->all()[$key]);
     }
 
     /**
@@ -376,7 +381,12 @@ class Request
 
         $this->errors = (new Validation)->validate($data, $rules) ?? null;
 
-        return new RequestValidated($data, !empty($errors) ? $errors : null);
+        $reqValidated = new RequestValidated($data, !empty($errors) ? $errors : null);
+        if (!$reqValidated->isOk()) {
+            throw new ValidationException($reqValidated->getErrors());
+        }
+
+        return $reqValidated->getData();
     }
 
     /**
@@ -424,7 +434,7 @@ class Request
     {
         return $this->request->cookie[$name] ?? null;
     }
-    public static function getInstance()
+    public static function &getInstance()
     {
         return static::$instance;
     }
@@ -457,14 +467,13 @@ class Request
 
     public function bodies()
     {
-
-        return array_merge($this->post ?? [], (array)$this->body ?? []);
+        return \array_merge($this->post ?? [], (array) $this->body ?? []);
     }
 
     public function parameters()
     {
 
-        return array_merge($this->get ?? [], $this->bodies());
+        return \array_merge($this->get ?? [], $this->bodies());
     }
 
     public function __toString()

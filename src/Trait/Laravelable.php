@@ -38,15 +38,16 @@
 
 namespace Oktaax\Trait;
 
-use Illuminate\Support\Facades\Route;
-use Oktaax\Console;
+use Illuminate\Container\Container;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Facade;
 use Oktaax\Types\Laravel;
+use Reflection;
+use ReflectionClass;
 use Swoole\Coroutine;
 use Swoole\Http\Request as HttpRequest;
 use Swoole\Http\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
-use function PHPSTORM_META\type;
 
 trait Laravelable
 {
@@ -66,6 +67,10 @@ trait Laravelable
 
     private $laravel;
 
+    private $chunkSize = 8192;
+
+    
+
 
 
     /**
@@ -79,12 +84,8 @@ trait Laravelable
         $this->laravel = $laravel;
         $this->laravel->loadVendor();
         $this->app = $this->laravel->getApplication();
+        static::setCurrentApplication($this->app);
 
-        if ($this->laravel->https) {
-            $this->app->booting(function () {
-                $this->app['url']->forceScheme('https');
-            });
-        }
         $this->setServer('enable_static_handler', true);
         $this->setServer('document_root', $this->laravel->getPublicPath());
     }
@@ -107,10 +108,14 @@ trait Laravelable
     protected function onRequest()
     {
 
-        //Swoole server request event from Oktaax class
+        //Swoole server request event from orignal class
         $this->server->on('request', function (HttpRequest $request, Response $response) {
 
-            //preparing request and response object
+            // Laravel::create($this->laravel->getDirectory())
+            //     ->secure($this->https ?? false)
+            //     ->terminate($request, $response);
+            // return;
+            //creatin request and response object
             $this->bootRequestEvent($request, $response);
 
             //laravel application
@@ -118,11 +123,17 @@ trait Laravelable
                 $this->response->header("Host", $this->request->header['host']);
                 $responseFromLaravel = $this->bootstrapLaravel();
                 $this->response->status($responseFromLaravel->getStatusCode() ?? 500);
-                return  $this->endResponse($responseFromLaravel);
+                return  $this->resolveResponse($responseFromLaravel);
             } catch (\Throwable $th) {
                 return  $this->handleError($th);
             }
         });
+    }
+
+    public function withSSL($cert, $key) {
+        parent::withSSL($cert,$key);
+        $this->laravel->secure();
+        return $this;
     }
 
     /**
@@ -134,16 +145,16 @@ trait Laravelable
 
     protected function bootstrapLaravel()
     {
+        $laravelRequest = \Illuminate\Http\Request::create(
+            $this->request->server['request_uri'],
+            $this->request->server['request_method'],
+            $this->request->isMethod("GET") ? $this->request->get ?? [] : (json_decode($this->request->rawContent(), true) ?? []),
+            $this->request->cookie ?? [],
+            $this->request->files ?? [],
+            $this->request->server ?? [],
+            $this->request->rawContent()
+        );
         try {
-            $laravelRequest = \Illuminate\Http\Request::create(
-                $this->request->server['request_uri'],
-                $this->request->server['request_method'],
-                $this->request->isMethod("GET") ? $this->request->get ?? [] : $this->request->bodies(),
-                $this->request->cookie ?? [],
-                $this->request->files ?? [],
-                $this->request->server ?? [],
-                $this->request->rawContent()
-            );
 
             $laravelRequest->headers->add($this->request->header);
 
@@ -158,9 +169,12 @@ trait Laravelable
                 ->render($laravelRequest, $th);
 
             \Oktaax\Console::error($th->getMessage());
+        } finally {
+
+
+            $kernel->terminate($laravelRequest, $response);
+            return $response;
         }
-        $kernel->terminate($laravelRequest, $response);
-        return $response;
     }
 
 
@@ -208,22 +222,15 @@ trait Laravelable
         throw $th;
     }
 
-
-    /**
-     * 
-     * @param \Illuminate\Http\Response|mixed $response
-     * 
-     * 
-     */
-    protected function endResponse($response)
-    {
-        $content =  $this->resolveResponse($response);
-        if ($content === false) {
-            return;
-        } else {
-            return $this->response->end($content);
-        }
+    protected static function setCurrentApplication(Application $app){
+        $app->instance('app',$app);
+        $app->instance(Container::class,$app);
+        Container::setInstance($app);
+        Facade::clearResolvedInstances();
+        Facade::setFacadeApplication(($app));
     }
+
+
 
 
 
@@ -232,48 +239,50 @@ trait Laravelable
 
         try {
 
-            // return $response;
             if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
-                return $response->getFile()->getContent();
+                $this->response->sendfile(
+                    $response->getFile()->getContent(),
+                    (new ReflectionClass(\Symfony\Component\HttpFoundation\BinaryFileResponse::class))
+                        ->getProperty('offset')
+                        ->getValue($response)
+                );
+                return;
             }
 
             if ($response instanceof \Illuminate\Http\RedirectResponse) {
-                $response->getTargetUrl();
                 $this->response->redirect($response->getTargetUrl());
-                return false;
-            }
-            if ($response instanceof \Illuminate\Http\Response) {
-                return $response->getContent();
+                return;
             }
 
-            // if ($response instanceof StreamedResponse) {
+            //todo
 
-            //     stream_wrapper_unregister('php');
-            //     stream_wrapper_register('php', LaravelStream::class);
-
-            //     LaravelStream::$writer = function ($data)  {
-            //         $this->response->write($data);
-            //     };
-
-             
-            //     $response->sendContent();
-
-
-            //     stream_wrapper_restore('php');
-
-            //     $this->response->end();
-
-
-            //     return false;
+            // if ($response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+            //     $streamed = new ReflectionClass(\Symfony\Component\HttpFoundation\StreamedResponse::class);
+            //     $callback =  $streamed->getProperty('callback')->getValue($response);
+            //     $this->response->end($callback());
+            //     return;
             // }
-
-
-            if ($response instanceof \Illuminate\Http\JsonResponse) {
-                return $response->getContent();
+            $content = $response->getContent();
+            $contentLength = strlen($content);
+            if ($contentLength == 0) {
+                $this->response->end();
             }
-            return $response->getContent();
+            if ($this->canSendImmediatelly($contentLength)) {
+                $this->response->end($content);
+                return;
+            }
+
+            for ($i = 0; $i < $contentLength; $i += $this->chunkSize) {
+                $this->response->write(substr($content, $i, $this->chunkSize));
+            }
+            $this->response->end();
         } catch (\Throwable $th) {
             return "unregistered laravel response";
         }
+    }
+
+    private function canSendImmediatelly(int $length): bool
+    {
+        return $length <= $this->chunkSize;;
     }
 }

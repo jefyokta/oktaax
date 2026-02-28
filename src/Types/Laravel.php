@@ -38,13 +38,11 @@
 
 namespace Oktaax\Types;
 
-use Closure;
-use Oktaax\Http\Response;
-use Oktaax\Interfaces\Application;
+use ReflectionClass;
+use Swoole\Http\Request;
+use Swoole\Http\Response;
 
-
-
-class Laravel implements Application
+class Laravel
 {
     private $directory;
 
@@ -52,18 +50,137 @@ class Laravel implements Application
      * @var \Illuminate\Foundation\Application 
      */
     private $app;
+
     private $interactWithSocket = false;
 
-    readonly public bool $https;
+    private  $https;
 
-    /**
-     * @var array<string,callback(mixed $res, Response $response )>
-     */
-    private $responses;
+    private $chunkSize = 8192;
+
 
     public function __construct($directory)
     {
         $this->directory = $directory;
+    }
+
+    public function _create()
+    {
+        return Laravel::create($this->directory)->secure();
+    }
+
+    public function terminate($request, $response)
+    {
+        try {
+            $laravelResponse =  $this->boot($request);
+            $this->booted(
+                $response,
+                $laravelResponse
+            );
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+
+    private function assertResponse(Response $response, $laravelResponse)
+    {
+        try {
+            if ($laravelResponse instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse) {
+                $response->sendfile(
+                    $laravelResponse->getFile()->getContent(),
+                    (new ReflectionClass(\Symfony\Component\HttpFoundation\BinaryFileResponse::class))
+                        ->getProperty('offset')
+                        ->getValue($laravelResponse)
+                );
+                return;
+            }
+
+            if ($laravelResponse instanceof \Illuminate\Http\RedirectResponse) {
+                $response->redirect($laravelResponse->getTargetUrl());
+                return;
+            }
+
+            //todo
+
+            // if ($response instanceof \Symfony\Component\HttpFoundation\StreamedResponse) {
+            //     $streamed = new ReflectionClass(\Symfony\Component\HttpFoundation\StreamedResponse::class);
+            //     $callback =  $streamed->getProperty('callback')->getValue($response);
+            //     $this->response->end($callback());
+            //     return;
+            // }
+            $content = $laravelResponse->getContent();
+            $contentLength = strlen($content);
+            if ($contentLength == 0) {
+                $response->end();
+            }
+            if ($this->canSendImmediatelly($contentLength)) {
+                $response->end($content);
+                return;
+            }
+
+            for ($i = 0; $i < $contentLength; $i += $this->chunkSize) {
+                $response->write(substr($content, $i, $this->chunkSize));
+            }
+            $response->end();
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+    }
+    private function canSendImmediatelly(int $length): bool
+    {
+        return $length <= $this->chunkSize;
+    }
+
+    private function make()
+    {
+        $this->app =  require $this->directory . "/bootstrap/app.php";
+    }
+
+    private function boot(Request $request)
+    {
+        $this->loadVendor();
+        $req =  \Illuminate\Http\Request::create(
+            $request->server['request_uri'],
+            $request->server['request_method'],
+            $request->server['request_uri'] == 'GET' ? $request->get ?? [] :  json_decode($request->rawContent(), true) ?? [],
+            $request->cookie ?? [],
+            $request->files ?? [],
+            $request->server,
+            $request->rawContent()
+        );
+        if (!$this->app) {
+            $this->make();
+        }
+        $req->headers->add($request->header);
+
+        return $this->getResponse($req);
+    }
+    private function booted(Response $response, $laravelResponse)
+    {
+        foreach ($laravelResponse->headers->allPreserveCase() as $key => $value) {
+            $response->header($key, $value);
+        }
+        $response->status($laravelResponse->getStatusCode() ?? 500);
+        return $this->assertResponse($response, $laravelResponse);
+    }
+
+
+    public static function create($laravelDir)
+    {
+
+        return (new static($laravelDir));
+    }
+
+    /**
+     * @param \Symfony\Component\HttpFoundation\Request $request
+     */
+    private function getResponse($request)
+    {
+        /**  @var \Illuminate\Contracts\Http\Kernel */
+        $kernel = $this->app
+            ->make(\Illuminate\Contracts\Http\Kernel::class);
+        $response = $kernel->handle($request);
+
+        return $response;
     }
 
 
@@ -101,7 +218,19 @@ class Laravel implements Application
 
     public function getApplication()
     {
-        return $this->app =  require_once $this->directory . "/bootstrap/app.php";;
+        if (! $this->app) {
+            $this->make();
+        }
+        if ($this->https ?? false) {
+            $this->app->booting(function () {
+                $this->app['url']->forceScheme("https");
+            });
+        }
+        $this->app->terminating(function () {
+            \Illuminate\Support\Facades\Auth::forgetGuards();
+        });
+
+        return $this->app;
     }
 
     /**
@@ -149,11 +278,16 @@ class Laravel implements Application
         return $this->directory;
     }
 
-
-    public function secure()
+    /**
+     * 
+     * Force Laravel Application to HTTPS Scheme
+     * @return static
+     * 
+     */
+    public function secure($value = true)
     {
 
-        $this->https = true;
+        $this->https = $value;
 
         return $this;
     }

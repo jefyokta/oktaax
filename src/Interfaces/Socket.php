@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -37,7 +38,15 @@
 
 namespace Oktaax\Interfaces;
 
-interface Socket {
+interface Socket
+{
+    /**
+     * Register a WebSocket event and its handler.
+     *
+     * @param string $event The event name to register.
+     * @param callable(\Oktaax\Websocket\Server,\Oktaax\Websocket\Client)|array $handler A callable or an array representing a class and method.
+     * @return static Returns the current instance for method chaining.
+     */
     public function ws(string $event, callable|array $handler);
     public function gate(callable $callback);
     public function table(callable $callback, ?int $size = 1024);

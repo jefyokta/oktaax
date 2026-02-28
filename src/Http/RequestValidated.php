@@ -73,6 +73,11 @@ class RequestValidated
 
         return $this;
     }
+
+    public function isOk():bool{
+
+        return empty($this->errors);
+    }
     /**
      * 
      * Return all validate result

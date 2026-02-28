@@ -24,3 +24,7 @@ src/Task/
 src/Trait/Taskable.php
 src/Auditor
 tests/
+
+test.*
+test.json
+test.js

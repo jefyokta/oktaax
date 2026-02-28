@@ -48,6 +48,7 @@ use Swoole\Http\Request;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
+use Oktaax\ServerBag;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
 
@@ -58,6 +59,7 @@ use Oktaax\Websocket\Support\Table as SupportTable;
  * Provides WebSocket event handling, and server lifecycle management.
  *
  * @package Oktaax\Trait
+ * @property Server $server
  */
 trait HasWebsocket
 {
@@ -178,7 +180,7 @@ trait HasWebsocket
      * @return void
      * @throws Error If the handler is invalid.
      */
-    private function serve(WServer $server, Client $client, string $event): void
+    private function serve(WServer $server, Client $client, ?string $event): void
     {
         $handler = $this->events[$event] ?? null;
         if (is_null($handler)) {
@@ -221,7 +223,9 @@ trait HasWebsocket
         $this->boot();
         $this->init();
         $this->makeAGlobalServer();
-        $this->onRequest();
+        if (!$this->isWithOctane()) {
+            $this->onRequest();
+        }
         $this->bootEvents();
         $this->eventRegistery($hostOrcallback, $callback);
         $this->server->start();
@@ -246,7 +250,16 @@ trait HasWebsocket
         $this->server->on("Open", fn(Server $serv, Request $req) => $this->open($serv, $req));
         $this->server->on("Message", fn(Server $server, Frame $frame) => $this->messageHandler($server, $frame));
         $this->server->on("Close", fn(Server $server, $fd) => $this->close($server, $fd));
-        $this->server->on("Start", fn() => $this->start());
+        if ($this->isWithOctane()) {
+            $this->octaneEventRegister();
+        } else {
+            $this->server->on("Start", fn() => $this->start());
+        }
+    }
+
+    private function isWithOctane()
+    {
+        return  method_exists($this, 'octaneEventRegister');
     }
 
     /**
@@ -288,9 +301,19 @@ trait HasWebsocket
         $url = "Websocket: {$protocol[1]}://{$this->host}:{$this->port}\nHttp: {$protocol[0]}://{$this->host}:{$this->port}";
 
         if (is_callable($this->startParams["hostOrCallback"])) {
-            $this->startParams["hostOrCallback"]($url);
+            $this->startParams["hostOrCallback"]($url, $this->server);
         } elseif (is_callable($this->startParams["callback"]) && !is_null($this->startParams["callback"])) {
-            $this->startParams["callback"]($url);
+            $this->startParams["callback"]($url, $this->server);
+        }
+    }
+
+
+    public function broadcast($data, $receivers = null)
+    {
+
+        foreach (SupportTable::getTable() as $key => $value) {
+            echo $key . PHP_EOL;
+            ServerBag::get()->push($key, is_string($data) ? $data : json_encode($data));
         }
     }
 
