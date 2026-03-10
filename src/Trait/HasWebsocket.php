@@ -49,8 +49,10 @@ use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
 use Oktaax\ServerBag;
+use Oktaax\Utils\Reflection;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
+use ReflectionFunction;
 
 /**
  * Trait HasWebsocket
@@ -298,12 +300,23 @@ trait HasWebsocket
             "http" => ["http", "ws"],
             "https" => ["https", "wss"],
         };
-        $url = "Websocket: {$protocol[1]}://{$this->host}:{$this->port}\nHttp: {$protocol[0]}://{$this->host}:{$this->port}";
+        // $url = "Websocket: {$protocol[1]}://{$this->host}:{$this->port}\nHttp: {$protocol[0]}://{$this->host}:{$this->port}";
 
-        if (is_callable($this->startParams["hostOrCallback"])) {
-            $this->startParams["hostOrCallback"]($url, $this->server);
+        if (is_callable($cb = $this->startParams["hostOrCallback"])) {
+            $ref = Reflection::callable($cb);
+
+            $ref = Reflection::callable($cb);
+            $params = $this->resolveParams($ref);
+
+            $cb(...$params);
+
+            // $this->startParams["hostOrCallback"]($url, $this->server);
         } elseif (is_callable($this->startParams["callback"]) && !is_null($this->startParams["callback"])) {
-            $this->startParams["callback"]($url, $this->server);
+            $cb = $this->startParams["callback"];
+            $ref = Reflection::callable($cb);
+            $params = $this->resolveParams($ref);
+
+            $cb(...$params);
         }
     }
 

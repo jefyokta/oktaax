@@ -43,6 +43,8 @@ namespace Oktaax;
 
 use Error;
 use Exception;
+use Oktaax\Core\Application;
+use Oktaax\Core\URL;
 use Oktaax\Http\Middleware\Csrf;
 
 use Oktaax\Interfaces\Server;
@@ -52,9 +54,13 @@ use Oktaax\Overload\RouteApplication;
 use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\OktaaxConfig;
+use Oktaax\Utils\Reflection;
 use Oktaax\Views\PhpView;
+use ReflectionFunction;
+use ReflectionFunctionAbstract;
 use Swoole\Http\Server as HttpServer;
 use ReflectionMethod;
+use Swoole\WebSocket\Server as WebSocketServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
@@ -215,7 +221,6 @@ class Oktaax implements Server
      */
     public function securely($cert, $key)
     {
-
         return  $this->withSSL($cert, $key);
     }
 
@@ -298,7 +303,7 @@ class Oktaax implements Server
 
 
         $this->server->set(
-            $this->serverSettings ?? []       
+            $this->serverSettings ?? []
         );
 
 
@@ -308,9 +313,19 @@ class Oktaax implements Server
             $this->use(Csrf::handle($this->config->app->key));
         }
         if (is_callable($hostOrcallback)) {
-            $hostOrcallback($this->protocol . "://" . $this->host . ":" . $this->port);
+
+            $ref = Reflection::callable($hostOrcallback);
+            $params = $this->resolveParams($ref);
+
+            $hostOrcallback(...$params);
         } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
-            $callback($this->protocol . "://" . $this->host . ":" . $this->port);
+
+
+            $ref = Reflection::callable($callback);
+
+            $params = $this->resolveParams($ref);
+
+            $callback(...$params);
         }
         $this->makeAGlobalServer();
         if (method_exists($this, 'eventRegistery')) {
@@ -321,7 +336,32 @@ class Oktaax implements Server
 
         $this->server->start();
     }
+    protected function resolveParams(ReflectionFunctionAbstract $ref): array
+    {
+        $params = [];
 
+        $url = $this->protocol . "://" . $this->host . ":" . $this->port;
+
+        foreach ($ref->getParameters() as $param) {
+
+            $type = $param->getType()?->getName();
+
+            if ($type === 'string' || $type == null) {
+                $params[] = $url;
+            } elseif ($type === 'Swoole\\WebSocket\\Server' || $type == 'Swoole\\Http\\Server') {
+                $params[] = $this->server;
+            } elseif ($type === 'self' || $type === static::class) {
+                $params[] = $this;
+            } elseif ($type == "Oktaax\\Core\\URL") {
+                $params[] = new URL($this->host, $this->port, $this->protocol, method_exists($this, 'ws'));
+            }  else {
+                $params[] = null;
+            }
+        }
+
+
+        return $params;
+    }
 
     /**
      * Add middleware for every spesific path
@@ -447,5 +487,4 @@ class Oktaax implements Server
         }
         throw new Exception(sprintf("Method %s with %s argument(s) not found!", $name, $argCount));
     }
-
 };
