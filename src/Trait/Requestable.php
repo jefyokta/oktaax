@@ -56,6 +56,7 @@ use Swoole\Http\Request as SwooleRequest;
 /**
  * @method void use($middleware)
  * @method void use(string $route,Oktaax $app)
+ * @deprecated 
  */
 trait Requestable
 {

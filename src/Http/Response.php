@@ -41,7 +41,7 @@
 
 namespace Oktaax\Http;
 
-use Error;
+use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
 use Oktaax\Interfaces\View;
@@ -53,7 +53,7 @@ use Oktaax\Types\OktaaxConfig;
  *
  * @package Oktaax\Http
  */
-class Response
+class Response implements Injectable
 {
     /**
      * @var SwooleResponse The Swoole HTTP response instance.
@@ -80,7 +80,20 @@ class Response
 
     public Request $request;
 
+    private static $injected = [];
 
+    public static function inject(string $key, $value)
+    {
+
+        self::$injected[$key] = \is_string($value) ? new $value() : $value;
+    }
+    public function __call($name, $arguments)
+    {
+        if (isset(self::$injected[$name])) {
+            return \call_user_func(self::$injected[$name], $arguments);
+        }
+        throw new \BadMethodCallException("Method {$name} does not exist.");
+    }
     /**
      * Response constructor.
      *

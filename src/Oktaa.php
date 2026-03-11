@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 
@@ -47,6 +48,7 @@ use Oktaax\Interfaces\Server as InterfacesServer;
 use Oktaax\Interfaces\WithBlade;
 use Oktaax\Interfaces\Xsocket;
 use Oktaax\Trait\HasWebsocket as HasWebsocket;
+use Oktaax\Types\OktaaxConfig;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebSocketServer;
 
@@ -55,7 +57,7 @@ use Swoole\WebSocket\Server as WebSocketServer;
  * A class to make application server
  * 
  * @package Oktaax
- * 
+ * @deprecated 
  * 
  */
 class Oktaa extends Oktaax implements InterfacesServer
@@ -77,7 +79,7 @@ class Oktaa extends Oktaax implements InterfacesServer
      * @override
      */
 
-    protected array $config ;
+    protected OktaaxConfig $config;
 
     /**
      * 

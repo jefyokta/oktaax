@@ -44,6 +44,7 @@ namespace Oktaax\Http;
 use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
+use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Request as HttpRequest;
 use Stringable;
 
@@ -51,7 +52,7 @@ use Stringable;
  * @package Oktaax\Http
  */
 
-class Request implements Stringable
+class Request implements Stringable, Injectable
 {
 
     /**
@@ -111,8 +112,13 @@ class Request implements Stringable
 
     public $post;
 
-    public $uri;
+    private static $injection = [];
 
+    public $uri;
+    public static function inject(string $key, $value)
+    {
+        self::$injection[$key] = \is_string($value) ? new $value() : $value;
+    }
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
@@ -122,7 +128,8 @@ class Request implements Stringable
         $this->uri = $request->server['request_uri'] ?? '/';
         static::$instance = &$this;
     }
-    static function create(HttpRequest $request){
+    static function create(HttpRequest $request)
+    {
 
         return new static($request);
     }
@@ -138,6 +145,7 @@ class Request implements Stringable
         if (property_exists($this->request, $name)) {
             return $this->request->$name;
         }
+
 
         return $this->attributes[$name] ?? null;
     }
@@ -193,7 +201,11 @@ class Request implements Stringable
     public function __call($name, $arguments)
     {
         if (method_exists($this->request, $name)) {
-            return call_user_func_array([$this->request, $name], $arguments);
+            return \call_user_func_array([$this->request, $name], $arguments);
+        }
+
+        if ($injected = static::$injection[$name]) {
+            return \call_user_func($injected, $arguments);
         }
 
         throw new \BadMethodCallException("Method {$name} does not exist.");
@@ -235,7 +247,7 @@ class Request implements Stringable
     public function all(): array
     {
 
-        return  array_merge(
+        return  \array_merge(
             $this->request->get ?? [],
             $this->request->post ?? [],
             $this->request->cookie ?? []

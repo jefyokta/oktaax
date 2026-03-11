@@ -41,31 +41,32 @@
 
 namespace Oktaax;
 
+use BadMethodCallException;
 use Error;
-use Exception;
 use Oktaax\Core\Application;
 use Oktaax\Core\URL;
-use Oktaax\Http\Middleware\Csrf;
-
-use Oktaax\Interfaces\Server;
+use Oktaax\Core\Worker;
+use Oktaax\Exception\HttpException;
+use Oktaax\Exception\ValidationException;
+use Oktaax\Http\Request;
+use Oktaax\Http\Response;
+use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
-use Oktaax\Overload\GlobalMiddleware;
-use Oktaax\Overload\RouteApplication;
-use Oktaax\Trait\Requestable;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\OktaaxConfig;
 use Oktaax\Utils\Reflection;
 use Oktaax\Views\PhpView;
-use ReflectionFunction;
+use Oktaax\Websocket\Client;
+use Oktaax\Websocket\Server;
+use ReflectionNamedType;
 use ReflectionFunctionAbstract;
 use Swoole\Http\Server as HttpServer;
-use ReflectionMethod;
 use Swoole\WebSocket\Server as WebSocketServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
  * 
- * A class to make a raw http application server
+ * A class to make a raw HTTP application server
  * 
  * @package Oktaax
  * 
@@ -79,17 +80,16 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
  * @method Oktaax setServer(string $key, mixed $value);
  * @method Oktaax setServer(array $settings);
  */
-class Oktaax implements Server
+class Oktaax
 {
-    use Requestable;
     /**
      * Swoole HTTP server instance.
      *
-     * @var \Swoole\WebSocket\Server
-     * 
+     * @var \Swoole\Http\Server|\Swoole\WebSocket\Server|null
      */
+    protected HttpServer|WebSocketServer|null $server = null;
 
-    protected $server;
+    private Application $app;
 
     /**
      * Server Settings
@@ -114,6 +114,7 @@ class Oktaax implements Server
      * 
      * @var string
      */
+
     protected $host;
 
 
@@ -130,6 +131,7 @@ class Oktaax implements Server
      * @var string
      * 
      */
+    protected Router $router;
 
     protected string $protocol = 'http';
 
@@ -139,21 +141,11 @@ class Oktaax implements Server
      * @var array
      * 
      */
-    private  array $pathMiddlewares;
-
-
-    /** 
-     * Set view configuration
-     * 
-     * @param string $viewDir
-     * @param 'blade'|'php' $render_engine
-     * 
-     * @return static
-     * 
-     */
+    private array $pathMiddlewares = [];
 
     public function __construct()
     {
+        $this->pathMiddlewares = [];
 
         $this->config = new OktaaxConfig(
             new PhpView("views/"),
@@ -166,18 +158,12 @@ class Oktaax implements Server
 
         );
 
-        $this->globalMiddlewares = new GlobalMiddleware;
-        $this->routeApp = new RouteApplication;
+        $this->router = new Router;
+    }
 
-        // $this->on('workerStart', function ($server, $workerId) {
-
-        //     Timer::tick(5000, function () use ($server, $workerId) {
-        //         echo $workerId.".\n";
-
-        //         Factory::auditWith(Counter::class, $server, $workerId);
-        //     });
-        // });
-
+    protected function getServerClass(): string
+    {
+        return HttpServer::class;
     }
 
 
@@ -239,7 +225,7 @@ class Oktaax implements Server
                 Console::warning("value would'nt be save");
                 trigger_error(" value would'nt be save", E_USER_WARNING);
             }
-            $this->serverSettings = $setting;
+            $this->serverSettings = array_merge($this->serverSettings, $setting);
         } else {
             $this->serverSettings[$setting] = $value;
         }
@@ -276,16 +262,15 @@ class Oktaax implements Server
      */
     private function init()
     {
+
+        $class = $this->getServerClass();
         if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
             $this->protocol = "https";
-            $this->server = new HttpServer($this->host, $this->port, $this->config->mode, $this->config->sock_type);
+            $this->server = new $class($this->host, $this->port, $this->config->mode, $this->config->sock_type);
         } else {
-            $this->server = new HttpServer($this->host, $this->port);
+            $this->server = new $class($this->host, $this->port);
         }
     }
-
-
-
     /**
      * @param int $port
      * @param string|callback|null $hostOrcallback
@@ -297,68 +282,93 @@ class Oktaax implements Server
 
 
         $this->port = $port;
-        $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
-        $this->httpPrepare();
-        $this->init();
+        $this->host = \is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
+        $this->app = Application::getInstance();
+        if (method_exists($this, 'boot')) {
+            \call_user_func([$this, 'boot']);
+        }
 
+        $this->init();
 
         $this->server->set(
             $this->serverSettings ?? []
         );
 
+        $this->server->on("workerstart", function ($server, $workerId) use ($callback, $hostOrcallback) {
+            $this->app->worker = new Worker($workerId);
+            $this->app
+                ->catch(HttpException::class, function ($t) {
+                    Response::getInstance()
+                        ->status($t->getStatusCode())
+                        ->end($t->getHttpMessage());
+                })->catch(ValidationException::class, function (ValidationException $t) {
+                    $response =  Response::getInstance();
+                    $request = Request::getInstance();
+                    $response->status(422);
+                    if ($request->wantsJson()) {
+                        $response->end(json_encode(["error" => $t->getData()]));
+                        return;
+                    }
+                });
 
+            if (is_callable($hostOrcallback)) {
+                $ref = Reflection::callable($hostOrcallback);
+                $params = $this->resolveParams($ref);
 
-        if ($this->config->app->useCsrf) {
-            $this->use(Csrf::generate($this->config->app->key, $this->config->app->csrfExp));
-            $this->use(Csrf::handle($this->config->app->key));
-        }
-        if (is_callable($hostOrcallback)) {
+                $hostOrcallback(...$params);
+            } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
+                $ref = Reflection::callable($callback);
+                $params = $this->resolveParams($ref);
 
-            $ref = Reflection::callable($hostOrcallback);
-            $params = $this->resolveParams($ref);
+                $callback(...$params);
+            }
+        });
 
-            $hostOrcallback(...$params);
-        } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
-
-
-            $ref = Reflection::callable($callback);
-
-            $params = $this->resolveParams($ref);
-
-            $callback(...$params);
-        }
         $this->makeAGlobalServer();
         if (method_exists($this, 'eventRegistery')) {
-            call_user_func([$this, 'eventRegistery']);
+            \call_user_func([$this, 'eventRegistery']);
         }
+
         $this->bootEvents();
-        $this->onRequest();
+
+        $this->server->on('request', function ($request, $response) {
+            $request =  Request::create($request);
+            $response = new Response($response, $request, $this->config);
+            Application::setContext($request, $response)
+                ->handle();
+        });
 
         $this->server->start();
     }
     protected function resolveParams(ReflectionFunctionAbstract $ref): array
     {
         $params = [];
-
-        $url = $this->protocol . "://" . $this->host . ":" . $this->port;
+        $url = \sprintf('%s://%s:%d', $this->protocol, $this->host, $this->port);
 
         foreach ($ref->getParameters() as $param) {
+            $type = $param->getType();
+            $typeName = null;
 
-            $type = $param->getType()?->getName();
+            if ($type instanceof ReflectionNamedType) {
+                $typeName = $type->getName();
+            }
 
-            if ($type === 'string' || $type == null) {
+            if ($typeName === 'string' || $typeName === null) {
                 $params[] = $url;
-            } elseif ($type === 'Swoole\\WebSocket\\Server' || $type == 'Swoole\\Http\\Server') {
+            } elseif ($typeName === HttpServer::class || $typeName === WebSocketServer::class) {
                 $params[] = $this->server;
-            } elseif ($type === 'self' || $type === static::class) {
+            } elseif ($typeName === 'self' || $typeName === static::class) {
                 $params[] = $this;
-            } elseif ($type == "Oktaax\\Core\\URL") {
+            } elseif ($typeName === URL::class) {
                 $params[] = new URL($this->host, $this->port, $this->protocol, method_exists($this, 'ws'));
-            }  else {
+            } elseif ($typeName === Application::class) {
+                $params[] = $this->app;
+            } elseif ($typeName === Server::class) {
+                $params[] = new Server($this->server, new Client(0));
+            } else {
                 $params[] = null;
             }
         }
-
 
         return $params;
     }
@@ -376,36 +386,6 @@ class Oktaax implements Server
     {
         $this->pathMiddlewares[$path][] = $middleware;
     }
-
-    /**
-     * 
-     * Add middlware from $this->pathMiddlewares to spesific route
-     * 
-     */
-    private function handlerPathMiddleware()
-    {
-        foreach ($this->pathMiddlewares as $path => $value):
-            foreach ($this->routes as $route => &$val):
-                if ($route === $path || strpos($route, $path . "/") === 0):
-                    foreach ($val as &$method):
-                        foreach ($value as $key => $middleware) :
-                            if (!in_array($middleware, $method['middleware'])) :
-                                if (is_array($method['middleware'])) :
-                                    array_unshift($method['middleware'], $middleware);
-                                else:
-                                    $method['middleware'][] = $middleware;
-                                endif;
-                            endif;
-                        endforeach;
-                    endforeach;
-                endif;
-            endforeach;
-        endforeach;
-    }
-
-
-
-
 
     /**
      * Reload server
@@ -440,17 +420,11 @@ class Oktaax implements Server
         $this->config = $config;
     }
 
-    public function getRoutes()
-    {
-        return $this->routes;
-    }
-
-
     public function on(string $event, callable $handler)
     {
 
         $handledEvents = $this->getHandledEvents();
-        if (in_array(strtolower($event), $handledEvents)) {
+        if (\in_array(strtolower($event), $handledEvents)) {
             throw new Error("Cannot declare handled event!");
         }
 
@@ -459,7 +433,7 @@ class Oktaax implements Server
 
     public function getHandledEvents()
     {
-        return ['request'];
+        return ['request', 'workerstart'];
     }
 
     protected function makeAGlobalServer()
@@ -474,17 +448,10 @@ class Oktaax implements Server
     }
     public function __call($name, $arguments)
     {
-        $argCount = count($arguments);
-        $classes = [$this->globalMiddlewares, $this->routeApp];
-        foreach ($classes as $class) {
-            $instance = $class;
-            if (method_exists($instance, $name)) {
-                $method = new ReflectionMethod($instance, $name);
-                if ($method->getNumberOfParameters() === $argCount) {
-                    return $method->invoke($instance, ...$arguments);
-                }
-            }
+        if (method_exists($this->router, $name)) {
+            return \call_user_func_array([$this->router, $name], $arguments);
         }
-        throw new Exception(sprintf("Method %s with %s argument(s) not found!", $name, $argCount));
+
+        throw new BadMethodCallException("Method $name does not exist on " . static::class);
     }
 };

@@ -48,6 +48,7 @@ use Oktaax\Websocket\Support\Table;
 use Stringable;
 use Swoole\Coroutine;
 use Swoole\Table as SwooleTable;
+use Swoole\Timer;
 use Swoole\WebSocket\Server as SWServer;
 use TypeError;
 
@@ -56,7 +57,7 @@ use TypeError;
  * @method mixed broadcast(\Oktaax\Websocket\Event | string $message = null, int $delay = 0, $opcode = 1, $flags = 1)
  */
 
-class Server implements WebSocketServer 
+class Server implements WebSocketServer
 {
     use Overloadable;
 
@@ -78,7 +79,7 @@ class Server implements WebSocketServer
 
     private function push($fd, $data, $opcode = 1, $flags = 1)
     {
-        $data = is_scalar($data) ? $data : json_encode($data);
+        $data = \is_scalar($data) ? $data : json_encode($data);
         if ($this->swooleWebsocket->isEstablished($fd)) {
             $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
         }
@@ -90,11 +91,11 @@ class Server implements WebSocketServer
             return $message->client($client);
         }
 
-        if (is_string($message) && class_exists($message) && is_subclass_of($message, Event::class)) {
+        if (\is_string($message) && class_exists($message) && is_subclass_of($message, Event::class)) {
             return (new $message)->client($client);
         }
 
-        if (is_string($message)) {
+        if (\is_string($message)) {
             return $message;
         }
 
@@ -102,7 +103,7 @@ class Server implements WebSocketServer
     }
 
     public function broadcast(mixed $data, int $delay = 0, int $opcode = 1, int $flags = 1): void
-    {   
+    {
         $receivers = $this->fds ?? Table::getTable();
 
         $send = function (int $fd) use ($data, $opcode, $flags) {
@@ -118,12 +119,12 @@ class Server implements WebSocketServer
             $this->push($fd, $message, $opcode, $flags);
         };
 
-        if (is_int($receivers)) {
+        if (\is_int($receivers)) {
             $send($receivers);
             return;
         }
 
-        if (is_array($receivers) || $receivers instanceof SwooleTable) {
+        if (\is_array($receivers) || $receivers instanceof SwooleTable) {
             foreach ($receivers as $fd) {
                 $send($fd);
 
@@ -153,10 +154,10 @@ class Server implements WebSocketServer
                 "Param must be subclass of " . Channel::class . ", {$channel} given"
             );
         }
-        $channel = new Channel;
+        $channel = new $channel();
 
         foreach (Table::getTable() as $c) {
-            if ($channel->eligible(new Client($c))) {
+            if ($channel->eligible(new Client((int)$c))) {
                 $this->fds[] = $c;
             }
         }
@@ -172,12 +173,15 @@ class Server implements WebSocketServer
 
     public function tick($ms, $callback, ...$params)
     {
-
-        $this->swooleWebsocket->tick($ms, $callback, ...$params);
+        if (method_exists($this->swooleWebsocket, "tick")) {
+            return $this->swooleWebsocket->tick($ms, $callback,);
+        }
+        return Timer::tick($ms, $callback, ...$params);
     }
 
     public function after($ms, $callback, ...$params)
     {
+
         $this->swooleWebsocket->after($ms, $callback, ...$params);
     }
 

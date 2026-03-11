@@ -59,7 +59,7 @@ interface WebSocketServer
     /**
      * Choose Channel
      * 
-     * @param Channel $channel
+     * @param class-string<Channel> $channel
      */
-    public function toChannel(Channel $channel): static;
+    public function toChannel($channel): static;
 };

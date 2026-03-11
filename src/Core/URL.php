@@ -12,7 +12,11 @@ class URL
         private $hasWebsocket = false
     ) {}
 
-    function getWebsocketUrl()
+    /**
+     * Summary of getWebsocketUrl
+     * @return string|null
+     */
+    public function getWebsocketUrl(): string|null
     {
 
         if (!$this->hasWebsocket) {
@@ -20,12 +24,19 @@ class URL
         }
         return ($this->scheme == 'https' ?  "wss" : "ws") . "://" . $this->host . ($this->port == 80 || $this->port == 443   ? "" : ":" . $this->port);
     }
-    function getHttpUrl()
+    /**
+     * Summary of getHttpUrl
+     * @return string
+     */
+    public  function getHttpUrl(): string
     {
         return $this->scheme . "://" . $this->host . ($this->port == 80 || $this->port == 443 ? "" : ":" . $this->port);
     }
-
-    function isSecure()
+    /**
+     * Summary of isSecure
+     * @return bool
+     */
+    public function isSecure(): bool
     {
         return $this->scheme === 'https';
     }

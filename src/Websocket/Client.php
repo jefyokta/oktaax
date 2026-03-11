@@ -70,7 +70,7 @@ class Client
     {
         $this->fd = $fd;
 
-        if (! is_null($data) && is_string($data)) {
+        if ($data !== null && \is_string($data)) {
             $decodedData =  json_decode($data, true);
             $this->data = json_last_error() === JSON_ERROR_NONE ? $decodedData : $data;
         }
@@ -79,12 +79,16 @@ class Client
     /**
      * Check if the client is in a specific channel.
      * 
-     * @param Channel|string $channel
+     * @param Channel|class-string<Channel> $channel
      * @return bool
      */
     public function inChannel(Channel $channel): bool
     {
-        return (new $channel)->eligible($this);
+        if(\is_string($channel)){
+            return (new $channel)->eligible($this);
+        }
+
+        return $channel->eligible($this);
     }
 
     public function __set($name, $value)

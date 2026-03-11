@@ -48,11 +48,8 @@ use Swoole\Http\Request;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
-use Oktaax\ServerBag;
-use Oktaax\Utils\Reflection;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
-use ReflectionFunction;
 
 /**
  * Trait HasWebsocket
@@ -66,10 +63,8 @@ use ReflectionFunction;
 trait HasWebsocket
 {
     public Table $userTable;
-    private $hasChannel = false;
     private $userTableConfig = ['size' => 1024];
     /**
-  
      *
      * @var array
      */
@@ -87,7 +82,11 @@ trait HasWebsocket
 
 
 
+    protected function getServerClass(): string
+    {
 
+        return Server::class;
+    }
     /**
      * Register a WebSocket event and its handler.
      *
@@ -101,22 +100,6 @@ trait HasWebsocket
         return $this;
     }
 
-    /**
-     * Initialize the WebSocket server with the given configuration.
-     *
-     * @return static Returns the current instance for method chaining.
-     */
-    private function init()
-    {
-        if (!is_null($this->config->mode ?? null) && !is_null($this->config->sock_type ?? null)) {
-            $this->server = new Server($this->host, $this->port, $this->config->mode, $this->config->sock_type);
-        } else {
-            $this->server = new Server($this->host, $this->port);
-        }
-        $this->server->set($this->serverSettings);
-
-        return $this;
-    }
 
     /**
      * @param callable(\Oktaax\Websocket\Server, \Oktaax\Http\Request ) $callback
@@ -150,8 +133,6 @@ trait HasWebsocket
         $request = json_decode($frame->data) ?? null;
         $client = new Client($frame->fd, $frame->data);
         $serv = new WServer($server, $client);
-        // $serv->table = $this->table;
-
         if (!$request?->event ?? false) {
             if (is_callable($this->actions["withOutEvent"])) {
                 $this->actions["withOutEvent"]($serv, $client);
@@ -185,15 +166,15 @@ trait HasWebsocket
     private function serve(WServer $server, Client $client, ?string $event): void
     {
         $handler = $this->events[$event] ?? null;
-        if (is_null($handler)) {
+        if ($handler == null) {
             $server->reply("Invalid event");
         } else {
-            if (is_array($handler)) {
+            if (\is_array($handler)) {
                 if (!class_exists($handler[0])) {
                     throw new Error("Class [" . $handler[0] . "] Not Found");
                 }
                 $method = $handler[1] ?? throw new Error("Method [{$handler[1]}] not found!");
-                call_user_func([$handler[0], $method], $server, $client);
+                \call_user_func([$handler[0], $method], $server, $client);
             } elseif (is_callable($handler)) {
                 $handler($server, $client);
             } else {
@@ -202,36 +183,6 @@ trait HasWebsocket
         }
     }
 
-
-
-    /**
-     * Start the WebSocket server and listen for incoming connections.
-     *
-     * @param int $port The port to listen on.
-     * @param string|callable|null $hostOrcallback The host address or a callback for the server start event.
-     * @param callable|null $callback A callback for the server start event if the host is not provided.
-     * @return void
-     */
-    public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null): void
-    {
-        $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
-        $this->port = $port;
-        $this->startParams['hostOrCallback'] = $hostOrcallback;
-        $this->startParams['callback'] = $callback;
-
-        if (method_exists($this, 'httpPrepare')) {
-            $this->httpPrepare();
-        }
-        $this->boot();
-        $this->init();
-        $this->makeAGlobalServer();
-        if (!$this->isWithOctane()) {
-            $this->onRequest();
-        }
-        $this->bootEvents();
-        $this->eventRegistery($hostOrcallback, $callback);
-        $this->server->start();
-    }
 
 
     public function table(callable $callback, ?int $size = 1024)
@@ -252,16 +203,6 @@ trait HasWebsocket
         $this->server->on("Open", fn(Server $serv, Request $req) => $this->open($serv, $req));
         $this->server->on("Message", fn(Server $server, Frame $frame) => $this->messageHandler($server, $frame));
         $this->server->on("Close", fn(Server $server, $fd) => $this->close($server, $fd));
-        if ($this->isWithOctane()) {
-            $this->octaneEventRegister();
-        } else {
-            $this->server->on("Start", fn() => $this->start());
-        }
-    }
-
-    private function isWithOctane()
-    {
-        return  method_exists($this, 'octaneEventRegister');
     }
 
     /**
@@ -287,53 +228,17 @@ trait HasWebsocket
         $this->callIfCallable($this->actions["exit"], $s, $fd);
     }
 
-    /**
-     * Handle the "onStart" event and notify the server URL.
-     *
-     * @param string|callable|null $hostOrCallback The host address or a callback for the server start event.
-     * @param callable|null $callback A callback for the server start event if the host is not provided.
-     * @return void
-     */
-    private function start(): void
-    {
-        $protocol = match ($this->protocol) {
-            "http" => ["http", "ws"],
-            "https" => ["https", "wss"],
-        };
-        // $url = "Websocket: {$protocol[1]}://{$this->host}:{$this->port}\nHttp: {$protocol[0]}://{$this->host}:{$this->port}";
-
-        if (is_callable($cb = $this->startParams["hostOrCallback"])) {
-            $ref = Reflection::callable($cb);
-
-            $ref = Reflection::callable($cb);
-            $params = $this->resolveParams($ref);
-
-            $cb(...$params);
-
-            // $this->startParams["hostOrCallback"]($url, $this->server);
-        } elseif (is_callable($this->startParams["callback"]) && !is_null($this->startParams["callback"])) {
-            $cb = $this->startParams["callback"];
-            $ref = Reflection::callable($cb);
-            $params = $this->resolveParams($ref);
-
-            $cb(...$params);
-        }
-    }
-
-
     public function broadcast($data, $receivers = null)
     {
-
         foreach (SupportTable::getTable() as $key => $value) {
-            echo $key . PHP_EOL;
-            ServerBag::get()->push($key, is_string($data) ? $data : json_encode($data));
+            $this->server->push($key, is_string($data) ? $data : json_encode($data));
         }
     }
 
 
 
 
-    private function boot()
+    protected function boot()
     {
         $this->userTable = new Table($this->userTableConfig['size']);
         $this->callIfCallable($this->actions['table'], $this->userTable);
