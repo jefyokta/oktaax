@@ -82,7 +82,7 @@ class Client
      * @param Channel|class-string<Channel> $channel
      * @return bool
      */
-    public function inChannel(Channel $channel): bool
+    public function inChannel(Channel|string $channel): bool
     {
         if(\is_string($channel)){
             return (new $channel)->eligible($this);

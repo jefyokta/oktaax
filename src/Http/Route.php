@@ -2,98 +2,111 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Console;
 use Oktaax\Contracts\Middleware;
+use Oktaax\Utils\Invoker;
 
 class Route
 {
-    private $paramters = [];
-    private $dynamic = false;
-    public function __construct(private string $path, private $method, private $handler, private $middlewares = []) {}
+    private array $parameters = [];
 
+    private bool $dynamic = false;
 
-    public function getPath()
-    {
-        return $this->path;
+    private string $pattern;
+    private Invoker $invoker;
+
+    private array $paramNames = [];
+
+    public function __construct(
+        private string $path,
+        private string $method,
+        private $handler,
+        private array $middlewares = []
+    ) {
+        $this->compile();
+        $this->invoker = new Invoker();
     }
 
-    public function addMiddlewares($middlewares): Route
+    private function compile(): void
     {
-        if (!\is_array($middlewares)) {
-            $middlewares = [$middlewares];
+        if (!str_contains($this->path, '{')) {
+            $this->pattern = $this->path;
+            return;
         }
-        $found =    array_find($middlewares, function ($middleware) {
-            return !\is_subclass_of($middleware, Middleware::class);
-        });
-        if ($found !== null) {
-            throw new \InvalidArgumentException("Middleware must be type of class-string " . Middleware::class . ", ", \gettype($found) . " given");
-        }
-        $this->middlewares = [$this->middlewares, $middlewares];
-        return $this;
+
+        $this->dynamic = true;
+
+        $pattern = preg_replace_callback(
+            '/\{([^}]+)\}/',
+            function ($match) {
+                $this->paramNames[] = $match[1];
+                return '([^/]+)';
+            },
+            $this->path
+        );
+
+        $this->pattern = "#^{$pattern}$#";
     }
 
-    public function isMatch(string $url, string $method): bool
+    public function isDynamic(): bool
     {
-        if (\is_array($this->method)) {
-            if (!\in_array(strtolower($method), $this->method)) {
-                return false;
-            }
-        } else {
-            if (strtolower($method) !== strtolower($this->method)) {
-                return false;
-            }
+        return $this->dynamic;
+    }
+
+    public function isMatch(string $url, string $method = ''): bool
+    {
+        if (!$this->dynamic) {
+            return $this->path === $url && $this->method == strtoupper($method);
         }
 
-        if ($this->path === $url) {
-            return true;
-        }
-
-        $paramNames = [];
-
-        $pattern = preg_replace_callback('/\{([^}]+)\}/', function ($match) use (&$paramNames) {
-            $paramNames[] = $match[1];
-            return '([^/]+)';
-        }, $this->path);
-
-        $pattern = "#^" . $pattern . "$#";
-
-        if (!preg_match($pattern, $url, $matches)) {
+        if (!preg_match($this->pattern, $url, $matches)) {
             return false;
         }
 
         array_shift($matches);
 
-        $this->paramters = array_combine($paramNames, $matches);
+        $this->parameters = array_combine($this->paramNames, $matches);
 
         return true;
     }
 
     public function terminate(Request $request, Response $response)
     {
-        $handlers = [...$this->middlewares, $this->handler];
+        $stack = [...$this->middlewares, $this->handler];
 
-        $next = function ($request, $response) {
-            return null;
+        $request->params = $this->parameters;
+
+        $next = function () use (&$stack, $request, $response, &$next) {
+            if (empty($stack)) {
+                return;
+            }
+
+            $cb = array_shift($stack);
+
+            return $this->callHandler($cb, $request, $response, $next);
         };
 
-        foreach (array_reverse($handlers) as $handler) {
-
-            $next = function ($request, $response) use ($handler, $next) {
-
-                if (\is_string($handler) && is_subclass_of($handler, Middleware::class)) {
-
-                    $middleware = new $handler();
-
-                    return $middleware->handle($request, $response, $next);
-                }
-                return $this->callHandler($handler, $request, $response);
-            };
-        }
-
-        return $next($request, $response);
+        return $next();
     }
-    public function callHandler($handler, Request $request, Response $response)
+    private function callHandler($handler, Request $request, Response $response, $next)
     {
 
-        return \call_user_func($handler, $request, $response, ...$this->paramters);
+        if (is_subclass_of($handler, Middleware::class)) {
+            if (\is_string($handler)) {
+                $handler = new $handler();
+            }
+            return $handler->handle($request, $response, $next);
+        }
+
+        return $this->invoker
+            ->addContext($request)
+            ->addContext($response)
+            ->setPositional([$this->parameters])
+            ->call($handler);
+    }
+
+    public function getPath()
+    {
+        return $this->path;
     }
 }

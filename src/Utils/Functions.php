@@ -43,6 +43,7 @@ use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Oktaax\ServerBag;
+use Swoole\Coroutine;
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -92,7 +93,7 @@ if (!function_exists('xrequest')) {
 
 
 
-if (! function_exists('xcsrf_token') ) {
+if (! function_exists('xcsrf_token')) {
 
     function xcsrf_token()
     {
@@ -101,12 +102,11 @@ if (! function_exists('xcsrf_token') ) {
 }
 
 if (! function_exists('xserver')) {
-/**
- * @return \Swoole\Http\Server|\Swoole\Websocket\Server
- */
-  function xserver():\Swoole\Http\Server|\Swoole\Websocket\Server
-  {
-    return ServerBag::get();
-  }
+    /**
+     * @return \Swoole\Http\Server|\Swoole\Websocket\Server
+     */
+    function xserver(): \Swoole\Http\Server|\Swoole\Websocket\Server
+    {
+        return ServerBag::get();
+    }
 }
-

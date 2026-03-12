@@ -44,22 +44,15 @@ namespace Oktaax;
 use BadMethodCallException;
 use Error;
 use Oktaax\Core\Application;
+use Oktaax\Core\Event\Request as EventRequest;
+use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\URL;
-use Oktaax\Core\Worker;
-use Oktaax\Exception\HttpException;
-use Oktaax\Exception\ValidationException;
-use Oktaax\Http\Request;
-use Oktaax\Http\Response;
+
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
 use Oktaax\Types\OktaaxConfig;
-use Oktaax\Utils\Reflection;
 use Oktaax\Views\PhpView;
-use Oktaax\Websocket\Client;
-use Oktaax\Websocket\Server;
-use ReflectionNamedType;
-use ReflectionFunctionAbstract;
 use Swoole\Http\Server as HttpServer;
 use Swoole\WebSocket\Server as WebSocketServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
@@ -73,6 +66,7 @@ use Symfony\Component\Translation\Exception\InvalidResourceException;
  * 
  */
 /**
+ * @mixin Router
  * @method bool listen(int $port)
  * @method bool listen(int $port, callable(string $url) $callback)
  * @method bool listen(int $port, string $host)
@@ -251,9 +245,6 @@ class Oktaax
         $this->config->app->useCsrf = true;
     }
 
-
-
-
     /**
      * 
      * Initialization server
@@ -290,87 +281,36 @@ class Oktaax
 
         $this->init();
 
-        $this->server->set(
-            $this->serverSettings ?? []
-        );
-
-        $this->server->on("workerstart", function ($server, $workerId) use ($callback, $hostOrcallback) {
-            $this->app->worker = new Worker($workerId);
-            $this->app
-                ->catch(HttpException::class, function ($t) {
-                    Response::getInstance()
-                        ->status($t->getStatusCode())
-                        ->end($t->getHttpMessage());
-                })->catch(ValidationException::class, function (ValidationException $t) {
-                    $response =  Response::getInstance();
-                    $request = Request::getInstance();
-                    $response->status(422);
-                    if ($request->wantsJson()) {
-                        $response->end(json_encode(["error" => $t->getData()]));
-                        return;
-                    }
-                });
-
-            if (is_callable($hostOrcallback)) {
-                $ref = Reflection::callable($hostOrcallback);
-                $params = $this->resolveParams($ref);
-
-                $hostOrcallback(...$params);
-            } elseif (is_callable($callback) && !is_callable($hostOrcallback)) {
-                $ref = Reflection::callable($callback);
-                $params = $this->resolveParams($ref);
-
-                $callback(...$params);
-            }
-        });
 
         $this->makeAGlobalServer();
         if (method_exists($this, 'eventRegistery')) {
             \call_user_func([$this, 'eventRegistery']);
         }
-
         $this->bootEvents();
 
+        $this->server->set($this->serverSettings ?? []);
+
+        $this->server->on("workerstart", function (HttpServer|WebSocketServer $server, $workerId) use ($callback, $hostOrcallback) {
+            $cb = is_callable($hostOrcallback) ?
+                $hostOrcallback : (is_callable($callback) && !is_callable($hostOrcallback) ?
+                    $callback : null);
+
+            (new WorkerStart(
+                new URL(
+                    $this->host,
+                    $this->port,
+                    $this->protocol,
+                    method_exists($this, 'ws')
+                ),
+                $cb
+            ))->handle(...\func_get_args());
+        });
+
         $this->server->on('request', function ($request, $response) {
-            $request =  Request::create($request);
-            $response = new Response($response, $request, $this->config);
-            Application::setContext($request, $response)
-                ->handle();
+            (new EventRequest($this->config))->handle(...\func_get_args());
         });
 
         $this->server->start();
-    }
-    protected function resolveParams(ReflectionFunctionAbstract $ref): array
-    {
-        $params = [];
-        $url = \sprintf('%s://%s:%d', $this->protocol, $this->host, $this->port);
-
-        foreach ($ref->getParameters() as $param) {
-            $type = $param->getType();
-            $typeName = null;
-
-            if ($type instanceof ReflectionNamedType) {
-                $typeName = $type->getName();
-            }
-
-            if ($typeName === 'string' || $typeName === null) {
-                $params[] = $url;
-            } elseif ($typeName === HttpServer::class || $typeName === WebSocketServer::class) {
-                $params[] = $this->server;
-            } elseif ($typeName === 'self' || $typeName === static::class) {
-                $params[] = $this;
-            } elseif ($typeName === URL::class) {
-                $params[] = new URL($this->host, $this->port, $this->protocol, method_exists($this, 'ws'));
-            } elseif ($typeName === Application::class) {
-                $params[] = $this->app;
-            } elseif ($typeName === Server::class) {
-                $params[] = new Server($this->server, new Client(0));
-            } else {
-                $params[] = null;
-            }
-        }
-
-        return $params;
     }
 
     /**

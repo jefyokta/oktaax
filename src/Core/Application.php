@@ -2,17 +2,18 @@
 
 namespace Oktaax\Core;
 
+use Oktaax\Console;
+use Oktaax\Core\Dispatcher\ExceptionDispatcher;
+use Oktaax\Core\Dispatcher\ReturnDispatcher;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Http\Router;
-use Oktaax\Interfaces\Injectable;
+
 
 class Application
 {
-    private static $exceptionCatcher = [];
-    private static $returnHandler = [];
-    private static ?Request $request;
-    private static ?Response $response;
+
+    private Context $context;
 
     public Worker $worker;
 
@@ -20,19 +21,31 @@ class Application
 
     private static $booted = false;
 
+    private ReturnDispatcher $return;
+
+    private ExceptionDispatcher $exception;
+    private function __construct()
+    {
+        $this->return = new ReturnDispatcher();
+        $this->exception = new ExceptionDispatcher();
+        $this->context = new Context();
+    }
 
     public static function create(Request $request, Response $response): static
     {
-        self::$request = $request;
-        self::$response = $response;
+        $app = self::getInstance();
+
+        $app->context->set("request", $request);
+        $app->context->set("response", $response);
+
         self::$booted = true;
 
-        return self::$instance = new static;
+        return $app;
     }
     public static function getInstance(): Application
     {
         if (self::$instance === null) {
-            self::$instance = new Application();
+            self::$instance = new static;
         }
         return self::$instance;
     }
@@ -46,17 +59,32 @@ class Application
     {
         return self::create($request, $response);
     }
+    public function context(): Context
+    {
+        return $this->context;
+    }
 
+    /**
+     * Summary of getRequest
+     * @return  ?Request
+     */
     public static function getRequest(): ?Request
     {
-        return self::$request;
+        return self::getInstance()
+            ->context
+            ->get("request");
     }
 
+    /**
+     * Summary of getResponse
+     * 
+     * @return ?Response
+     */
     public static function getResponse(): ?Response
     {
-        return self::$response;
+        return self::getInstance()
+            ->context->get('response') ?? null;
     }
-
     /**
      * @template T of \Throwable
      *
@@ -66,7 +94,7 @@ class Application
      */
     public function catch(string $exception, \Closure $handler): static
     {
-        static::$exceptionCatcher[$exception] = $handler;
+        $this->exception->register($exception, $handler);
         return $this;
     }
     /**
@@ -77,9 +105,6 @@ class Application
      */
     public function inject($to, $name, $invokable): static
     {
-        /**
-         * @var Injectable
-         */
 
         if (!\in_array($to, [Request::class, Response::class])) {
             throw new \InvalidArgumentException("Cannot inject method to {$to}");
@@ -98,14 +123,15 @@ class Application
      */
     public function resolve(string $return, \Closure $handler): static
     {
-        static::$returnHandler[$return] = $handler;
+        $this->return->register($return, $handler);
         return $this;
     }
 
     /**
      * alias of \Oktaax\Core\Application::resolve
-     * @param mixed $return
-     * @param \Closure $handler
+     * @template T
+     * @param class-string<T> $return
+     * @param \Closure(T,Request,Response): mixed $handler
      * @return Application
      */
     public function respond($return, \Closure $handler): static
@@ -120,63 +146,17 @@ class Application
             throw new \RuntimeException("Application didnt created yet!");
         }
         try {
-            $response = Router::handle(self::$request);
-            $this->dispatchReturn($response);
+            $response = Router::handle($request = self::getRequest());
+            $this->return->dispatch(
+                $response,
+                $request,
+                self::getResponse()
+            );
         } catch (\Throwable $th) {
-            $this->dispatchException($th);
+            $this->exception->dispatch($th);
         } finally {
+            $this->context->destroy();
             self::$booted = false;
         }
-    }
-
-    private function dispatchReturn(mixed $result): void
-    {
-        if (!self::$response->response->isWritable()) {
-            return;
-        }
-
-        $class = \is_object($result) ? $result::class : \gettype($result);
-
-        if (isset(static::$returnHandler[$class])) {
-            $handler = static::$returnHandler[$class];
-            $handler($result, self::$request, self::$response);
-            return;
-        }
-
-        if (\is_string($result)) {
-            self::$response->end($result);
-            return;
-        }
-
-        if (\is_array($result) || $result instanceof \Traversable) {
-            self::$response->header("content-type", "application/json");
-            self::$response->end(json_encode($result));
-            return;
-        }
-
-        throw new \RuntimeException("Unhandled return type: $class");
-    }
-
-    private function dispatchException($th): void
-    {
-
-        $handler = $this->resolveException($th);
-
-        if (null == $handler) {
-            throw $th;
-        }
-
-        $handler($th);
-    }
-
-    private function resolveException(\Throwable $e): callable|null
-    {
-        foreach (static::$exceptionCatcher as $class => $handler) {
-            if ($e instanceof $class) {
-                return $handler;
-            }
-        }
-
-        return null;
     }
 };

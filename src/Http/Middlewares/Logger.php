@@ -35,66 +35,72 @@
  *
  */
 
-
-
-
-
-
-
 namespace Oktaax\Http\Middleware;
 
-use Exception;
 use Oktaax\Console;
+use Oktaax\Contracts\Middleware;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
-use Swoole\Coroutine;
 
-class Logger
+class Logger implements Middleware
 {
-    public static function handle()
+    public function handle(Request $request, Response $response, $next): mixed
     {
+        try {
+            $start = microtime(true);
 
-        return function (Request $request, Response $response, $next) {
-            try {
-                $start = microtime(true);
-                $next();
-                $end = microtime(true);
-                $took = floor(($end - $start) * 100) / 100;
-                if ($response->status >= 400) {
-                    if ($response->response->isWritable()) {
-                        $title = require __DIR__ . "/../../Utils/HttpError.php";
-                        ob_start();
-                        $req = $request;
-                        $status = $response->status;
-                        $title = $title[$status];
-                        require __DIR__ . "/../../Views/HttpError/index.php";
-                        $content = ob_get_clean();
-                        $response->end($content);
-                    }
-                }
-            
-                Console::info("{$request->server['request_method']}{$request->server['request_uri']}..........[$response->status]  [took {$took}s]");
-            } catch (\Throwable | Exception $th) {
-                Console::error($th->getMessage());
-                $file =  Coroutine::readFile($th->getFile());
-                $lines = explode("\n", $file);
-                $code = $lines[$th->getLine() - 1];
+            $result = $next();
 
-                ob_start();
-                $message = $th->getMessage();
-                $prevcode = $lines[$th->getLine() - 2] ?? '';
-                $code = $code;
-                $nextcode = $lines[$th->getLine()] ?? '';
-                $error = $th;
-                $req = $request;
+            $end  = microtime(true);
+            $took = floor(($end - $start) * 1000) / 1000;
 
-                require __DIR__ . "/../../Views/Error/index.php";
-                $content = ob_get_clean();
+            $method = $request->server['request_method'] ?? 'UNKNOWN';
+            $uri    = $request->server['request_uri']    ?? '/';
+            $status = $response->status                  ?? 200;
 
+            Console::info("{$method} {$uri} ..........[$status] [took {$took}s]");
 
+            return $result;
 
-                return   $response->end($content);
-            }
-        };
+        } catch (\Throwable $th) {
+            return $this->handleException($th, $request, $response);
+        }
+    }
+
+    private function handleException(\Throwable $th, Request $request, Response $response): mixed
+    {
+        Console::error("[{$th->getCode()}] {$th->getMessage()} in {$th->getFile()} on line {$th->getLine()}");
+
+        $lines    = $this->readFileLines($th->getFile());
+        $line     = $th->getLine();
+        $code     = $lines[$line - 1]  ?? '';
+        $prevcode = $lines[$line - 2]  ?? '';
+        $nextcode = $lines[$line]       ?? '';
+        $message  = $th->getMessage();
+        $error    = $th;
+        $req      = $request;
+
+        ob_start();
+
+        require __DIR__ . "/../../Views/Error/index.php";
+
+        $content = ob_get_clean();
+
+        return $response->end($content ?: 'Internal Server Error');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function readFileLines(string $filepath): array
+    {
+        $contents = file_get_contents($filepath);
+
+        if ($contents === false) {
+            Console::error("Logger: could not read file {$filepath}");
+            return [];
+        }
+
+        return explode("\n", $contents);
     }
 }

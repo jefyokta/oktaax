@@ -41,6 +41,7 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Response as SwooleResponse;
 use Oktaax\Http\ResponseJson;
@@ -325,7 +326,7 @@ class Response implements Injectable
         ob_start();
         $req = $this->request;
         $status = $this->status;
-        $title = $title[$status];
+        $title = $title[$code];
         require __DIR__ . "/../Views/HttpError/index.php";
         $content = ob_get_clean();
         return $this->end($content);
@@ -348,5 +349,13 @@ class Response implements Injectable
     {
 
         return $this->response;;
+    }
+
+    public function stream(
+        \Closure $callback,
+        int $status = 200,
+        array $headers = []
+    ) {
+        return new StreamedResponse(...func_get_args());
     }
 }

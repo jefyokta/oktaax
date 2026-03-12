@@ -172,5 +172,26 @@ $app->listen(3000);
 ### ```Oktaax\Oktaax``` 
 is a class that include Requestable and WithBlade traits. You also can get it's instance with function oktaax()
 
+---
+
+## 🚀 Performance benchmark
+
+A practical benchmark harness is available at `benchmark/`:
+
+- `benchmark/server.php` – Oktaax OpenSwoole server
+- `benchmark/express_server.js` – Express server
+- `benchmark/run.sh` – run `wrk` against both servers and compare
+- `benchmark/README.md` – usage instructions
+
+Run from repo root:
+
+```bash
+cd benchmark
+chmod +x run.sh
+./run.sh
+```
+
+The tests aim to demonstrate Oktaax performance characteristics against Express/Node.js.
+
 
 
