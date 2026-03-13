@@ -59,7 +59,7 @@ if (! function_exists('oktaax')) {
      * return a instance of oktaax. A http server
      * 
      */
-    function oktaax(): Server
+    function oktaax()
     {
         return new Oktaax;
     }
@@ -72,9 +72,9 @@ if (! function_exists('xsocket')) {
      * Get a instsance of Oktaax with websocket
      * @return Xsocket;
      */
-    function xsocket(): Xsocket
+    function xsocket()
     {
-        return new  class extends Oktaax  implements Xsocket {
+        return new  class extends Oktaax   {
             use HasWebsocket;
         };
     }
