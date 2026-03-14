@@ -86,12 +86,12 @@ class Response implements Injectable
     public static function inject(string $key, $value)
     {
 
-        self::$injected[$key] = \is_string($value) ? new $value() : $value;
+        self::$injected[$key] =\is_callable($value) ? $value :  new $value;
     }
     public function __call($name, $arguments)
     {
         if (isset(self::$injected[$name])) {
-            return \call_user_func(self::$injected[$name], $arguments);
+            return \call_user_func(self::$injected[$name], ...$arguments);
         }
         throw new \BadMethodCallException("Method {$name} does not exist.");
     }

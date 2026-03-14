@@ -2,12 +2,14 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Console;
+use Oktaax\Contracts\Invokable;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
 
 
-class Inertia
+class Inertia extends Invokable
 {
 
     private static string $baseView = "app";
@@ -47,5 +49,9 @@ class Inertia
     static function setBaseView(string $baseView)
     {
         self::$baseView = $baseView;
+    }
+    public function __invoke()
+    {
+        return self::render(...\func_get_args());
     }
 }

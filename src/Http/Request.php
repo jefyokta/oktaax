@@ -41,6 +41,7 @@
 
 namespace Oktaax\Http;
 
+use Closure;
 use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
@@ -117,7 +118,8 @@ class Request implements Stringable, Injectable
     public $uri;
     public static function inject(string $key, $value)
     {
-        self::$injection[$key] = \is_string($value) ? new $value() : $value;
+
+        self::$injection[$key] = \is_callable($value) ? $value :  new $value;
     }
     public function __construct(HttpRequest $request)
     {
@@ -205,7 +207,7 @@ class Request implements Stringable, Injectable
         }
 
         if ($injected = static::$injection[$name]) {
-            return \call_user_func($injected, $arguments);
+            return \call_user_func($injected, ...$arguments);
         }
 
         throw new \BadMethodCallException("Method {$name} does not exist.");
