@@ -41,7 +41,6 @@ namespace Oktaax\Websocket;
 
 use Oktaax\Contracts\OverloadClass;
 use Oktaax\Interfaces\Channel;
-use Oktaax\Interfaces\WebSocketServer;
 use Oktaax\Trait\Overloadable;
 use Oktaax\Websocket\Overload\PushWithEvent;
 use Oktaax\Websocket\Support\Table;
@@ -57,9 +56,9 @@ use TypeError;
  * @method mixed broadcast(\Oktaax\Websocket\Event | string $message = null, int $delay = 0, $opcode = 1, $flags = 1)
  */
 
-class Server implements WebSocketServer
+class Server 
 {
-    use Overloadable;
+    // use Overloadable;
 
     public int|array $fds = [];
 
@@ -72,12 +71,12 @@ class Server implements WebSocketServer
     {
         $this->client = $client;
         $this->swooleWebsocket = $server;
-        self::classRegister(PushWithEvent::class);
+        // self::classRegister(PushWithEvent::class);
     }
 
 
 
-    private function push($fd, $data, $opcode = 1, $flags = 1)
+    public function push($fd, $data, $opcode = 1, $flags = 1)
     {
         $data = \is_scalar($data) ? $data : json_encode($data);
         if ($this->swooleWebsocket->isEstablished($fd)) {

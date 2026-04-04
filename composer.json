@@ -25,7 +25,8 @@
     "require": {
         "php": ">=8.0",
         "firebase/php-jwt": "^6.10",
-        "swoole/ide-helper": "@dev"
+        "swoole/ide-helper": "@dev",
+        "laravel/serializable-closure": "^2.0"
         },
     "repositories": [
         {

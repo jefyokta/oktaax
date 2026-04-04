@@ -56,12 +56,11 @@ class Logger implements Middleware
 
             $method = $request->server['request_method'] ?? 'UNKNOWN';
             $uri    = $request->server['request_uri']    ?? '/';
-            $status = $response->status                  ?? 200;
+            $status = $response->getStatus()              ?? 200;
 
             Console::info("{$method} {$uri} ..........[$status] [took {$took}s]");
 
             return $result;
-
         } catch (\Throwable $th) {
             return $this->handleException($th, $request, $response);
         }

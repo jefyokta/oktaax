@@ -2,7 +2,9 @@
 
 namespace Oktaax;
 
-
+/**
+ * @deprecated message
+ */
 class ServerBag
 {
 

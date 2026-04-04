@@ -48,7 +48,9 @@ use Swoole\Coroutine;
 use Swoole\Http\Request as HttpRequest;
 use Swoole\Http\Response;
 
-
+/**
+ * @deprecated 
+ */
 trait Laravelable
 {
 
@@ -211,7 +213,7 @@ trait Laravelable
         ob_start();
         $message = $th->getMessage();
         $prevcode = $lines[$th->getLine() - 2] ?? '';
-        $code = $code;
+        // $code = $code;
         $nextcode = $lines[$th->getLine()] ?? '';
         $error = $th;
         $req = $this->request;

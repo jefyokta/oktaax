@@ -4,15 +4,12 @@ namespace Oktaax\Http;
 
 use Oktaax\Contracts\Middleware;
 use Oktaax\Core\Application;
+use Oktaax\Core\Configuration;
 use Oktaax\Exception\HttpException;
 
 class Router
 {
-    /**
-     * method:url => Route
-     */
-    private static array $routeCache = [];
-
+  
     /**
      * [method][path] => Route
      */
@@ -95,13 +92,14 @@ class Router
 
     public function middleware($middlewares, callable $callback)
     {
-        self::$currentMiddleware = is_array($middlewares)
+        self::$currentMiddleware = \is_array($middlewares)
             ? $middlewares
             : [$middlewares];
 
         $callback($this);
 
         self::$currentMiddleware = [];
+        return $this;
     }
 
     public static function handle(Request $request)
@@ -109,34 +107,41 @@ class Router
         $url = $request->uri;
         $method = $request->getMethod();
 
-        $route = self::findHandler($url, $method);
+        [$route, $params] = self::findHandler($url, $method);
 
         return $route->terminate(
             Application::getRequest(),
-            Application::getResponse()
+            Application::getResponse(),
+            $params
         );
     }
 
-    public static function findHandler(string $url, string $method): Route
+    /**
+     * Find matching route handler
+     *
+     * @param string $url
+     * @param string $method
+     * @return array{0:Route,1:array<string,string>}
+     */
+    public static function findHandler(string $url, string $method): array
     {
-        $key = $method . ':' . $url;
-
-        if (isset(self::$routeCache[$key])) {
-            return self::$routeCache[$key];
-        }
 
         $routes = self::$routes[$method] ?? [];
 
         if (isset($routes[$url])) {
-            return self::$routeCache[$key] = $routes[$url];
+            $result = [$routes[$url], []];
+            return $result;
         }
 
         foreach (self::$dynamicRoutes[$method] ?? [] as $route) {
-            if ($route->isMatch($url)) {
-                return self::$routeCache[$key] = $route;
+            $params = $route->match($url, $method);
+
+            if ($params !== false) {
+                return [$route, $params];
             }
         }
 
         throw new HttpException(404, "Not Found");
     }
+
 }

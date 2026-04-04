@@ -43,10 +43,7 @@
 
 namespace Oktaax;
 
-use Error;
-use Oktaax\Interfaces\Server as InterfacesServer;
-use Oktaax\Interfaces\WithBlade;
-use Oktaax\Interfaces\Xsocket;
+
 use Oktaax\Trait\HasWebsocket as HasWebsocket;
 use Oktaax\Types\OktaaxConfig;
 use Swoole\Http\Server;
@@ -60,7 +57,7 @@ use Swoole\WebSocket\Server as WebSocketServer;
  * @deprecated 
  * 
  */
-class Oktaa extends Oktaax implements InterfacesServer
+class Oktaa extends Oktaax
 {
 
     use HasWebsocket;
@@ -97,21 +94,5 @@ class Oktaa extends Oktaax implements InterfacesServer
         return $this;
     }
 
-    /**
-     * 
-     * Overrided
-     * 
-     */
-    private function init()
-    {
-        if (is_int($this->config['mode'] && !is_int($this->config['sock_type']))) {
-            $this->server = new Server($this->host, $this->port, $this->config['mode'], $this->config['sock_type']);
-        } else {
-            if ($this->config['withWebsocket']) {
-                $this->server = new WebSocketServer($this->host, $this->port);
-            } else {
-                $this->server = new Server($this->host, $this->port);
-            }
-        }
-    }
+
 }

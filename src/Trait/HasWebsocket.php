@@ -257,7 +257,7 @@ trait HasWebsocket
         }
     }
 
-    public function getHandledEvents()
+    public function getHandledEvents(): array
     {
         return ["request", "start", "message", "open", "close"];
     }

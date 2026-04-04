@@ -8,8 +8,6 @@ use Oktaax\Core\Worker;
 use Oktaax\Utils\Invoker;
 use Oktaax\Exception\HttpException;
 use Oktaax\Exception\ValidationException;
-use Oktaax\Http\Request;
-use Oktaax\Http\Response;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Websocket\Client;
 use Oktaax\Websocket\Server as OktaaxWebsocketServer;
@@ -70,12 +68,12 @@ class WorkerStart extends Event
 
         $app->catch(
             HttpException::class,
-            fn($e) => Response::getInstance()->renderHttpError($e->getStatusCode())
+            fn($e) => Application::getResponse()->renderHttpError($e->getStatusCode())
         );
 
         $app->catch(ValidationException::class, function (ValidationException $e) {
-            $request = Request::getInstance();
-            $res = Response::getInstance()->status(422);
+            $request = Application::getRequest();
+            $res = Application::getResponse()->status(422);
             if ($request->wantsJson()) $res->end(json_encode(["error" => $e->getData()]));
         });
 

@@ -12,7 +12,7 @@ test2/
 index.html
 test.mp4
 watermark
-
+stubs/
 /*.php
 /*.so
 /*.c
@@ -29,3 +29,4 @@ benchmark/
 test.*
 test.json
 test.js
+stubs

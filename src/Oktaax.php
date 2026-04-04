@@ -6,392 +6,357 @@
  * @package Oktaax
  * @author Jefyokta
  * @license MIT License
- * 
- * @link https://github.com/jefyokta/oktaax
- *
- * @copyright Copyright (c) 2024, Jefyokta
- *
- * MIT License
- *
- * Copyright (c) 2024 Jefyokta
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
  */
-
-
-
-
 
 namespace Oktaax;
 
 use BadMethodCallException;
 use Error;
 use Oktaax\Core\Application;
+use Oktaax\Core\Configuration;
+use Oktaax\Core\Container;
+use Oktaax\Core\Event\Finish;
 use Oktaax\Core\Event\Request as EventRequest;
+use Oktaax\Core\Event\Task;
 use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\URL;
-
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
-use Oktaax\Types\OktaaxConfig;
+use Oktaax\Utils\MethodProxy;
 use Oktaax\Views\PhpView;
 use Swoole\Http\Server as HttpServer;
 use Swoole\WebSocket\Server as WebSocketServer;
 use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
- * 
- * A class to make a raw HTTP application server
- * 
+ * A class to make a raw HTTP/WebSocket application server
+ *
  * @package Oktaax
- * 
- * 
- */
-/**
- * @mixin Router
- * @method bool listen(int $port)
- * @method bool listen(int $port, callable(string $url) $callback)
- * @method bool listen(int $port, string $host)
- * @method bool listen(int $port, string $host, callable(string $url) $callback)
- * @method Oktaax setServer(string $key, mixed $value);
- * @method Oktaax setServer(array $settings);
+ *
+ * @mixin \Oktaax\Http\Router
+ *
+ * @method void listen(int $port)
+ * @method void listen(int $port, callable(string $url): void $callback)
+ * @method void listen(int $port, string $host)
+ * @method void listen(int $port, string $host, callable(string $url): void $callback)
  */
 class Oktaax
 {
     /**
-     * Swoole HTTP server instance.
+     * Swoole server instance.
      *
-     * @var \Swoole\Http\Server|\Swoole\WebSocket\Server|null
+     * @var HttpServer|WebSocketServer|null
      */
     protected HttpServer|WebSocketServer|null $server = null;
 
-    private Application $app;
-
     /**
-     * Server Settings
-     * 
-     * @var array
-     */
-    protected array $serverSettings = [];
-
-    protected $swoolevents = [];
-
-
-    /**
-     * Configuration settings for the application.
+     * Router instance.
      *
-     * @var OktaaxConfig
-     */
-
-    protected OktaaxConfig  $config;
-
-    /**
-     * Application host
-     * 
-     * @var string
-     */
-
-    protected $host;
-
-
-    /**
-     * Application port
-     * 
-     * @var int
-     */
-    protected $port;
-
-    /**
-     * 
-     * Application's protocol
-     * @var string
-     * 
+     * @var Router
      */
     protected Router $router;
 
-    protected string $protocol = 'http';
+    /**
+     * Registered custom events.
+     *
+     * @var array<string, callable>
+     */
+    protected array $customEvents = [];
 
     /**
-     * 
-     * Middleware path
-     * @var array
-     * 
+     * Oktaax constructor.
      */
-    private array $pathMiddlewares = [];
-
     public function __construct()
     {
-        $this->pathMiddlewares = [];
+        Configuration::set('app.host', '127.0.0.1');
+        Configuration::set('app.port', 3000);
+        Configuration::set('app.protocol', 'http');
+        Configuration::set('app.debug', false);
+        Configuration::set('app.name', 'Oktaax');
+        Container::register(View::class, new PhpView("views/"));
+        Container::register(AppConfig::class, new AppConfig(null, false, 300, 'Oktaax'));
 
-        $this->config = new OktaaxConfig(
-            new PhpView("views/"),
-            'log',
-            false,
-            null,
-            null,
-            new AppConfig(null, false, 300, 'Oktaax'),
-            'public/'
-
-        );
-
-        $this->router = new Router;
+        $this->router = new Router();
     }
 
+
+    /**
+     * Get server class 
+     *
+     * @return class-string<HttpServer|WebSocketServer>
+     */
     protected function getServerClass(): string
     {
         return HttpServer::class;
     }
 
+    /**
+     * Initialize Swoole server.
+     *
+     * @return void
+     */
+    protected function init(): void
+    {
+        $host = Configuration::get('app.host');
+        $port = Configuration::get('app.port');
 
+        $mode = Configuration::get('server.mode');
+        $sock = Configuration::get('server.sock_type');
+
+        $class = $this->getServerClass();
+
+        $this->server = ($mode && $sock)
+            ? new $class($host, $port, $mode, $sock)
+            : new $class($host, $port);
+        Container::register(HttpServer::class,$this->server);
+
+        // new ServerBag($this->server);
+    }
+
+
+    /**
+     * Set view engine.
+     *
+     * @param View $view
+     * @return static
+     */
     public function setView(View $view)
     {
-        $this->config->view = $view;
+        Container::register(View::class, $view);
         return $this;
     }
-    /**
-     * Enable SSL for the server.
-     *
-     * @return $this
-     */
-    public function withSSL($cert, $key)
-    {
 
+    /**
+     * Set Swoole server configuration.
+     *
+     * @param array|string $key
+     * @param mixed $value
+     * @return static
+     */
+    public function setServer(array|string $key, mixed $value = null)
+    {
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                Configuration::set("server.$k", $v);
+            }
+        } else {
+            Configuration::set("server.$key", $value);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Enable SSL.
+     *
+     * @param string $cert
+     * @param string $key
+     * @return static
+     */
+    public function withSSL(string $cert, string $key)
+    {
         if (!file_exists($cert)) {
-            Console::error("Certificate not found!");
             throw new InvalidResourceException("Certificate not found!");
         }
 
         if (!file_exists($key)) {
-            Console::error("Key not found!");
-            throw new InvalidResourceException("key not found!");
+            throw new InvalidResourceException("Key not found!");
         }
-        $this->setServer('ssl_cert_file', $cert);
-        $this->setServer('ssl_key_file', $key);
 
-        $this->config->sock_type = SWOOLE_SOCK_TCP | SWOOLE_SSL;
-        $this->config->mode = SWOOLE_BASE;
-        $this->protocol = 'https';
+        $this->setServer([
+            'ssl_cert_file' => $cert,
+            'ssl_key_file'  => $key,
+            'sock_type'     => SWOOLE_SOCK_TCP | SWOOLE_SSL,
+            'mode'          => SWOOLE_BASE,
+        ]);
+
+        Configuration::set('app.protocol', 'https');
 
         return $this;
     }
 
     /**
-     * Enable SSL for the server. 
-     * Alternative of withSSl() method
+     * Enable CSRF protection.
      *
-     * @return $this
-     */
-    public function securely($cert, $key)
-    {
-        return  $this->withSSL($cert, $key);
-    }
-
-
-    /**
-     * Set the server \Swoole\Http\Server options.
-     *
-     * @param string|array $setting \Swoole\Http\Server settings.
-     * @param mixed $value array value  
-     *
-     */
-    public function setServer(array|string $setting, mixed $value = null)
-    {
-        if (is_array($setting)) {
-            if (!is_null($value)) {
-                Console::warning("value would'nt be save");
-                trigger_error(" value would'nt be save", E_USER_WARNING);
-            }
-            $this->serverSettings = array_merge($this->serverSettings, $setting);
-        } else {
-            $this->serverSettings[$setting] = $value;
-        }
-
-        return $this;
-    }
-
-
-    /**
-     * 
-     * Enable csrf
-     * 
      * @param string $appkey
-     * 
      * @param int $expr
-     * 
+     * @return void
      */
     public function useCsrf(string $appkey, int $expr = 300)
     {
-
-        $this->config->app->key = $appkey;
-        $this->config->app->csrfExp = $expr;
-        $this->config->app->useCsrf = true;
+        Configuration::set('app.key', $appkey);
+        Configuration::set('app.csrf_exp', $expr);
+        Configuration::set('app.csrf', true);
     }
 
-    /**
-     * 
-     * Initialization server
-     * 
-     * 
-     */
-    private function init()
-    {
 
-        $class = $this->getServerClass();
-        if (!is_null($this->config->mode) && !is_null($this->config->sock_type)) {
-            $this->protocol = "https";
-            $this->server = new $class($this->host, $this->port, $this->config->mode, $this->config->sock_type);
-        } else {
-            $this->server = new $class($this->host, $this->port);
-        }
-    }
     /**
+     * Start server.
+     *
      * @param int $port
-     * @param string|callback|null $hostOrcallback
+     * @param string|callable|null $hostOrCallback
      * @param callable|null $callback
+     * @return void
      */
+    public function listen(
+        int $port,
+        string|callable|null $hostOrCallback = null,
+        ?callable $callback = null
+    ): void {
 
-    public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null)
-    {
+        Configuration::set('app.port', $port);
+        Configuration::set(
+            'app.host',
+            is_string($hostOrCallback) ? $hostOrCallback : '127.0.0.1'
+        );
 
-
-        $this->port = $port;
-        $this->host = \is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
-        $this->app = Application::getInstance();
-        if (method_exists($this, 'boot')) {
-            \call_user_func([$this, 'boot']);
-        }
-
+        
         $this->init();
+        $this->callIfExists('boot');
 
+        $this->callIfExists('eventRegistery');
 
-        $this->makeAGlobalServer();
-        if (method_exists($this, 'eventRegistery')) {
-            \call_user_func([$this, 'eventRegistery']);
-        }
-        $this->bootEvents();
-
-        $this->server->set($this->serverSettings ?? []);
-
-        $this->server->on("workerstart", function (HttpServer|WebSocketServer $server, $workerId) use ($callback, $hostOrcallback) {
-            $cb = is_callable($hostOrcallback) ?
-                $hostOrcallback : (is_callable($callback) && !is_callable($hostOrcallback) ?
-                    $callback : null);
-
-            (new WorkerStart(
-                new URL(
-                    $this->host,
-                    $this->port,
-                    $this->protocol,
-                    method_exists($this, 'ws')
-                ),
-                $cb
-            ))->handle(...\func_get_args());
-        });
-
-        $this->server->on('request', function ($request, $response) {
-            (new EventRequest($this->config))->handle(...\func_get_args());
-        });
+        $this->registerCoreEvents($hostOrCallback, $callback);
+        $this->registerCustomEvents();
+        $this->server->set(Configuration::get('server', []));
 
         $this->server->start();
     }
 
+    public  function config()
+    {
+
+        return new MethodProxy(Configuration::class);
+    }
+    public function container(){
+        return new MethodProxy(Container::class);
+    }
     /**
-     * Add middleware for every spesific path
-     * 
-     * @param string $path
-     * @param string|callable $middleware
-     * 
+     * Register custom event.
+     *
+     * @param string $event
+     * @param callable $handler
      * @return void
-     * 
      */
-    public function useFor(string $path, callable| string|array $middleware)
+    public function on(string $event, callable $handler): void
     {
-        $this->pathMiddlewares[$path][] = $middleware;
-    }
+        $event = strtolower($event);
 
-    /**
-     * Reload server
-     * 
-     */
-    public function reload()
-    {
-        $this->server->reload();
-    }
+        $handled = array_map('strtolower', $this->getHandledEvents());
 
-    /**
-     * 
-     * Set Your Application Configuration
-     * @param AppConfig $appConfig
-     */
-    public function setApplication(AppConfig $appConfig)
-    {
-        $this->config->app = $appConfig;
-    }
-
-
-    /**
-     * Renew Oktaax Configuration
-     * 
-     * @param OktaaxConfig $config
-     * 
-     */
-
-    public function setConfig(OktaaxConfig $config)
-    {
-
-        $this->config = $config;
-    }
-
-    public function on(string $event, callable $handler)
-    {
-
-        $handledEvents = $this->getHandledEvents();
-        if (\in_array(strtolower($event), $handledEvents)) {
-            throw new Error("Cannot declare handled event!");
+        if (\in_array($event, $handled)) {
+            throw new Error("Cannot declare handled event: {$event}");
         }
 
-        $this->swoolevents[$event] = $handler;
+        $this->customEvents[$event] = $handler;
     }
 
-    public function getHandledEvents()
+    /**
+     * Register core events.
+     *
+     * @param mixed $hostOrCallback
+     * @param mixed $callback
+     * @return void
+     */
+    protected function registerCoreEvents($hostOrCallback, $callback): void
+    {
+
+        $this->server->on("workerstart", function ($server, $workerId) use ($hostOrCallback, $callback) {
+
+            Application::setServer($server);
+
+            $host = Configuration::get('app.host');
+            $port = Configuration::get('app.port');
+
+            $cb = is_callable($hostOrCallback)
+                ? $hostOrCallback
+                : (is_callable($callback) ? $callback : null);
+
+            (new WorkerStart(
+                new URL(
+                    $host,
+                    $port,
+                    Configuration::get('app.protocol', 'http'),
+                    method_exists($this, 'ws')
+                ),
+                $cb
+            ))->handle($server, $workerId);
+        });
+
+
+
+        $this->server->on("request", function ($request, $response) {
+            (new EventRequest())->handle($request, $response);
+        });
+
+
+        if ($this->taskEnabled()) {
+            $this->server->on("task", fn(...$args) => (new Task())->handle(...$args));
+            $this->server->on("finish", fn(...$args) => (new Finish())->handle(...$args));
+        }
+    }
+
+    /**
+     * Register user events.
+     *
+     * @return void
+     */
+    protected function registerCustomEvents(): void
+    {
+        foreach ($this->customEvents as $event => $handler) {
+            $this->server->on($event, $handler);
+        }
+    }
+
+    /**
+     * Handled events .
+     *
+     * @return array<int, string>
+     */
+    public function getHandledEvents(): array
     {
         return ['request', 'workerstart'];
     }
 
-    protected function makeAGlobalServer()
+
+    protected function callIfExists(string $method): void
     {
-        new ServerBag($this->server);
-    }
-    protected function bootEvents()
-    {
-        foreach ($this->swoolevents as $event => $handler) {
-            $this->server->on($event, $handler);
+        if (method_exists($this, $method)) {
+            $this->{$method}();
         }
     }
+
+    protected function taskEnabled(): bool
+    {
+        return Configuration::get('server.task_worker_num', 0) > 0;
+    }
+
+    /**
+     * Reload server.
+     *
+     * @return void
+     */
+    public function reload(): void
+    {
+        $this->server->reload();
+    }
+
+
+    /**
+     * Proxy router methods.
+     *
+     * @param string $name
+     * @param array $arguments
+     * @return static
+     */
     public function __call($name, $arguments)
     {
         if (method_exists($this->router, $name)) {
-            return \call_user_func_array([$this->router, $name], $arguments);
+            $this->router->{$name}(...$arguments);
+            return $this;
         }
 
-        throw new BadMethodCallException("Method $name does not exist on " . static::class);
+        throw new BadMethodCallException("Method {$name} does not exist");
     }
-};
+}

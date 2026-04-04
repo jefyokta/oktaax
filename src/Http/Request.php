@@ -41,7 +41,6 @@
 
 namespace Oktaax\Http;
 
-use Closure;
 use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
@@ -236,9 +235,9 @@ class Request implements Stringable, Injectable
 
         return $default;
     }
-    public function post(string $key)
+    public function post(string $key, mixed $default = null)
     {
-        return $this->request->post[$key] ?? null;
+        return $this->request->post[$key] ?? $default;
     }
 
     /**
@@ -389,7 +388,7 @@ class Request implements Stringable, Injectable
      */
     public function validate(array $rules, array|null $data = null)
     {
-        if (is_null($data)) {
+        if (\is_null($data)) {
             $data = $this->request->server["post"];
         }
 
@@ -495,8 +494,8 @@ class Request implements Stringable, Injectable
         return json_encode($this);
     }
 
-    public function get($key)
+    public function get($key,$default = null)
     {
-        return $this->request->get[$key];
+        return $this->request->get[$key] ?? $default;
     }
 }

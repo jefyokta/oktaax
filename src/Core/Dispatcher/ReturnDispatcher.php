@@ -17,10 +17,10 @@ class ReturnDispatcher
     public function dispatch($result, Request $req, Response $res): void
     {
 
-        if (! $res->response->isWritable()) {
+        if (! $res->isWritable()) {
             return;
         }
-        if (null == $result && $res->response->isWritable()) {
+        if (null == $result && $res->isWritable()) {
             $res->end();
             return;
         }

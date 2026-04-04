@@ -83,18 +83,27 @@ class Invoker
             $params[] = null;
         }
 
-        return $callback(...$params);
+        $this->context = [];
+        $this->positional =[];
+
+        $result = $callback(...$params);
+        return $result;
     }
 
     protected function getReflection($callback)
     {
-        $key = is_string($callback) ? explode("::", $callback) : (\is_array($callback)
-            ? $callback[0] . '::' . $callback[1]
-            : (\is_object($callback) && !$callback instanceof \Closure ? get_class($callback) . '::__invoke' :
-                spl_object_id($callback)));
+        if (is_string($callback)) {
+            $key = $callback;
+        } elseif (is_array($callback)) {
+            $key = $callback[0] . '::' . $callback[1];
+        } elseif ($callback instanceof \Closure) {
+            $key = spl_object_id($callback);
+        } elseif (is_object($callback)) {
+            $key = get_class($callback) . '::__invoke';
+        }
 
         if (!isset(self::$cache[$key])) {
-            self::$cache[$key] = is_array($callback)
+            self::$cache[$key] =\is_array($callback)
                 ? new ReflectionMethod($callback[0], $callback[1])
                 : new ReflectionFunction($callback);
         }

@@ -41,7 +41,7 @@
 
 namespace Oktaax\Http;
 
-
+use Oktaax\Core\Application;
 
 class RequestValidated
 {
@@ -118,11 +118,12 @@ class RequestValidated
 
     public function throw()
     {
+        $response = Application::getResponse();
 
-        if (Request::getInstance()->isAjax()) {
-            return  Response::getInstance()->json(new ResponseJson([], '', json_encode($this->errors)));
+        if (Application::getRequest()->isAjax()) {
+            return  $response->json(new ResponseJson([], '', json_encode($this->errors)));
         }
 
-        return Response::getInstance()->cookie('error',json_encode($this->errors),60)->back();
+        return $response->cookie('error',json_encode($this->errors),60)->back();
     }
 };

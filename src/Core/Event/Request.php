@@ -15,7 +15,6 @@ use Swoole\Http\Response as SwooleResponse;
 class Request extends Event
 {
     public function __construct(
-        private OktaaxConfig $config
     ) {}
     public function name(): string
     {
@@ -29,9 +28,7 @@ class Request extends Event
         $request = HttpRequest::create($req);
 
         $response = new Response(
-            $res,
-            $request,
-            $this->config
+            $res,            
         );
 
         Application::setContext($request, $response)

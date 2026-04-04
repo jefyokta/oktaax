@@ -21,6 +21,12 @@ class StreamedResponse
      */
     protected array $headers;
 
+    /**
+     * Summary of __construct
+     * @param Closure(\Closure(string $data) $writter) $callback
+     * @param int $status
+     * @param array $headers
+     */
     public function __construct(Closure $callback, int $status = 200, array $headers = [])
     {
         $this->callback = $callback;
