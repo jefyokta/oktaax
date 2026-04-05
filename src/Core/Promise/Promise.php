@@ -13,9 +13,9 @@ use function Oktaax\Utils\spawn;
 class Promise
 {
     private PromiseState $state    = PromiseState::Pending;
-    private mixed        $value    = null;
-    private mixed        $reason   = null;
-    private array        $handlers = [];
+    private mixed $value    = null;
+    private mixed $reason   = null;
+    private array $handlers = [];
 
     public function __construct(?callable $executor = null)
     {

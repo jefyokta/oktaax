@@ -2,6 +2,7 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Console;
 use Oktaax\Contracts\JsonScheme;
 use Oktaax\Core\Application;
 use Oktaax\Core\Container;
@@ -150,6 +151,23 @@ class Response implements Injectable
             $samesite,
             $priority
         );
+
+        return $this;
+    }
+
+    public function type(string $type)
+    {
+        if (str_contains($type, "/")) {
+            $this->header("content-type", $type);
+            return $this;
+        }
+
+        $mime = require_once __DIR__ . "/../Utils/MimeTypes.php";
+        if (!isset($mime[$type])) {
+            Console::warning("cannot found content type for $type");
+        }
+
+        $this->header("content-type", $mime[$type] ?? $type);
 
         return $this;
     }

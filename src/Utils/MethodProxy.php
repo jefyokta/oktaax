@@ -26,7 +26,7 @@ class MethodProxy
 
     public function __call(string $name, array $arguments)
     {
-        if (is_object($this->target)) {
+        if (\is_object($this->target)) {
             return $this->target->$name(...$arguments);
         }
 

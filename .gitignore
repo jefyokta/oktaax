@@ -30,3 +30,4 @@ test.*
 test.json
 test.js
 stubs
+.vscode/
