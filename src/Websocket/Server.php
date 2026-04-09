@@ -90,10 +90,6 @@ class Server
             return $message->client($client);
         }
 
-        if (\is_string($message) && class_exists($message) && is_subclass_of($message, Event::class)) {
-            return (new $message)->client($client);
-        }
-
         if (\is_string($message)) {
             return $message;
         }
@@ -104,6 +100,11 @@ class Server
     public function broadcast(mixed $data, int $delay = 0, int $opcode = 1, int $flags = 1): void
     {
         $receivers = $this->fds ?? Table::getTable();
+
+        // if ($data instanceof Event) {
+        //     $data->broadcast();
+        //     return;
+        // }
 
         $send = function (int $fd) use ($data, $opcode, $flags) {
 

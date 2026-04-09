@@ -74,6 +74,9 @@ class Client
             $decodedData =  json_decode($data, true);
             $this->data = json_last_error() === JSON_ERROR_NONE ? $decodedData : $data;
         }
+        if (\is_array($data)) {
+            $this->data = $data;
+        }
     }
 
     /**

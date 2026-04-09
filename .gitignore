@@ -23,7 +23,7 @@ stubs/
 src/Task/
 src/Trait/Taskable.php
 src/Auditor
-tests/
+
 benchmark/
 
 test.*

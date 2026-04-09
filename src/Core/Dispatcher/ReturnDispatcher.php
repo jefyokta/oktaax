@@ -2,8 +2,12 @@
 
 namespace Oktaax\Core\Dispatcher;
 
+use Oktaax\Core\Application;
+use Oktaax\Core\Promise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
+
+use function Oktaax\Utils\await;
 
 class ReturnDispatcher
 {
@@ -21,8 +25,13 @@ class ReturnDispatcher
             return;
         }
         if (null == $result && $res->isWritable()) {
+            $res->header("x-no-content", 1);
             $res->end();
             return;
+        }
+        if ($result instanceof Promise) {
+            $r = await($result);
+            $this->dispatch($r, $req, $res);
         }
 
         if (\is_string($result)) {

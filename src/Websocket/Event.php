@@ -2,28 +2,49 @@
 
 namespace Oktaax\Websocket;
 
+use Oktaax\Interfaces\Channel;
 use Stringable;
-
+/**
+ * @experimental
+ * @dontuse
+ */
 abstract class Event implements Stringable
 {
 
-    protected $client;
+    public $client;
+    public $server;
+    protected $delay = 0;
+    protected $opcode = 1;
+    protected  $flag = 1;
+
     protected function message()
     {
         return "";
     }
-    public function __toString(): string
+    final  public function __toString(): string
     {
         return json_encode([
-            "event" => basename(str_replace('\\', '.', static::class)),
+            "event" => self::name(),
             "message" => $this->message(),
         ]);
     }
 
-    public function client(Client $client)
+    public static function name()
     {
+        return basename(str_replace('\\', '.', static::class));
+    }
 
-        $this->client = $client;
-        return $this;
+    protected function channel(): Channel|false
+    {
+        return false;
+    }
+
+    final public function broadcast()
+    {
+        $server = $this->server;
+        if ($chan = $this->channel()) {
+            $server = $server->toChannel($chan);
+        }
+        $server->broadcast($this->__toString(), $this->delay, $this->opcode, $this->flag);
     }
 }
