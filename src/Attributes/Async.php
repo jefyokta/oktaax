@@ -4,7 +4,10 @@ namespace Oktaax\Attributes;
 
 use Attribute;
 
-#[Attribute]
-class Async {
-
+#[Attribute(
+    Attribute::TARGET_FUNCTION |
+    Attribute::TARGET_METHOD
+)]
+class Async
+{
 }

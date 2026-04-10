@@ -1,63 +1,92 @@
 <?php
 
-
 namespace Oktaax\Core\Promise;
 
+use BadMethodCallException;
 use Oktaax\Exception\AggregateError;
 use Throwable;
+use Swoole\Coroutine;
+use Swoole\Coroutine\Channel;
 
 use function Oktaax\Utils\spawn;
+
+enum PromiseState
+{
+    case Pending;
+    case Fulfilled;
+    case Rejected;
+}
+
+
 /**
- * still in development
+ * @template T
  */
 class Promise
 {
-    private PromiseState $state    = PromiseState::Pending;
-    private mixed $value    = null;
-    private mixed $reason   = null;
+    private PromiseState $state = PromiseState::Pending;
+
+    /** @var T|null */
+    private mixed $value = null;
+
+    /** @var mixed */
+    private mixed $reason = null;
+
+    /** @var array<int, array{onFulfilled: callable, onRejected: callable, next: Promise}> */
     private array $handlers = [];
 
+    /**
+     * @param null|callable(callable(T):void, callable(mixed):void):void $executor
+     */
     public function __construct(?callable $executor = null)
     {
-        if ($executor === null) return;
+        if (!$executor) return;
 
-        spawn(function () use ($executor): void {
+        spawn(function () use ($executor) {
             try {
                 $executor(
-                    fn(mixed $value)  => $this->fulfill($value),
-                    fn(mixed $reason) => $this->refuse($reason),
+                    fn($value)  => $this->fulfill($value),
+                    fn($reason) => $this->rejectInstance($reason)
                 );
             } catch (Throwable $e) {
-                $this->refuse($e);
+                $this->rejectInstance($e);
             }
         });
     }
 
+    /**
+     * @param T|Promise<T> $value
+     */
     private function fulfill(mixed $value): void
     {
         if ($this->state !== PromiseState::Pending) return;
 
-        if ($value instanceof static) {
+        if ($value instanceof self) {
             $value->then(
                 fn($v) => $this->fulfill($v),
-                fn($r) => $this->refuse($r),
+                fn($r) => $this->rejectInstance($r)
             );
             return;
         }
 
         $this->state = PromiseState::Fulfilled;
         $this->value = $value;
+
         $this->flush();
     }
 
-    private function refuse(mixed $reason): void
+    /**
+     * @param mixed $reason
+     */
+    private function rejectInstance(mixed $reason): void
     {
         if ($this->state !== PromiseState::Pending) return;
 
-        $this->state  = PromiseState::Rejected;
+        $this->state = PromiseState::Rejected;
         $this->reason = $reason;
+
         $this->flush();
     }
+
     private function flush(): void
     {
         foreach ($this->handlers as $handler) {
@@ -66,194 +95,225 @@ class Promise
         $this->handlers = [];
     }
 
+    /**
+     * @param array{onFulfilled: callable, onRejected: callable, next: Promise} $handler
+     */
     private function dispatch(array $handler): void
     {
-        ['fulfill' => $onFulfilled, 'reject' => $onRejected, 'next' => $next] = $handler;
+        ['onFulfilled' => $onFulfilled, 'onRejected' => $onRejected, 'next' => $next] = $handler;
 
-        spawn(function () use ($onFulfilled, $onRejected, $next): void {
+        spawn(function () use ($onFulfilled, $onRejected, $next) {
             try {
                 if ($this->state === PromiseState::Fulfilled) {
-                    $next->fulfill($onFulfilled($this->value));
+                    $result = $onFulfilled($this->value);
                 } else {
-                    $next->fulfill($onRejected($this->reason));
+                    $result = $onRejected($this->reason);
                 }
+
+                $next->fulfill($result);
             } catch (Throwable $e) {
-                $next->refuse($e);
+                $next->rejectInstance($e);
             }
         });
     }
 
-
-    public function then(?callable $onFulfilled = null, ?callable $onRejected = null): static
+    /**
+     * @template U
+     * @param null|callable(T):U|Promise<U> $onFulfilled
+     * @param null|callable(mixed):U|Promise<U> $onRejected
+     * @return Promise<U>
+     */
+    public function then(?callable $onFulfilled = null, ?callable $onRejected = null): self
     {
         $onFulfilled ??= fn($v) => $v;
-        $onRejected  ??= fn($r) => throw (
-            $r instanceof Throwable ? $r : new \RuntimeException((string) $r)
-        );
 
-        $next    = new static();
-        $handler = ['fulfill' => $onFulfilled, 'reject' => $onRejected, 'next' => $next];
+        $onRejected ??= function ($r) {
+            throw $r instanceof Throwable
+                ? $r
+                : new \RuntimeException((string)$r);
+        };
 
-        $this->state === PromiseState::Pending
-            ? $this->handlers[] = $handler
-            : $this->dispatch($handler);
+        $next = new self();
+
+        $handler = [
+            'onFulfilled' => $onFulfilled,
+            'onRejected'  => $onRejected,
+            'next'        => $next
+        ];
+
+        if ($this->state === PromiseState::Pending) {
+            $this->handlers[] = $handler;
+        } else {
+            $this->dispatch($handler);
+        }
 
         return $next;
     }
 
-
-    public function catch(callable $onRejected): static
+    /**
+     * @param callable(mixed):T|Promise<T> $onRejected
+     * @return Promise<T>
+     */
+    public function catch(callable $onRejected): self
     {
         return $this->then(null, $onRejected);
     }
 
-
-    public function finally(callable $onFinally): static
+    /**
+     * @param callable():mixed $onFinally
+     * @return Promise<T>
+     */
+    public function finally(callable $onFinally): self
     {
         return $this->then(
-            function (mixed $value) use ($onFinally): mixed {
+            function ($value) use ($onFinally) {
                 $result = $onFinally();
-                return ($result instanceof static)
+
+                return $result instanceof self
                     ? $result->then(fn() => $value)
                     : $value;
             },
-            function (mixed $reason) use ($onFinally): never {
+            function ($reason) use ($onFinally) {
                 $result = $onFinally();
-                if ($result instanceof static) $result->then(fn() => null);
+
+                if ($result instanceof self) {
+                    $result->then(fn() => null);
+                }
+
                 throw $reason instanceof Throwable
                     ? $reason
-                    : new \RuntimeException((string) $reason);
-            },
+                    : new \RuntimeException((string)$reason);
+            }
         );
     }
 
-
-    public static function resolve(mixed $value = null): static
+    /**
+     * @template V
+     * @param V|Promise<V> $value
+     * @return Promise<V>
+     */
+    public static function resolve(mixed $value = null): self
     {
-        if ($value instanceof static) return $value;
-        return new static(fn($resolve) => $resolve($value));
+        if ($value instanceof self) return $value;
+
+        return new self(fn($resolve) => $resolve($value));
     }
 
-
-    public static function reject(mixed $reason = null): static
+    /**
+     * @return Promise<never>
+     */
+    private static function rejectStatic(mixed $reason = null): self
     {
-        return new static(fn($_, $reject) => $reject($reason));
+        return new self(fn($_, $reject) => $reject($reason));
     }
 
-
-    public static function all(array $promises): static
+    /**
+     * @template V
+     * @param array<int, Promise<V>|V> $promises
+     * @return Promise<array<int, V>>
+     */
+    public static function all(array $promises): self
     {
-        return new static(function ($resolve, $reject) use ($promises): void {
-            if (empty($promises)) {
+        return new self(function ($resolve, $reject) use ($promises) {
+
+            if (!$promises) {
                 $resolve([]);
                 return;
             }
 
-            $total    = count($promises);
-            $results  = array_fill(0, $total, null);
+            $total = count($promises);
+            $results = array_fill(0, $total, null);
             $resolved = 0;
-            $done     = false;
+            $done = false;
 
-            foreach ($promises as $i => $item) {
-                static::resolve($item)->then(
-                    function (mixed $v) use ($i, $total, &$results, &$resolved, &$done, $resolve): void {
+            foreach ($promises as $i => $p) {
+                self::resolve($p)->then(
+                    function ($v) use ($i, $total, &$results, &$resolved, &$done, $resolve) {
                         if ($done) return;
+
                         $results[$i] = $v;
+
                         if (++$resolved === $total) {
                             $done = true;
                             $resolve($results);
                         }
                     },
-                    function (mixed $r) use (&$done, $reject): void {
+                    function ($r) use (&$done, $reject) {
                         if ($done) return;
                         $done = true;
                         $reject($r);
-                    },
+                    }
                 );
             }
         });
     }
 
-    public static function allSettled(array $promises): static
+    /**
+     * @template V
+     * @param array<int, Promise<V>|V> $promises
+     * @return Promise<V>
+     */
+    public static function race(array $promises): self
     {
-        return new static(function ($resolve) use ($promises): void {
-            if (empty($promises)) {
-                $resolve([]);
-                return;
-            }
-
-            $total   = count($promises);
-            $results = array_fill(0, $total, null);
-            $settled = 0;
-
-            foreach ($promises as $i => $item) {
-                static::resolve($item)->then(
-                    function (mixed $v) use ($i, $total, &$results, &$settled, $resolve): void {
-                        $results[$i] = ['status' => 'fulfilled', 'value' => $v];
-                        if (++$settled === $total) $resolve($results);
-                    },
-                    function (mixed $r) use ($i, $total, &$results, &$settled, $resolve): void {
-                        $results[$i] = ['status' => 'rejected', 'reason' => $r];
-                        if (++$settled === $total) $resolve($results);
-                    },
-                );
+        return new self(function ($resolve, $reject) use ($promises) {
+            foreach ($promises as $p) {
+                self::resolve($p)->then($resolve, $reject);
             }
         });
     }
 
-    public static function race(array $promises): static
+    /**
+     * @template V
+     * @param array<int, Promise<V>|V> $promises
+     * @return Promise<V>
+     */
+    public static function any(array $promises): self
     {
-        return new static(function ($resolve, $reject) use ($promises): void {
-            foreach ($promises as $item) {
-                static::resolve($item)->then($resolve, $reject);
-            }
-        });
-    }
+        return new self(function ($resolve, $reject) use ($promises) {
 
-    public static function any(array $promises): static
-    {
-        return new static(function ($resolve, $reject) use ($promises): void {
-            if (empty($promises)) {
+            if (!$promises) {
                 $reject(new AggregateError([]));
                 return;
             }
 
-            $total    = count($promises);
-            $errors   = array_fill(0, $total, null);
+            $total = count($promises);
+            $errors = [];
             $rejected = 0;
-            $resolved = false;
 
-            foreach ($promises as $i => $item) {
-                static::resolve($item)->then(
-                    function (mixed $v) use (&$resolved, $resolve): void {
-                        if ($resolved) return;
-                        $resolved = true;
-                        $resolve($v);
-                    },
-                    function (mixed $r) use ($i, $total, &$errors, &$rejected, &$resolved, $reject): void {
-                        if ($resolved) return;
+            foreach ($promises as $i => $p) {
+                self::resolve($p)->then(
+                    $resolve,
+                    function ($r) use (&$errors, &$rejected, $total, $reject, $i) {
                         $errors[$i] = $r;
-                        if (++$rejected === $total) $reject(new AggregateError($errors));
-                    },
+
+                        if (++$rejected === $total) {
+                            $reject(new AggregateError($errors));
+                        }
+                    }
                 );
             }
         });
     }
 
-    public function getState(): PromiseState
+    public function __call($name, $arguments)
     {
-        return $this->state;
+        if ($name !== 'reject') {
+            throw new BadMethodCallException;
+        }
+        return $this->rejectInstance(...$arguments);
     }
-    public function isPending(): bool
+
+    public static function __callStatic($name, $arguments)
     {
-        return $this->state === PromiseState::Pending;
+        if ($name !== 'reject') {
+            throw new BadMethodCallException;
+        }
+
+        return self::rejectStatic(...$arguments);
     }
-    public function isFulfilled(): bool
+
+    public function __toString()
     {
-        return $this->state === PromiseState::Fulfilled;
-    }
-    public function isRejected(): bool
-    {
-        return $this->state === PromiseState::Rejected;
+        return self::class . " { <" . strtolower($this->state->name) . "> } ";
     }
 }

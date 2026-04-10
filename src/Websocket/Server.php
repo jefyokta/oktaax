@@ -84,11 +84,11 @@ class Server
         }
     }
 
-    private function normalizeMessage(Event|string|array $message, Client $client): string
+    private function normalizeMessage(string|array $message, Client $client): string
     {
-        if ($message instanceof Event) {
-            return $message->client($client);
-        }
+        // if ($message instanceof Event) {
+        //     return $message->client($client);
+        // }
 
         if (\is_string($message)) {
             return $message;

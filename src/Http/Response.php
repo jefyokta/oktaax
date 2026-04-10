@@ -10,6 +10,7 @@ use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\OktaaxConfig;
+use PhpParser\Node\Expr\FuncCall;
 use Swoole\Http\Response as SwooleResponse;
 
 class Response implements Injectable
@@ -27,6 +28,8 @@ class Response implements Injectable
 
     protected static array $injected = [];
     private static $chunkSize = 8192;
+
+    private $ended = false;
 
     public function __construct(
         SwooleResponse $response,
@@ -250,6 +253,13 @@ class Response implements Injectable
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
+
+        $this->ended = true;
+    }
+
+    function isEnded()
+    {
+        return $this->ended;
     }
 
 
@@ -298,4 +308,6 @@ class Response implements Injectable
     {
         return $this->headers;
     }
+
+
 }

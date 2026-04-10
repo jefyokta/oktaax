@@ -2,7 +2,6 @@
 
 namespace Oktaax\Core\Dispatcher;
 
-use Oktaax\Core\Application;
 use Oktaax\Core\Promise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
@@ -32,6 +31,7 @@ class ReturnDispatcher
         if ($result instanceof Promise) {
             $r = await($result);
             $this->dispatch($r, $req, $res);
+            return;
         }
 
         if (\is_string($result)) {

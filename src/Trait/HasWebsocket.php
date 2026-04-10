@@ -47,6 +47,7 @@ use Swoole\Http\Request;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
+use Oktaax\Http\Router;
 use Oktaax\Websocket\Event;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
@@ -127,7 +128,7 @@ trait HasWebsocket
     private function parseIncoming(string $data): array
     {
         if ($this->isBinary($data)) {
-            Console::log("binary");
+            // Console::log("binary");
             return $this->parseBinary($data);
         }
         // Console::log("json");
@@ -250,6 +251,7 @@ trait HasWebsocket
         $httpRequest = new HttpRequest($request);
         $client = new Client($request->fd);
         $serv = new WServer($server, $client);
+
 
         $this->callIfCallable($this->actions['gate'], $serv, $httpRequest);
     }

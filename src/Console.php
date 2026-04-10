@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
@@ -33,7 +34,7 @@
  * SOFTWARE.
  *
  */
- 
+
 
 
 
@@ -41,40 +42,112 @@ namespace Oktaax;
 
 class Console
 {
-    public static function log($msg)
+    private static array $timers = [];
+
+    public static function log(...$args)
     {
-        self::writeToConsole($msg, "\033[42m\033[30m log \033[0m", "\033[0m");
+        self::write("log", $args, "\033[42m\033[30m", "\033[0m");
     }
 
-    public static function error($msg)
+    public static function error(...$args)
     {
-        self::writeToConsole($msg, "\033[41m\033[97m error \033[0m", "\033[31m", STDERR);
+        self::write("error", $args, "\033[41m\033[97m", "\033[31m", STDERR);
     }
 
-    public static function warning($msg)
+    public static function warn(...$args)
     {
-        self::writeToConsole($msg, "\033[43m\033[30m warning \033[0m", "\033[33m");
+        self::write("warn", $args, "\033[43m\033[30m", "\033[33m");
     }
 
-    public static function info($msg)
-    {
-        self::writeToConsole($msg, "\033[44m\033[30m info \033[0m", "\033[95m");
+    public static function warning(...$args){
+        return self::warn(...$args);
     }
 
-    public static function custom($msg, $boxColor, $msgColor, $output = STDOUT)
+    public static function info(...$args)
     {
-        self::writeToConsole($msg, $boxColor, $msgColor, $output);
+        self::write("info", $args, "\033[44m\033[30m", "\033[36m");
     }
 
-    public static function json(array|object $msg)
+    public static function debug(...$args)
     {
-
-        self::writeToConsole("\n\n".json_encode($msg, JSON_PRETTY_PRINT), "\033[44m\033[30m info \033[0m", "\033[95m");
+        self::write("debug", $args, "\033[45m\033[97m", "\033[35m");
     }
 
-    private static function writeToConsole($msg, $box, $msgColor, $output = STDOUT)
+    public static function table(array $data)
     {
+        if (empty($data)) {
+            self::log("[]");
+            return;
+        }
 
-        fwrite($output, "\n{$box} {$msgColor} {$msg}\033[0m\n");
+        $headers = array_keys((array)$data[0]);
+
+        $output = implode("\t", $headers) . PHP_EOL;
+
+        foreach ($data as $row) {
+            $output .= implode("\t", (array)$row) . PHP_EOL;
+        }
+
+        self::write("table", [$output], "\033[46m\033[30m", "\033[0m");
+    }
+
+    public static function time(string $label)
+    {
+        self::$timers[$label] = microtime(true);
+    }
+
+    public static function timeEnd(string $label)
+    {
+        if (!isset(self::$timers[$label])) {
+            self::warn("Timer '{$label}' not found");
+            return;
+        }
+
+        $duration = (microtime(true) - self::$timers[$label]) * 1000;
+        unset(self::$timers[$label]);
+
+        self::info("{$label}: " . number_format($duration, 2) . " ms");
+    }
+
+    public static function dump(...$args)
+    {
+        foreach ($args as $arg) {
+            fwrite(STDOUT, "\n");
+            var_dump($arg);
+        }
+    }
+
+    private static function stringify($arg): string
+    {
+        if (is_array($arg) || is_object($arg)) {
+            return json_encode($arg, JSON_PRETTY_PRINT);
+        }
+
+        if (is_bool($arg)) {
+            return $arg ? "true" : "false";
+        }
+
+        if ($arg === null) {
+            return "null";
+        }
+
+        return (string)$arg;
+    }
+
+    private static function write(
+        string $type,
+        array $args,
+        string $boxColor,
+        string $msgColor,
+        $output = STDOUT
+    ) {
+        $label = strtoupper($type);
+
+        $box = "{$boxColor} {$label} \033[0m";
+
+        $message = array_map(fn($a) => self::stringify($a), $args);
+        $message = implode(" ", $message);
+
+        fwrite($output, "\n{$box} {$msgColor}{$message}\033[0m\n");
     }
 }

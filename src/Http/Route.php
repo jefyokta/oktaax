@@ -4,6 +4,8 @@ namespace Oktaax\Http;
 
 use Oktaax\Contracts\Middleware;
 use Oktaax\Core\Application;
+use Oktaax\Core\Promise\Promise;
+use Oktaax\Utils\AsyncTransform;
 use Oktaax\Utils\Invoker;
 
 /**
@@ -46,8 +48,17 @@ class Route
         private string $path,
         private string $method,
         private $handler,
+        //todo #1
+        //ini middleware nya isinya globalmidd, baru dinamic middleware, jadi untuk global bakal banyak duplikatnya sih tiap bikin objet route ngisi stack pake hal yang sama, solusinya bisa disimpan stack sendiri si global midnya nanti merge aja, tapi gabisa dinamyc misal mau except glob mid a untuk router x
         private array $middlewares = []
     ) {
+
+        if (AsyncTransform::isHasAsyncAttribute($this->handler)) {
+            //todo #2
+            //wrap handler dengan promise
+        }
+         //todo #3
+        //iterasi middleware disni cek juga kalo dia async juga
         $this->compile();
         $this->invoker = new Invoker();
     }
@@ -61,6 +72,7 @@ class Route
             $this->pattern = $this->path;
             return;
         }
+
 
         $this->dynamic = true;
 

@@ -121,6 +121,8 @@ function async(callable $fn): Promise
         }
     });
 }
+
+
 function inCoroutine(): bool
 {
     return Coroutine::getCid() > 0;
@@ -128,64 +130,48 @@ function inCoroutine(): bool
 
 function spawn(callable $fn): void
 {
-    inCoroutine() ? Coroutine::create($fn) : run($fn);
+    if (inCoroutine()) {
+        Coroutine::create($fn);
+    } else {
+        run(function () use ($fn) {
+            Coroutine::create($fn);
+        });
+    }
 }
 
-
+/**
+ * @template T
+ * @param Promise<T>
+ * @return T
+ */
 function await(Promise $promise): mixed
 {
-    if (inCoroutine()) {
-        $channel = new Channel(1);
+    $channel = new Channel(1);
 
-        $promise->then(
-            fn($v) => $channel->push(['ok',  $v]),
-            fn($r) => $channel->push(['err', $r]),
-        );
+    $promise->then(
+        fn($v) => $channel->push(['ok', $v]),
+        fn($r) => $channel->push(['err', $r]),
+    );
 
+    $wait = function () use ($channel) {
         [$status, $payload] = $channel->pop();
         $channel->close();
 
         if ($status === 'err') {
             throw $payload instanceof Throwable
                 ? $payload
-                : new \RuntimeException((string) $payload);
+                : new \RuntimeException((string)$payload);
         }
 
         return $payload;
+    };
+
+    if (inCoroutine()) {
+        return $wait();
     }
 
-    $result   = null;
-    $error    = null;
-    $hasError = false;
-
-    run(function () use ($promise, &$result, &$error, &$hasError): void {
-        $channel = new Channel(1);
-
-        $promise->then(
-            fn($v) => $channel->push(['ok',  $v]),
-            fn($r) => $channel->push(['err', $r]),
-        );
-
-        [$status, $payload] = $channel->pop();
-        $channel->close();
-
-        if ($status === 'err') {
-            $hasError = true;
-            $error    = $payload;
-        } else {
-            $result = $payload;
-        }
-    });
-
-    if ($hasError) {
-        throw $error instanceof Throwable
-            ? $error
-            : new \RuntimeException((string) $error);
-    }
-
-    return $result;
+    return run($wait);
 }
-
 
 if (! function_exists('xcsrf_token')) {
 
@@ -197,6 +183,7 @@ if (! function_exists('xcsrf_token')) {
 
 if (! function_exists('xserver')) {
     /**
+     * @deprecated 
      * @return \Swoole\Http\Server|\Swoole\Websocket\Server
      */
     function xserver(): \Swoole\Http\Server|\Swoole\Websocket\Server
