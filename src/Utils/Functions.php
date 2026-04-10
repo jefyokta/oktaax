@@ -35,14 +35,21 @@
  *
  */
 
+namespace Oktaax\Utils;
 
+use Oktaax\Core\Application;
+use Oktaax\Core\Promise\Promise;
 use Oktaax\Http\Request;
-use Oktaax\Interfaces\Server;
-use Oktaax\Interfaces\Xsocket;
 use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Oktaax\ServerBag;
+use Swoole\Coroutine;
+use Swoole\Coroutine\Channel;
+use Swoole\Timer;
+use Throwable;
+
+use function Swoole\Coroutine\run;
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -58,7 +65,7 @@ if (! function_exists('oktaax')) {
      * return a instance of oktaax. A http server
      * 
      */
-    function oktaax(): Server
+    function oktaax()
     {
         return new Oktaax;
     }
@@ -71,13 +78,27 @@ if (! function_exists('xsocket')) {
      * Get a instsance of Oktaax with websocket
      * @return Xsocket;
      */
-    function xsocket(): Xsocket
+    function xsocket()
     {
-        return new  class extends Oktaax  implements Xsocket {
+        return new  class extends Oktaax {
             use HasWebsocket;
         };
     }
 };
+
+if (! function_exists('setTimeout')) {
+    function setTimeout($func, $ms)
+    {
+        return @Timer::after($ms, $func);
+    }
+}
+
+if (! function_exists('setInterval')) {
+    function setInterval($cb, $ms)
+    {
+        return Timer::tick($ms, $cb);
+    }
+}
 
 /**
  * 
@@ -86,13 +107,73 @@ if (! function_exists('xsocket')) {
 if (!function_exists('xrequest')) {
     function xrequest(): ?Request
     {
-        return Request::getInstance();
+        return Application::context()->get(Request::class);
     }
 }
 
+function async(callable $fn): Promise
+{
+    return new Promise(function ($resolve, $reject) use ($fn): void {
+        try {
+            $resolve($fn());
+        } catch (Throwable $e) {
+            $reject($e);
+        }
+    });
+}
 
 
-if (! function_exists('xcsrf_token') ) {
+function inCoroutine(): bool
+{
+    return Coroutine::getCid() > 0;
+}
+
+function spawn(callable $fn): void
+{
+    if (inCoroutine()) {
+        Coroutine::create($fn);
+    } else {
+        run(function () use ($fn) {
+            Coroutine::create($fn);
+        });
+    }
+}
+
+/**
+ * @template T
+ * @param Promise<T>
+ * @return T
+ */
+function await(Promise $promise): mixed
+{
+    $channel = new Channel(1);
+
+    $promise->then(
+        fn($v) => $channel->push(['ok', $v]),
+        fn($r) => $channel->push(['err', $r]),
+    );
+
+    $wait = function () use ($channel) {
+        [$status, $payload] = $channel->pop();
+        $channel->close();
+
+        if ($status === 'err') {
+            throw $payload instanceof Throwable
+                ? $payload
+                : new \RuntimeException((string)$payload);
+        }
+
+        return $payload;
+    };
+
+    if (inCoroutine()) {
+        return $wait();
+    }
+
+    return run($wait);
+}
+
+if (! function_exists('xcsrf_token')) {
 
     function xcsrf_token()
     {
@@ -101,12 +182,26 @@ if (! function_exists('xcsrf_token') ) {
 }
 
 if (! function_exists('xserver')) {
-/**
- * @return \Swoole\Http\Server|\Swoole\Websocket\Server
- */
-  function xserver():\Swoole\Http\Server|\Swoole\Websocket\Server
-  {
-    return ServerBag::get();
-  }
+    /**
+     * @deprecated 
+     * @return \Swoole\Http\Server|\Swoole\Websocket\Server
+     */
+    function xserver(): \Swoole\Http\Server|\Swoole\Websocket\Server
+    {
+        return ServerBag::get();
+    }
 }
 
+if (! function_exists('clearInterval')) {
+    function clearInterval($id)
+    {
+        return Timer::clear($id);
+    }
+}
+
+if (! function_exists('clearTimeout')) {
+    function clearTimeout($id)
+    {
+        return Timer::clear($id);
+    }
+}

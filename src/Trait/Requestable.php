@@ -56,6 +56,7 @@ use Swoole\Http\Request as SwooleRequest;
 /**
  * @method void use($middleware)
  * @method void use(string $route,Oktaax $app)
+ * @deprecated 
  */
 trait Requestable
 {
@@ -88,9 +89,7 @@ trait Requestable
      */
 
     protected function onRequest()
-    {
-      
-
+    {   
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
 
             $request = new Request($request);
@@ -141,7 +140,6 @@ trait Requestable
      */
     public function post(string $path, string|callable|array $callback, string|callable|array ...$middlewares)
     {
-
         $this->addRoute($path, "POST", $callback, $middlewares);
         return $this;
     }

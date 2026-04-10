@@ -12,7 +12,7 @@ test2/
 index.html
 test.mp4
 watermark
-
+stubs/
 /*.php
 /*.so
 /*.c
@@ -23,4 +23,11 @@ watermark
 src/Task/
 src/Trait/Taskable.php
 src/Auditor
-tests/
+
+benchmark/
+
+test.*
+test.json
+test.js
+stubs
+.vscode/

@@ -41,16 +41,18 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
+use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Request as HttpRequest;
-use PHPUnit\TextUI\Configuration\Merger;
+use Stringable;
 
 /**
  * @package Oktaax\Http
  */
 
-class Request
+class Request implements Stringable, Injectable
 {
 
     /**
@@ -110,16 +112,27 @@ class Request
 
     public $post;
 
-    public $uri;
+    private static $injection = [];
 
+    public $uri;
+    public static function inject(string $key, $value)
+    {
+
+        self::$injection[$key] = \is_callable($value) ? $value :  new $value;
+    }
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
         $this->post = $request->post;
-        $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post??[],[]));
+        $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post ?? [], []));
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
-        static::$instance = $this;
+        static::$instance = &$this;
+    }
+    static function create(HttpRequest $request)
+    {
+
+        return new static($request);
     }
 
     /**
@@ -133,6 +146,7 @@ class Request
         if (property_exists($this->request, $name)) {
             return $this->request->$name;
         }
+
 
         return $this->attributes[$name] ?? null;
     }
@@ -188,7 +202,11 @@ class Request
     public function __call($name, $arguments)
     {
         if (method_exists($this->request, $name)) {
-            return call_user_func_array([$this->request, $name], $arguments);
+            return \call_user_func_array([$this->request, $name], $arguments);
+        }
+
+        if ($injected = static::$injection[$name]) {
+            return \call_user_func($injected, ...$arguments);
         }
 
         throw new \BadMethodCallException("Method {$name} does not exist.");
@@ -217,9 +235,9 @@ class Request
 
         return $default;
     }
-    public function post(string $key)
+    public function post(string $key, mixed $default = null)
     {
-        return $this->request->post[$key] ?? null;
+        return $this->request->post[$key] ?? $default;
     }
 
     /**
@@ -230,7 +248,7 @@ class Request
     public function all(): array
     {
 
-        return  array_merge(
+        return  \array_merge(
             $this->request->get ?? [],
             $this->request->post ?? [],
             $this->request->cookie ?? []
@@ -245,7 +263,7 @@ class Request
      */
     public function has(string $key): bool
     {
-        return null !== $this->all()[$key] ?? false;
+        return isset($this->all()[$key]);
     }
 
     /**
@@ -370,13 +388,18 @@ class Request
      */
     public function validate(array $rules, array|null $data = null)
     {
-        if (is_null($data)) {
-            $data = $this->request['post'];
+        if (\is_null($data)) {
+            $data = $this->request->server["post"];
         }
 
         $this->errors = (new Validation)->validate($data, $rules) ?? null;
 
-        return new RequestValidated($data, !empty($errors) ? $errors : null);
+        $reqValidated = new RequestValidated($data, !empty($errors) ? $errors : null);
+        if (!$reqValidated->isOk()) {
+            throw new ValidationException($reqValidated->getErrors());
+        }
+
+        return $reqValidated->getData();
     }
 
     /**
@@ -424,7 +447,7 @@ class Request
     {
         return $this->request->cookie[$name] ?? null;
     }
-    public static function getInstance()
+    public static function &getInstance()
     {
         return static::$instance;
     }
@@ -432,6 +455,10 @@ class Request
     public function hasHeader($key)
     {
         return isset($this->request->header[$key]);
+    }
+    public function isInertia()
+    {
+        return $this->hasHeader('x-inertia');
     }
 
 
@@ -453,18 +480,22 @@ class Request
 
     public function bodies()
     {
-
-        return array_merge($this->post ?? [], (array)$this->body ?? []);
+        return \array_merge($this->post ?? [], (array) $this->body ?? []);
     }
 
     public function parameters()
     {
 
-        return array_merge($this->get ?? [], $this->bodies());
+        return \array_merge($this->get ?? [], $this->bodies());
     }
 
     public function __toString()
     {
         return json_encode($this);
+    }
+
+    public function get($key,$default = null)
+    {
+        return $this->request->get[$key] ?? $default;
     }
 }

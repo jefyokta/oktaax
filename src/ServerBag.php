@@ -2,7 +2,9 @@
 
 namespace Oktaax;
 
-
+/**
+ * @deprecated message
+ */
 class ServerBag
 {
 
@@ -14,7 +16,7 @@ class ServerBag
         static::$serverinstance = &$server;
     }
     /**
-     * Get Openswoole server instance
+     * Get swoole server instance
      * @return \Swoole\Http\Server|\Swoole\WebSocket\Server
      */
     public static function &get()

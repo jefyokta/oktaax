@@ -39,30 +39,31 @@
 
 namespace Oktaax\Websocket;
 
-use Error;
-use Oktaax\Error\EventNotDecleared;
+use Oktaax\Contracts\OverloadClass;
 use Oktaax\Interfaces\Channel;
-use Oktaax\Interfaces\WebSocketServer;
+use Oktaax\Trait\Overloadable;
+use Oktaax\Websocket\Overload\PushWithEvent;
+use Oktaax\Websocket\Support\Table;
+use Stringable;
 use Swoole\Coroutine;
+use Swoole\Table as SwooleTable;
+use Swoole\Timer;
 use Swoole\WebSocket\Server as SWServer;
+use TypeError;
 
 /**
  * @method mixed broadcast(callable(\Oktaax\Websocket\Client) $callback = null, int $delay = 0, $opcode = 1, $flags = 1)
+ * @method mixed broadcast(\Oktaax\Websocket\Event | string $message = null, int $delay = 0, $opcode = 1, $flags = 1)
  */
 
-class Server implements WebSocketServer
+class Server 
 {
+    // use Overloadable;
 
     public int|array $fds = [];
 
     protected Client $client;
-    public $event;
-    public static $eventDefault = 'general';
 
-    private $messages = [
-        "event" => null,
-        "message" => null
-    ];
 
     public SWServer $swooleWebsocket;
 
@@ -70,47 +71,70 @@ class Server implements WebSocketServer
     {
         $this->client = $client;
         $this->swooleWebsocket = $server;
-        $this->messages["event"] = static::$eventDefault ?? null;
-    }
-
-
-    private function push($fd, $data, $opcode = 1, $flags = 1)
-    {
-        if (is_null($this->event) && null === static::$eventDefault) {
-            throw new EventNotDecleared("Cannot push a message without event");
-        }
-        if (is_array($data) || is_object($data)) {
-            $data = json_encode([
-                "event" => $this->event ?? static::$eventDefault,
-                "message" => $data
-            ], JSON_PRETTY_PRINT);
-        }
-        $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
+        // self::classRegister(PushWithEvent::class);
     }
 
 
 
-    public function broadcast(mixed $data, int $delay = 0, $opcode = 1, $flags = 1): void
+    public function push($fd, $data, $opcode = 1, $flags = 1)
     {
-        $receivers = $this->fds ?? $this->swooleWebsocket->connections;
+        $data = \is_scalar($data) ? $data : json_encode($data);
+        if ($this->swooleWebsocket->isEstablished($fd)) {
+            $this->swooleWebsocket->push($fd, $data, $opcode, $flags);
+        }
+    }
 
-        if (is_int($receivers)) {
-            $message = is_callable($data) ? $data(new Client($receivers)) : $data;
-            $this->push($receivers, $message, $opcode, $flags);
-        } else {
+    private function normalizeMessage(string|array $message, Client $client): string
+    {
+        // if ($message instanceof Event) {
+        //     return $message->client($client);
+        // }
 
-            if (is_array($receivers)) {
-                foreach ($receivers as $fd) {
-                    $message = is_callable($data) ? $data(new Client($fd)) : $data;
-                    $this->push($fd, $message, $opcode, $flags);
+        if (\is_string($message)) {
+            return $message;
+        }
 
-                    if ($delay > 0) {
-                        Coroutine::sleep($delay);
-                    }
+        return json_encode($message);
+    }
+
+    public function broadcast(mixed $data, int $delay = 0, int $opcode = 1, int $flags = 1): void
+    {
+        $receivers = $this->fds ?? Table::getTable();
+
+        // if ($data instanceof Event) {
+        //     $data->broadcast();
+        //     return;
+        // }
+
+        $send = function (int $fd) use ($data, $opcode, $flags) {
+
+            $client = new Client($fd);
+
+            $payload = is_callable($data)
+                ? $data($client)
+                : $data;
+
+            $message = $this->normalizeMessage($payload, $client);
+
+            $this->push($fd, $message, $opcode, $flags);
+        };
+
+        if (\is_int($receivers)) {
+            $send($receivers);
+            return;
+        }
+
+        if (\is_array($receivers) || $receivers instanceof SwooleTable) {
+            foreach ($receivers as $fd) {
+                $send($fd);
+
+                if ($delay > 0) {
+                    Coroutine::sleep($delay);
                 }
             }
         }
     }
+
 
 
     public function to(int|array $fds): static
@@ -121,12 +145,19 @@ class Server implements WebSocketServer
 
     public function toChannel($channel): static
     {
-        if (! new $channel instanceof Channel) {
-            throw new Error("$channel must implements \Oktaax\\Interfaces\\Channel");
+        if (!class_exists((string)$channel)) {
+            throw new TypeError("Class {$channel} does not exist.");
         }
 
-        foreach ($this->swooleWebsocket->connections as $c) {
-            if ((new $channel)->eligible(new Client($c))) {
+        if (!is_subclass_of($channel, Channel::class)) {
+            throw new TypeError(
+                "Param must be subclass of " . Channel::class . ", {$channel} given"
+            );
+        }
+        $channel = new $channel();
+
+        foreach (Table::getTable() as $c) {
+            if ($channel->eligible(new Client((int)$c))) {
                 $this->fds[] = $c;
             }
         }
@@ -142,12 +173,15 @@ class Server implements WebSocketServer
 
     public function tick($ms, $callback, ...$params)
     {
-
-        $this->swooleWebsocket->tick($ms, $callback, ...$params);
+        if (method_exists($this->swooleWebsocket, "tick")) {
+            return $this->swooleWebsocket->tick($ms, $callback,);
+        }
+        return Timer::tick($ms, $callback, ...$params);
     }
 
     public function after($ms, $callback, ...$params)
     {
+
         $this->swooleWebsocket->after($ms, $callback, ...$params);
     }
 
@@ -175,17 +209,5 @@ class Server implements WebSocketServer
     public function reject($fd, $reason, $code = WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
-    }
-    public function event($eventName)
-    {
-
-        $this->event = $eventName;
-        return $this;
-    }
-
-    public static function setDefaultEvent($eventName)
-    {
-
-        static::$eventDefault = $eventName;
     }
 };

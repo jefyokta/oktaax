@@ -37,188 +37,67 @@
 
 
 
-
-
 namespace Oktaax\Trait;
 
 use Error;
+use Oktaax\Console;
 use Swoole\Table;
 use Oktaax\Websocket\Client;
 use Swoole\Http\Request;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 use Oktaax\Http\Request as HttpRequest;
+use Oktaax\Http\Router;
+use Oktaax\Websocket\Event;
 use Oktaax\Websocket\Server as WServer;
 use Oktaax\Websocket\Support\Table as SupportTable;
 
-/**
- * Trait HasWebsocket
- *
- * A trait for implementing WebSocket functionality in Oktaax using Swoole. 
- * Provides WebSocket event handling, and server lifecycle management.
- *
- * @package Oktaax\Trait
- */
 trait HasWebsocket
 {
     public Table $userTable;
-    private $hasChannel = false;
     private $userTableConfig = ['size' => 1024];
-    /**
-  
-     *
-     * @var array
-     */
-    private $actions = ["gate" => null, 'table' => null, "withOutEvent"=>null];
 
-    /**
-     * Registered WebSocket events and their handlers.
-     *
-     * @var array<string, callable|array>
-     */
+    private $actions = [
+        "gate" => null,
+        "table" => null,
+        "withOutEvent" => null,
+        "exit" => null
+    ];
+
     private array $events = [];
-
 
     protected $startParams = ["hostOrCallback" => null, "callback" => null];
 
-
-
-
-    /**
-     * Register a WebSocket event and its handler.
-     *
-     * @param string $event The event name to register.
-     * @param callable(\Oktaax\Websocket\Server,\Oktaax\Websocket\Client)|array $handler A callable or an array representing a class and method.
-     * @return static Returns the current instance for method chaining.
-     */
-    public function ws(string $event, callable|array $handler)
+    protected function getServerClass(): string
     {
+        return Server::class;
+    }
+
+    public function ws(string $event, ?callable $handler = null)
+    {
+        if (class_exists($event) && is_subclass_of($event, Event::class)) {
+            $this->events[$event::name()] = new $event;
+            return $this;
+        }
+
         $this->events[$event] = $handler;
         return $this;
     }
 
-    /**
-     * Initialize the WebSocket server with the given configuration.
-     *
-     * @return static Returns the current instance for method chaining.
-     */
-    private function init()
-    {
-        if (!is_null($this->config->mode ?? null) && !is_null($this->config->sock_type ?? null)) {
-            $this->server = new Server($this->host, $this->port, $this->config->mode, $this->config->sock_type);
-        } else {
-            $this->server = new Server($this->host, $this->port);
-        }
-        $this->server->set($this->serverSettings);
-
-        return $this;
-    }
-
-    /**
-     * @param callable(\Oktaax\Websocket\Server, \Oktaax\Http\Request) $callback
-     */
     public function gate(callable $callback)
     {
-
         $this->actions['gate'] = $callback;
     }
 
-    /**
-     * Handle incoming messages and dispatch them to the appropriate event handlers.
-     *
-     * @param Server $server The WebSocket server instance.
-     * @param Frame $frame The WebSocket frame containing the client's message.
-     * @return void
-     * @throws Error If the event handler is invalid.
-     */
-    private function messageHandler(Server $server, Frame $frame): void
+    public function exit(callable $callback)
     {
-
-        $request = json_decode($frame->data) ?? null;
-        $client = new Client($frame->fd, $frame->data);
-        $serv = new WServer($server, $client);
-        // $serv->table = $this->table;
-
-        if (!$request?->event ?? false) {
-            if (is_callable($this->actions["withOutEvent"])) {
-                $this->actions["withOutEvent"]($serv, $client);
-            }
-            else{
-                $serv->reply('Event Needed!');
-            }
-        } else {
-            $this->serve($serv, $client, $request->event);
-        }
+        $this->actions['exit'] = $callback;
     }
 
-    /**
-     * 
-     * 
-     * @param callable(WServer $server, Client $client) $callback
-     */
     public function withOutEvent($callback)
     {
         $this->actions["withOutEvent"] = $callback;
     }
-
-    /**
-     * Dispatch the event to the registered handler.
-     *
-     * @param WServer $server The server wrapper for replying to the client.
-     * @param Client $client The client wrapper for managing the connection.
-     * @param string $event The event name to dispatch.
-     * @return void
-     * @throws Error If the handler is invalid.
-     */
-    private function serve(WServer $server, Client $client, string $event): void
-    {
-        $handler = $this->events[$event] ?? null;
-        if (is_null($handler)) {
-            $server->reply("Invalid event");
-        } else {
-            if (is_array($handler)) {
-                if (!class_exists($handler[0])) {
-                    throw new Error("Class [" . $handler[0] . "] Not Found");
-                }
-                $method = $handler[1] ?? throw new Error("Method [{$handler[1]}] not found!");
-                call_user_func([$handler[0], $method], $server, $client);
-            } elseif (is_callable($handler)) {
-                $handler($server, $client);
-            } else {
-                throw new Error("Handler must be an array or callable");
-            }
-        }
-    }
-
-
-
-    /**
-     * Start the WebSocket server and listen for incoming connections.
-     *
-     * @param int $port The port to listen on.
-     * @param string|callable|null $hostOrcallback The host address or a callback for the server start event.
-     * @param callable|null $callback A callback for the server start event if the host is not provided.
-     * @return void
-     */
-    public function listen(int $port, string|callable|null $hostOrcallback = null, ?callable $callback = null): void
-    {
-        $this->host = is_string($hostOrcallback) ? $hostOrcallback : "127.0.0.1";
-        $this->port = $port;
-        $this->startParams['hostOrCallback'] = $hostOrcallback;
-        $this->startParams['callback'] = $callback;
-
-        if (method_exists($this, 'httpPrepare')) {
-            $this->httpPrepare();
-        }
-        $this->boot();
-        $this->init();
-        $this->makeAGlobalServer();
-        $this->onRequest();
-        $this->bootEvents();
-        $this->eventRegistery($hostOrcallback, $callback);
-        $this->server->start();
-    }
-
 
     public function table(callable $callback, ?int $size = 1024)
     {
@@ -226,80 +105,173 @@ trait HasWebsocket
         $this->actions['table'] = $callback;
     }
 
+
+    private function messageHandler(Server $server, Frame $frame): void
+    {
+        $packet = $this->parseIncoming($frame->data);
+        $client = new Client($frame->fd, $packet);
+        $serv   = new WServer($server, $client);
+
+        if (!$packet['event']) {
+            if (is_callable($this->actions["withOutEvent"])) {
+                $this->actions["withOutEvent"]($serv, $client);
+            } else {
+                $serv->reply('Event Needed!');
+            }
+            return;
+        }
+
+        $this->serve($serv, $client, $packet['event']);
+    }
+
+
+    private function parseIncoming(string $data): array
+    {
+        if ($this->isBinary($data)) {
+            // Console::log("binary");
+            return $this->parseBinary($data);
+        }
+        // Console::log("json");
+
+        return $this->parseJson($data);
+    }
+
     /**
-     * Register server events and their handlers.
+     *  Detect Binary Protocol
+     */
+    private function isBinary(string $data): bool
+    {
+        return isset($data[0]) && ord($data[0]) === 0x01;
+    }
+
+    /**
+     * JSON Parser
+     */
+    private function parseJson(string $data): array
+    {
+        $decoded = json_decode($data, true);
+
+        return [
+            'event' => $decoded['event'] ?? null,
+            'data'  => $decoded,
+            'meta'  => [],
+            'type'  => 'json'
+        ];
+    }
+
+    /**
+     *  Binary Protocol Parser
      *
-     * @param string|callable|null $hostOrCallback The host address or a callback for the server start event.
-     * @param callable|null $callback A callback for the server start event if the host is not provided.
-     * @return void
+     * Format:
+     * | 1B | 1B | 2B | 1B | N | payload |
+     * |VER |TYPE|FLAG|ELEN|EVT| DATA    |
+     */
+    private function parseBinary(string $data): array
+    {
+        $ver   = ord($data[0]);
+        $type  = ord($data[1]);
+        $flags = unpack('n', substr($data, 2, 2))[1];
+
+        $eventLength = ord($data[4]);
+        $event = substr($data, 5, $eventLength);
+
+        $offset = 5 + $eventLength;
+        $payload = substr($data, $offset);
+
+        return [
+            'ver'   => $ver,
+            'type'  => $type,
+            'flags' => $flags,
+            'event' => $event,
+            'data'  => $payload,
+            'meta'  => [],
+        ];
+    }
+
+    /**
+     *  Dispatch Event
+     */
+    private function serve(WServer $server, Client $client, ?string $event): void
+    {
+        $handler = $this->events[$event] ?? null;
+
+        if ($handler instanceof Event) {
+            $handler->client = $client;
+            $handler->server = $server;
+            $handler->broadcast();
+            return;
+        }
+
+        if ($handler == null) {
+            $server->reply("Invalid event");
+            return;
+        }
+
+        if (is_array($handler)) {
+            if (!class_exists($handler[0])) {
+                throw new Error("Class [" . $handler[0] . "] Not Found");
+            }
+
+            $method = $handler[1] ?? throw new Error("Method not found!");
+            call_user_func([$handler[0], $method], $server, $client);
+
+        } elseif (is_callable($handler)) {
+            $handler($server, $client);
+
+        } else {
+            throw new Error("Handler must be callable or array");
+        }
+    }
+
+    /**
+     *  Broadcast
+     */
+    public function broadcast($data, $receivers = null)
+    {
+        foreach (SupportTable::getTable() as $key => $value) {
+            $this->server->push(
+                $key,
+                is_string($data) ? $data : json_encode($data)
+            );
+        }
+    }
+
+    /**
+     * ⚙️ Event Registry
      */
     protected function eventRegistery(): void
     {
         $this->server->on("Open", fn(Server $serv, Request $req) => $this->open($serv, $req));
         $this->server->on("Message", fn(Server $server, Frame $frame) => $this->messageHandler($server, $frame));
         $this->server->on("Close", fn(Server $server, $fd) => $this->close($server, $fd));
-        $this->server->on("Start", fn() => $this->start());
     }
 
-    /**
-     * Handle the "onOpen" event.
-     *
-     * @param Server $server The WebSocket server instance.
-     * @param Request $request The HTTP request object from the client.
-     * @return void
-     */
     private function open(Server $server, Request $request): void
     {
-
         $httpRequest = new HttpRequest($request);
         $client = new Client($request->fd);
-        $serv =  new WServer($server, $client);
-        if (is_callable($this->actions['gate'])) {
-            $this->actions['gate']($serv, $httpRequest);
-        }
-    }
+        $serv = new WServer($server, $client);
 
+
+        $this->callIfCallable($this->actions['gate'], $serv, $httpRequest);
+    }
 
     private function close(Server $server, $fd)
     {
-
-        SupportTable::remove($fd);
+        $s = new WServer($server, new Client($fd));
+        $this->callIfCallable($this->actions["exit"], $s, $fd);
     }
 
-    /**
-     * Handle the "onStart" event and notify the server URL.
-     *
-     * @param string|callable|null $hostOrCallback The host address or a callback for the server start event.
-     * @param callable|null $callback A callback for the server start event if the host is not provided.
-     * @return void
-     */
-    private function start(): void
-    {
-        $protocol = $this->protocol === "https" ? "wss" : "ws";
-        $url = "{$protocol}://{$this->host}:{$this->port}";
-
-        if (is_callable($this->startParams["hostOrCallback"])) {
-            $this->startParams["hostOrCallback"]($url);
-        } elseif (is_callable($this->startParams["callback"]) && !is_null($this->startParams["callback"])) {
-            $this->startParams["callback"]($url);
-        }
-    }
-
-
-
-
-    private function boot()
+    protected function boot()
     {
         $this->userTable = new Table($this->userTableConfig['size']);
         $this->callIfCallable($this->actions['table'], $this->userTable);
         SupportTable::boot($this->userTable);
     }
 
-
     private function callIfCallable(?callable $callback, &...$params)
     {
         if (is_callable($callback)) {
-
             try {
                 $callback(...$params);
             } catch (\Throwable $th) {
@@ -308,8 +280,23 @@ trait HasWebsocket
         }
     }
 
-    public function getHandledEvents()
+    public function getHandledEvents(): array
     {
         return ["request", "start", "message", "open", "close"];
+    }
+
+    public static function buildPacket(
+        string $event,
+        string $payload = '',
+        int $type = 1,
+        int $flags = 0
+    ): string {
+        return
+            chr(1) .
+            chr($type) .
+            pack('n', $flags) .
+            chr(strlen($event)) .
+            $event .
+            $payload;
     }
 }

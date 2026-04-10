@@ -41,6 +41,7 @@ namespace Oktaax\Websocket;
 
 use Oktaax\Interfaces\Channel;
 use Oktaax\Websocket\Support\Member;
+use Oktaax\Websocket\Support\Table;
 
 class Client
 {
@@ -69,25 +70,36 @@ class Client
     {
         $this->fd = $fd;
 
-        if (! is_null($data) && is_string($data)) {
+        if ($data !== null && \is_string($data)) {
             $decodedData =  json_decode($data, true);
             $this->data = json_last_error() === JSON_ERROR_NONE ? $decodedData : $data;
+        }
+        if (\is_array($data)) {
+            $this->data = $data;
         }
     }
 
     /**
      * Check if the client is in a specific channel.
      * 
-     * @param Channel|string $channel
+     * @param Channel|class-string<Channel> $channel
      * @return bool
      */
-    public function inChannel(Channel $channel): bool
+    public function inChannel(Channel|string $channel): bool
     {
-        return (new $channel)->eligible($this);
+        if(\is_string($channel)){
+            return (new $channel)->eligible($this);
+        }
+
+        return $channel->eligible($this);
     }
 
     public function __set($name, $value)
     {
         $this->identify[$name] = $value;
+    }
+
+    public function info(){
+        return Table::get($this->fd);
     }
 }
