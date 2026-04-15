@@ -43,7 +43,7 @@ use Oktaax\Http\Response;
 
 
 /**
- * @deprecated form v2.0.0
+ * @deprecated from v2.0.0
  */
 
 class BodyParser

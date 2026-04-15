@@ -12,5 +12,5 @@ interface Completable {
      * @param T $result
      * @return void
      */
-    public static function onComplete($result):void;
+    public static function onComplete( $result):void;
 }

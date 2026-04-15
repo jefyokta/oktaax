@@ -24,9 +24,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.0",
-        "firebase/php-jwt": "^6.10",
-        "swoole/ide-helper": "@dev",
-        "laravel/serializable-closure": "^2.0"
+        "firebase/php-jwt": "^6.10"
         },
     "repositories": [
         {
@@ -37,7 +35,9 @@
     "require-dev": {
         "illuminate/http": "^12.9",
         "pestphp/pest": "^3.8",
-        "mockery/mockery": "^1.6"
+        "mockery/mockery": "^1.6",
+        "swoole/ide-helper": "@dev"
+
     },
     "config": {
         "allow-plugins": {

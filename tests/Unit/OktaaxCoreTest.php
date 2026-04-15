@@ -1,5 +1,6 @@
 <?php
 
+use Oktaax\Core\Configuration;
 use Oktaax\Oktaax;
 use Oktaax\Http\Router;
 use Oktaax\Http\Route;
@@ -9,21 +10,16 @@ beforeEach(function () {
     $routes = $router->getProperty('routes');
     // $routes->setAccessible(true);
     $routes->setValue(null, []);
-
-    $cache = $router->getProperty('routeCache');
-    // $cache->setAccessible(true);
-    $cache->setValue(null, []);
 });
 
 it('can set multiple server options using setServer', function () {
     $app = new Oktaax();
 
-    $app->setServer(['worker_num' => 2]);
+    $app->setServer('worker_num', 2);
     $app->setServer(['daemonize' => false]);
 
-    $property = (new ReflectionClass($app))->getProperty('serverSettings');
-    // $property->setAccessible(true);
-    $settings = $property->getValue($app);
+
+    $settings = Configuration::get("server");
 
     expect($settings)->toBeArray();
     expect($settings)->toHaveKey('worker_num');
@@ -37,7 +33,7 @@ it('forwards route methods to Router through __call', function () {
 
     $app->get('/ping', fn() => 'pong');
 
-    $route = Router::findHandler('/ping', 'GET');
+    [$route] = Router::findHandler('/ping', 'GET');
 
     expect($route)->toBeInstanceOf(Route::class);
     expect($route->getPath())->toBe('/ping');

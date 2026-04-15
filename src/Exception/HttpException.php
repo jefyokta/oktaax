@@ -4,7 +4,7 @@ namespace Oktaax\Exception;
 
 class HttpException extends \RuntimeException
 {
-    public function __construct(private $statusCode, protected $message = null) {}
+    public function __construct(private int $statusCode, protected $message = null) {}
 
     function getStatusCode()
     {

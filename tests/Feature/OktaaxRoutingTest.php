@@ -9,7 +9,7 @@ it('registers and resolves simple routes with Oktaax', function () {
 
     $app->get('/api/test', fn() => 'ok');
 
-    $route = Router::findHandler('/api/test', 'GET');
+    [$route ]= Router::findHandler('/api/test', 'GET');
 
     expect($route)->toBeInstanceOf(Route::class);
 });
@@ -19,7 +19,7 @@ it('resolves dynamic routes with Oktaax and returns the same object', function (
 
     $app->get('/api/users/{id}', fn() => 'user');
 
-    $route = Router::findHandler('/api/users/123', 'GET');
+    [$route] = Router::findHandler('/api/users/123', 'GET');
 
     expect($route)->toBeInstanceOf(Route::class);
 });

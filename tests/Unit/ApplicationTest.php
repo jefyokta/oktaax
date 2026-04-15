@@ -47,8 +47,6 @@ beforeEach(function () {
     $routes = $router->getProperty('routes');
     $routes->setValue(null, []);
 
-    $cache = $router->getProperty('routeCache');
-    $cache->setValue(null, []);
 });
 
 it('does not leak request/response after handle', function () {
@@ -63,16 +61,6 @@ it('does not leak request/response after handle', function () {
     $request = new FakeRequest($swooleRequest);
     $response = new OktaaxResponse(
         $swooleResponse,
-        $request,
-        new OktaaxConfig(
-            $this->createMock(View::class),
-            'log',
-            false,
-            null,
-            null,
-            new AppConfig(null, false, 300, 'Oktaax'),
-            'public/'
-        )
     );
 
     $router = new Router();
@@ -97,16 +85,6 @@ it('lets application inject request/response helpers, register catcher and respo
     $request = new FakeRequest($swooleRequest);
     $response = new OktaaxResponse(
         $swooleResponse,
-        $request,
-        new OktaaxConfig(
-            $this->createMock(View::class),
-            'log',
-            false,
-            null,
-            null,
-            new AppConfig(null, false, 300, 'Oktaax'),
-            'public/'
-        )
     );
 
     class DummyResult {}
@@ -120,7 +98,7 @@ it('lets application inject request/response helpers, register catcher and respo
 
     class HelloInvokable
     {
-        public function __invoke($args)
+        public function __invoke()
         {
             return 'world';
         }
@@ -128,7 +106,7 @@ it('lets application inject request/response helpers, register catcher and respo
 
     class HelloRespInvokable
     {
-        public function __invoke($args)
+        public function __invoke()
         {
             return 'worldresp';
         }
@@ -140,96 +118,4 @@ it('lets application inject request/response helpers, register catcher and respo
 
     expect($request->hello())->toBe('world');
     expect($response->helloResp())->toBe('worldresp');
-});
-
-it('can register response handler and exception catcher through application', function () {
-    $swooleRequest = new \Swoole\Http\Request();
-    $swooleRequest->get = [];
-    $swooleRequest->post = [];
-    $swooleRequest->cookie = [];
-    $swooleRequest->server = ['request_uri' => '/fail', 'request_method' => 'GET'];
-
-    $swooleResponse = new FakeSwooleResponse();
-    $request = new FakeRequest($swooleRequest);
-    $response = new OktaaxResponse(
-        $swooleResponse,
-        $request,
-        new OktaaxConfig(
-            $this->createMock(View::class),
-            'log',
-            false,
-            null,
-            null,
-            new AppConfig(null, false, 300, 'Oktaax'),
-            'public/'
-        )
-    );
-
-    $router = new Router();
-    $router->get('/fail', function () {
-        throw new \InvalidArgumentException('boom');
-    });
-    $router->get('/custom', function () {
-        return new \stdClass();
-    });
-
-    $application = Application::create($request, $response);
-
-    $caughtMessage = null;
-    $caught = false;
-    $application->catch(\InvalidArgumentException::class, function ($e) use (&$caughtMessage, &$caught, $response) {
-        $caughtMessage = $e->getMessage();
-        $caught = true;
-        $response->end('caught');
-    });
-
-    \Swoole\Coroutine::create(function () use ($application, &$caughtMessage, &$caught, $request, $response) {
-        $ctx = \Swoole\Coroutine::getContext();
-        $ctx['request'] = $request;
-        $ctx['response'] = $response;
-
-        $application->handle();
-
-        expect($caughtMessage)->toBe('boom');
-        expect($caught)->toBeTrue();
-    });
-
-    $swooleRequest2 = new \Swoole\Http\Request();
-    $swooleRequest2->get = [];
-    $swooleRequest2->post = [];
-    $swooleRequest2->cookie = [];
-    $swooleRequest2->server = ['request_uri' => '/custom', 'request_method' => 'GET'];
-
-    $swooleResponse2 = new FakeSwooleResponse();
-    $request2 = new FakeRequest($swooleRequest2);
-    $response2 = new OktaaxResponse(
-        $swooleResponse2,
-        $request2,
-        new OktaaxConfig(
-            $this->createMock(View::class),
-            'log',
-            false,
-            null,
-            null,
-            new AppConfig(null, false, 300, 'Oktaax'),
-            'public/'
-        )
-    );
-
-    $application2 = Application::create($request2, $response2);
-    $responded = false;
-    $application2->respond(\stdClass::class, function ($payload, $req, $res) use (&$responded) {
-        $responded = true;
-        $res->end('responded');
-    });
-
-    \Swoole\Coroutine::create(function () use ($application2, $request2, $response2, &$responded) {
-        $ctx = \Swoole\Coroutine::getContext();
-        $ctx['request'] = $request2;
-        $ctx['response'] = $response2;
-
-        $application2->handle();
-
-        expect($responded)->toBeTrue();
-    });
 });

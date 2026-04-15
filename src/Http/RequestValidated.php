@@ -74,7 +74,8 @@ class RequestValidated
         return $this;
     }
 
-    public function isOk():bool{
+    public function isOk(): bool
+    {
 
         return empty($this->errors);
     }
@@ -116,14 +117,28 @@ class RequestValidated
         isset($this->errors) ? current(current($this->errors)) : null;
     }
 
-    public function throw()
+    public function fails(): bool
     {
-        $response = Application::getResponse();
+        return !empty($this->errors);
+    }
 
-        if (Application::getRequest()->isAjax()) {
-            return  $response->json(new ResponseJson([], '', json_encode($this->errors)));
-        }
+    public function errors(): array
+    {
+        return $this->getErrors();
+    }
 
-        return $response->cookie('error',json_encode($this->errors),60)->back();
+    public function all(): array
+    {
+        return $this->getData();
+    }
+
+    public function __get($name)
+    {
+        return $this->data[$name] ?? null;
+    }
+
+    public function __isset($name)
+    {
+        return isset($this->data[$name]);
     }
 };

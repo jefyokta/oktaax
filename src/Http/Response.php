@@ -5,12 +5,10 @@ namespace Oktaax\Http;
 use Oktaax\Console;
 use Oktaax\Contracts\JsonScheme;
 use Oktaax\Core\Application;
-use Oktaax\Core\Container;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\OktaaxConfig;
-use PhpParser\Node\Expr\FuncCall;
 use Swoole\Http\Response as SwooleResponse;
 
 class Response implements Injectable
@@ -24,20 +22,19 @@ class Response implements Injectable
 
     protected mixed $content = null;
 
-    protected array $headers = [];
+    protected Headers $headers;
 
     protected static array $injected = [];
     private static $chunkSize = 8192;
-
-    private $ended = false;
 
     public function __construct(
         SwooleResponse $response,
     ) {
 
         $this->response = $response;
-
-        $this->header('X-Powered-By', 'Oktaax');
+        
+        $this->headers = new Headers(["x-powered-by" => "oktaax"]);
+        
     }
 
     public static function inject(string $name, $handler): void
@@ -65,7 +62,7 @@ class Response implements Injectable
 
     public function header(string $key, string $value): static
     {
-        $this->headers[$key] = $value;
+        $this->headers->set($key, $value);
         return $this;
     }
 
@@ -79,10 +76,20 @@ class Response implements Injectable
     public function json(mixed $data = null, string $message = '', array $error = []): void
     {
 
-        $this->header('Content-Type', 'application/json');
+        $this->headers->set('Content-Type', 'application/json');
 
         if ($data instanceof JsonScheme) {
             $this->end($data->encode());
+            return;
+        }
+
+        if (is_array($data) && isset($data['message']) && isset($data['error']) && isset($data['data'])) {
+            $this->end(json_encode($data));
+            return;
+        }
+
+        if (is_array($data) && isset($data['message']) && !isset($data['error']) && !isset($data['data'])) {
+            $this->end(json_encode($data));
             return;
         }
 
@@ -115,11 +122,9 @@ class Response implements Injectable
     public function redirect(string $location, int $status = 302): void
     {
 
-        $this->status($status);
-
-        $this->header('Location', $location);
-
-        $this->end();
+        $this->status($status)
+            ->header('Location', $location)
+            ->end();
     }
 
     public function back(string $default = '/'): void
@@ -167,7 +172,7 @@ class Response implements Injectable
 
         $mime = require_once __DIR__ . "/../Utils/MimeTypes.php";
         if (!isset($mime[$type])) {
-            Console::warning("cannot found content type for $type");
+            Console::warn("cannot found content type for $type");
         }
 
         $this->header("content-type", $mime[$type] ?? $type);
@@ -239,9 +244,10 @@ class Response implements Injectable
 
         $this->content = $content;
 
-        foreach ($this->headers as $key => $value) {
+        $this->headers->forEach(function ($value,$key) {
+
             $this->response->header($key, $value);
-        }
+        });
 
         $this->response->status($this->status);
         $contentLength = \strlen($this->content ?? '');
@@ -253,13 +259,11 @@ class Response implements Injectable
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
-
-        $this->ended = true;
     }
 
     function isEnded()
     {
-        return $this->ended;
+        return !$this->response->isWritable();
     }
 
 
@@ -304,10 +308,8 @@ class Response implements Injectable
         return $this->response->isWritable();
     }
 
-    public function getHeaders(): array
+    public function getHeaders()
     {
-        return $this->headers;
+        return $this->headers->all();
     }
-
-
 }

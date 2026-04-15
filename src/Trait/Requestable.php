@@ -93,7 +93,7 @@ trait Requestable
         $this->server->on("request", function (SwooleRequest $request, Response $response) {
 
             $request = new Request($request);
-            $response = new OktaResponse($response, $request, $this->config);
+            $response = new OktaResponse($response);
 
             $this->AppHandler($request, $response);
         });
@@ -357,7 +357,7 @@ trait Requestable
             ob_start();
             require __DIR__ . "/../Views/HttpError/index.php";
             $err = ob_get_clean();
-            $response->response->end($err);
+            $respons->end($err);
             return;
         }
         $handler = $match['handler'];
@@ -371,7 +371,7 @@ trait Requestable
                 } else {
                     $res = $this->callMethod($handler, $this->controller_namespace, $request, $response, $param);
                 }
-                if (is_string($res) && $response->response->isWritable()) {
+                if (is_string($res) && $response->isWritable()) {
                     $response->end($res);
                 } elseif ($res !== null) {
                     $message = "Invalid return type from handler. Expected a string or null, but received " . gettype($res) . ".";
