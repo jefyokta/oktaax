@@ -5,14 +5,34 @@
 ![OpenSwoole](https://img.shields.io/badge/OpenSwoole-Compatible-orange)
 ![MIT License](https://img.shields.io/badge/license-MIT-green)
 
-Oktaax is a lightweight, high-performance PHP HTTP and WebSocket server framework built on **Swoole**. It is designed for real-time applications and API-first workflows with minimal boilerplate.
+Oktaax is a lightweight, high-performance PHP HTTP and WebSocket server framework built on **Swoole**. It is designed for real-time applications and API-first workflows with minimal boilerplate, featuring built-in asynchronous programming support with Promises and coroutines.
+
+## Table of Contents
+
+- [🚀 Requirements](#-requirements)
+- [📦 Installation](#-installation)
+- [🔧 Quick Start](#-quick-start)
+- [🌐 HTTP Routing](#-http-routing)
+- [🧩 Request API](#-request-api)
+- [🧩 Response API](#-response-api)
+- [⚡ Asynchronous Programming](#-asynchronous-programming)
+- [🔒 Authentication & Security](#-authentication--security)
+- [🛠️ Server Configuration](#-server-configuration)
+- [🕸️ Middleware](#-middleware)
+- [💬 WebSocket Support](#-websocket-support)
+- [📊 Error Handling](#-error-handling)
+- [📁 File Uploads](#-file-uploads)
+- [📊 Benchmarks](#-benchmarks)
+- [📚 Examples](#-examples)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
 
 ---
 
 ## 🚀 Requirements
 
 - PHP 8.1+
-- Swoole extension installed (`pecl install swoole`)
+- Swoole extension installed (`pecl install swoole` or `pecl install openswoole`)
 
 ---
 
@@ -24,7 +44,9 @@ composer require jefyokta/oktaax
 
 ---
 
-## 🔧 Quick Start (HTTP)
+## 🔧 Quick Start
+
+### Basic HTTP Server
 
 ```php
 <?php
@@ -37,13 +59,35 @@ use Oktaax\Http\Response;
 $app = new Oktaax();
 
 $app->get('/', function (Request $request, Response $response) {
-    $response->end('Hello World');
+    $response->end('Hello World!');
 });
 
 $app->listen(3000);
 ```
 
-Open `http://localhost:3000`.
+Start the server and visit `http://localhost:3000`.
+
+### HTTP + WebSocket Server
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use Oktaax\Oktaax;
+use Oktaax\Trait\HasWebsocket;
+
+$app = new class extends Oktaax {
+    use HasWebsocket;
+};
+
+$app->get('/', fn($req, $res) => $res->end('HTTP + WS Server'));
+
+$app->ws('hello', function ($server, $client) {
+    $server->reply($client, ['message' => 'Hello from WebSocket!']);
+});
+
+$app->listen(3000);
+```
 
 ---
 
@@ -59,36 +103,52 @@ Oktaax supports all common HTTP verbs:
 - `options(path, handler)`
 - `head(path, handler)`
 
-Handlers can be:
-- callable closures
-- class method array `[ClassName::class, 'method']`
-- string view route or controller placeholders (for future extension)
-
-### Route with dynamic params
+### Basic Routes
 
 ```php
-$app->get('/user/{id}', function ($request, $response) {
-    $id = $request->params['id'];
-    $response->end("User: $id");
+$app->get('/users', function ($req, $res) {
+    $res->json(['users' => []]);
+});
+
+$app->post('/users', function ($req, $res) {
+    $data = $req->body();
+    // Create user logic
+    $res->status(201)->json(['created' => true]);
 });
 ```
 
-### Global middleware
+### Dynamic Parameters
 
 ```php
-$app->use(function ($request, $response, $next) {
-    // ...pre processing
-    $next();
+$app->get('/users/{id}', function ($req, $res) {
+    $id = $req->params['id'];
+    $res->json(['user_id' => $id]);
+});
+
+$app->get('/posts/{category}/{slug}', function ($req, $res) {
+    $category = $req->params['category'];
+    $slug = $req->params['slug'];
+    // Fetch post logic
+    $res->json(['category' => $category, 'slug' => $slug]);
 });
 ```
 
-### Route-specific middleware and group middleware
+### Route Groups with Middleware
 
 ```php
-$app->get('/admin', $handler, $authMiddleware);
-
 $app->middleware([$authMiddleware], function ($router) {
     $router->get('/profile', $profileHandler);
+    $router->post('/settings', $settingsHandler);
+    $router->delete('/account', $deleteHandler);
+});
+```
+
+### Path-specific Middleware
+
+```php
+$app->useFor('/api', function ($req, $res, $next) {
+    $res->header('X-API-Version', '1.0');
+    $next();
 });
 ```
 
@@ -96,351 +156,680 @@ $app->middleware([$authMiddleware], function ($router) {
 
 ## 🧩 Request API
 
-`Oktaax\Http\Request` exposes these useful helpers:
+The `Request` object provides extensive helpers for accessing HTTP request data:
 
-- `input(key, default)`
-- `post(key)`
-- `get(key)`
-- `all()`
-- `has(key)`
-- `header(key)`
-- `cookie(name)`
-- `queryHas(key)`
-- `userAgent()`
-- `isJson()` / `isFormSubmission()`
-- `wantsJson()` / `wantsJS()`
-- `isMethod('GET')`
-- `path()`
-- `protocol()`, `host()`
-- `validate(rules, data)`
-- `body(key)`, `json(key)`
-- `bodies()`, `parameters()`
+### Query Parameters & Body
+
+```php
+$app->get('/search', function ($req, $res) {
+    $query = $req->input('q', 'default');
+    $page = $req->input('page', 1);
+    $limit = $req->input('limit', 10);
+
+    // Search logic here
+    $res->json(['query' => $query, 'page' => $page]);
+});
+
+$app->post('/submit', function ($req, $res) {
+    $name = $req->post('name');
+    $email = $req->post('email');
+    $data = $req->body(); // Raw body as array
+
+    $res->json(['received' => $data]);
+});
+```
+
+### Headers & Cookies
+
+```php
+$app->get('/headers', function ($req, $res) {
+    $userAgent = $req->header('User-Agent');
+    $authToken = $req->header('Authorization');
+    $sessionId = $req->cookie('session_id');
+
+    $res->json([
+        'user_agent' => $userAgent,
+        'auth_token' => $authToken,
+        'session_id' => $sessionId
+    ]);
+});
+```
+
+### Content Type Detection
+
+```php
+$app->post('/upload', function ($req, $res) {
+    if ($req->isJson()) {
+        $data = $req->json();
+    } elseif ($req->isFormSubmission()) {
+        $data = $req->body();
+    }
+
+    $res->json(['data' => $data]);
+});
+```
+
+### Validation
+
+```php
+$app->post('/register', function ($req, $res) {
+    $validated = $req->validate([
+        'email' => 'required|email',
+        'password' => 'required|min:8',
+        'name' => 'required|string'
+    ]);
+
+    if ($validated->fails()) {
+        return $res->status(422)->json(['errors' => $validated->errors()]);
+    }
+
+    // Registration logic
+    $res->json(['message' => 'User registered successfully']);
+});
+```
 
 ---
 
 ## 🧩 Response API
 
-`Oktaax\Http\Response` offers full fluent helpers:
+The `Response` object offers fluent methods for crafting HTTP responses:
 
-- `header(key, value)`
-- `status(code)`
-- `sendStatus(code)`
-- `end(content)`
-- `json(new Oktaax\Http\ResponseJson([...]))` (or response->json())
-- `render('view', data)`
-- `sendfile(path)`
-- `redirect(path, status)`
-- `back(default)`
-- `cookie(name, value, expires, path, domain, secure, httponly, samesite, priority)`
-- `with(msg)` / `withError(msg)` (flash cookies)
-- `write(data)`
-- `stream(callback, status, headers)`
-
----
-
-## 🔒 CSRF protection
-
-Enable CSRF token support on App request layer:
+### JSON Responses
 
 ```php
-$app->useCsrf('app_key_here', 300);
+$app->get('/api/users', function ($req, $res) {
+    $users = [
+        ['id' => 1, 'name' => 'John'],
+        ['id' => 2, 'name' => 'Jane']
+    ];
+
+    return $res->json($users);
+});
 ```
 
-This sets internal `app.key`, `app.csrfExp`, and `app.useCsrf`.
+### Status Codes & Headers
+
+```php
+$app->post('/api/users', function ($req, $res) {
+    // Create user logic
+    $res->status(201)
+        ->header('Location', '/api/users/123')
+        ->json(['id' => 123, 'created' => true]);
+});
+```
+
+### Redirects
+
+```php
+$app->get('/old-path', function ($req, $res) {
+    $res->redirect('/new-path', 301);
+});
+
+$app->get('/dashboard', function ($req, $res) {
+    if (!$req->cookie('auth')) {
+        return $res->redirect('/login');
+    }
+    $res->end('Welcome to dashboard');
+});
+```
+
+### Cookies
+
+```php
+$app->post('/login', function ($req, $res) {
+    // Auth logic
+    $res->cookie('session', 'abc123', time() + 3600, '/', null, false, true)
+        ->json(['logged_in' => true]);
+});
+
+$app->post('/logout', function ($req, $res) {
+    $res->cookie('session', '', time() - 3600)
+        ->json(['logged_out' => true]);
+});
+```
+
+### File Downloads
+
+```php
+$app->get('/download/{filename}', function ($req, $res) {
+    $filename = $req->params['filename'];
+    $filepath = "/path/to/files/$filename";
+
+    if (file_exists($filepath)) {
+        $res->header('Content-Type', mime_content_type($filepath))
+            ->sendfile($filepath);
+    } else {
+        $res->status(404)->end('File not found');
+    }
+});
+```
+
+### Views (with PHP templates)
+
+```php
+$app->setView(new \Oktaax\Views\PhpView(__DIR__ . '/views'));
+
+$app->get('/page', function ($req, $res) {
+    $res->render('welcome', ['title' => 'Welcome Page']);
+});
+```
 
 ---
 
-## 🔐 HTTPS support
+## ⚡ Asynchronous Programming
+
+Oktaax provides powerful asynchronous programming capabilities using Swoole coroutines and Promises.
+
+### Promises
+
+```php
+use Oktaax\Core\Promise;
+
+$app->get('/async-data', function ($req, $res) {
+    $promise = new Promise(function ($resolve, $reject) {
+        // Simulate async operation
+        setTimeout(function () use ($resolve) {
+            $resolve(['data' => 'Async result']);
+        }, 1000);
+    });
+
+    $promise->then(function ($data) use ($res) {
+        $res->json($data);
+    })->catch(function ($error) use ($res) {
+        $res->status(500)->json(['error' => $error]);
+    });
+
+    return $promise; // Return promise for auto-resolution
+});
+```
+
+### Async/Await Pattern
+
+```php
+use function Oktaax\async;
+use function Oktaax\await;
+
+$app->get('/async-await', async(function ($req, $res) {
+    $data1 = await(fetchDataFromAPI('/api/endpoint1'));
+    $data2 = await(fetchDataFromAPI('/api/endpoint2'));
+
+    $combined = array_merge($data1, $data2);
+    $res->json($combined);
+}));
+```
+
+### Promise.all for Parallel Operations
+
+```php
+$app->get('/parallel', async(function ($req, $res) {
+    $promises = [
+        fetchUserData(1),
+        fetchUserData(2),
+        fetchUserData(3)
+    ];
+
+    $results = await(Promise::all($promises));
+    $res->json(['users' => $results]);
+}));
+```
+
+### Async Middleware
+
+```php
+$app->use(async(function ($req, $res, $next) {
+    $user = await(authenticateUser($req->header('Authorization')));
+    $req->user = $user;
+    $next();
+}));
+```
+
+### Async File Operations
+
+```php
+$app->get('/read-file', async(function ($req, $res) {
+    $filename = $req->input('file', 'default.txt');
+
+    try {
+        $content = await(readFileAsync($filename));
+        $res->json(['content' => $content]);
+    } catch (Exception $e) {
+        $res->status(404)->json(['error' => 'File not found']);
+    }
+}));
+```
+
+### Database Operations (Async)
+
+```php
+$app->get('/users/{id}', async(function ($req, $res) {
+    $id = $req->params['id'];
+
+    try {
+        $user = await(queryDatabase("SELECT * FROM users WHERE id = ?", [$id]));
+        $res->json($user);
+    } catch (Exception $e) {
+        $res->status(500)->json(['error' => 'Database error']);
+    }
+}));
+```
+
+---
+
+## 🔒 Authentication & Security
+
+### CSRF Protection
+
+```php
+$app->useCsrf('your-secret-key', 300); // 5 minutes expiry
+
+$app->get('/form', function ($req, $res) {
+    $token = xcsrf_token();
+    $res->json(['csrf_token' => $token]);
+});
+
+$app->post('/submit', function ($req, $res) {
+    // CSRF token is automatically validated
+    $res->json(['submitted' => true]);
+});
+```
+
+### JWT Authentication
+
+```php
+use Firebase\JWT\JWT;
+
+$app->post('/login', function ($req, $res) {
+    $credentials = $req->body();
+
+    // Validate credentials
+    if ($credentials['username'] === 'admin' && $credentials['password'] === 'password') {
+        $payload = [
+            'iss' => 'oktaax-app',
+            'sub' => 1,
+            'iat' => time(),
+            'exp' => time() + 3600
+        ];
+
+        $jwt = JWT::encode($payload, 'your-secret-key', 'HS256');
+        $res->json(['token' => $jwt]);
+    } else {
+        $res->status(401)->json(['error' => 'Invalid credentials']);
+    }
+});
+
+$app->middleware(function ($req, $res, $next) {
+    $token = $req->header('Authorization');
+
+    if (!$token || !str_starts_with($token, 'Bearer ')) {
+        return $res->status(401)->json(['error' => 'No token provided']);
+    }
+
+    try {
+        $decoded = JWT::decode(substr($token, 7), 'your-secret-key', ['HS256']);
+        $req->user = $decoded;
+        $next();
+    } catch (Exception $e) {
+        $res->status(401)->json(['error' => 'Invalid token']);
+    }
+}, function ($router) {
+    $router->get('/protected', function ($req, $res) {
+        $res->json(['message' => 'Protected resource', 'user' => $req->user]);
+    });
+});
+```
+
+### HTTPS Support
 
 ```php
 $app->withSSL('/path/to/cert.pem', '/path/to/key.pem');
-// alias: $app->securely('/path/to/cert.pem', '/path/to/key.pem');
-
 $app->listen(443);
 ```
 
 ---
 
-## 🛠️ Server options
+## 🛠️ Server Configuration
+
+### Basic Configuration
 
 ```php
 $app->setServer([
     'worker_num' => 4,
+    'max_request' => 1000,
     'daemonize' => false,
+    'log_file' => '/var/log/oktaax.log'
 ]);
-
-// or
-$app->setServer('worker_num', 2);
-```
-
----
-
-## 🕸️ Route-specific middleware (path bind)
-
-```php
-$app->useFor('/api', $apiMiddleware);
-```
-
----
-
-## 🔁 Reload
-
-```php
-$app->reload();
-```
-
----
-
-## 🖼️ View engine
-
-By default, Oktaax ships with PHP view support (`Oktaax\Views\PhpView` in `views/`).
-
-```php
-$app->setView(new Oktaax\Views\PhpView('views/'));
-```
-
----
-
-## 💬 Built-in global helpers
-
-- `oktaax()` → `new Oktaax()`
-- `xsocket()` → `new class extends Oktaax implements Xsocket { use Oktaax\Trait\HasWebsocket; }`
-- `xrequest()` → current request instance
-- `xserver()` → current Swoole server
-- `xcsrf_token()` → request CSRF token
-
----
-
-## 🧠 Application plumbing and advanced control
-
-### Global exception and response resolvers
-
-Oktaax's internal app object supports:
-
-- `app->catch(ExceptionClass::class, handler)` to register custom exception handling
-- `app->resolve(ResponseClass::class, handler)` or `app->respond(...)` to customize response types
-- `app->inject(Request::class, 'method', InvokableClass::class)` to attach methods to Request/Response classes
-
-### Application config access
-
-- `app->setApplication(new Oktaax\Types\AppConfig(...))`
-- `app->setConfig(new Oktaax\Types\OktaaxConfig(...))`
-
-### Swoole-level event hooks
-
-- `$app->on('start', $handler);` (any Swoole event not handled by framework)
-- Built-in handled events are `request` and `workerstart`, other events are delegated directly.
-
----
-
-## 🚀 Application core (recommended, stable)
-
-`Oktaax\Core\Application` is the central request/response container and dispatcher.
-
-- `app->catch(ExceptionClass::class, handler)` registers exception handlers.
-- `app->resolve(ReturnType::class, handler)` / `app->respond(...)` registers custom response handlers.
-- `app->inject(Request::class|Response::class, 'name', InvokableClass::class)` adds methods to request/response objects.
-- `app->setApplication(AppConfig)` sets application options, including CSRF behavior.
-- `app->setConfig(OktaaxConfig)` overrides framework config for view & storage.
-
-The framework bootstraps this in `WorkerStart` event and automatically rewrites responses via `Router::handle` and `ReturnDispatcher`.
-
----
-
-## ✅ Complete library usage example (HTTP + WebSocket + app lifecycle)
-
-```php
-<?php
-require 'vendor/autoload.php';
-
-use Oktaax\Oktaax;
-use Oktaax\Trait\HasWebsocket;
-use Oktaax\Http\Request;
-use Oktaax\Http\Response;
-use Oktaax\Core\Application;
-
-// Create a combined HTTP + WS server
-$app = new class extends Oktaax {
-    use HasWebsocket;
-};
-
-// Set custom view by path
-$app->setView(new \Oktaax\Views\PhpView(__DIR__ . '/views'));
-
-// Global middleware (all routes)
-$app->use(function ($req, $res, $next) {
-    // Example CORS headers as middleware
-    $res->header('Access-Control-Allow-Origin', '*');
-    $res->header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    $next();
-});
-
-// Route-specific middleware group
-$app->middleware([
-    function ($req, $res, $next) {
-        if (!$req->header('authorization')) {
-            return $res->status(401)->end('Unauthorized');
-        }
-        $next();
-    }
-], function ($router) {
-    $router->get('/api/user', function ($req, $res) {
-        return ['user' => 'oktaax'];
-    });
-});
-
-// Basic HTTP routes
-$app->get('/', function (Request $request, Response $response) {
-    return $response->render('home', ['title' => 'Oktaax Home']);
-});
-
-$app->post('/form', function (Request $request, Response $response) {
-    $name = $request->input('name', 'anonymous');
-    return $response->json(new \Oktaax\Http\ResponseJson(['hello' => $name]));
-});
-
-$app->get('/user/{id}', function (Request $request, Response $response) {
-    $id = $request->params['id'];
-    return "User id: $id";
-});
-
-$app->useFor('/api', function ($req, $res, $next) {
-    // path-specific middleware
-    $req->header('x-api', 'oktaax');
-    $next();
-});
-
-$app->useCsrf('myAppKey', 600);
-$app->setServer(['worker_num' => 2]);
-
-// WebSocket event setup
-$app->ws('ping', function ($server, $client) {
-    $server->reply($client, json_encode(['event' => 'pong']));
-});
-
-$app->gate(function ($server, $request) {
-    // Optional gate check - if false, connection can be closed.
-});
-
-$app->exit(function ($server, $fd) {
-    // Cleanup on client disconnect
-});
-
-$app->withOutEvent(function ($server, $client) {
-    $server->reply($client, json_encode(['error' => 'event required']));
-});
-
-$app->broadcast([ 'event' => 'ready' ]);
-
-// Application-level catch + respond (register in start callback)
-$app->listen(3000, '127.0.0.1', function ($url, Application $coreApp) {
-    
-    $coreApp->catch(\Oktaax\Exception\HttpException::class, function ($e) {
-        response()->status($e->getStatusCode())->end($e->getMessage());
-    });
-    $coreApp->respond(\Oktaax\Http\Support\StreamedResponse::class, function ($stream, $req, $res) {
-        $stream->getCallback()(fn($chunk) => $res->write($chunk));
-        $res->end();
-    });
-
-    echo "Server started at $url\n";
-});
-```
-
----
-
-## 🔧 Request additions
-
-`Oktaax\Http\Request` supports many helpers beyond standard routing:
-
-- `hasHeader(key)`, `isAjax()`, `xhr()`, `isInertia()`
-- `__invoke(key)` alias (not in original docs)
-- `__toString()` returns JSON of request
-
----
-
-## 🔧 Response additions
-
-`Oktaax\Http\Response` also provides:
-
-- `getSwooleResponse()` for native `Swoole\Http\Response`
-- `stream($callback, $status, $headers)` for streaming responses
-- `renderHttpError(code)` for built-in error page rendering
-
----
-
-## 🌐 WebSocket Support
-
-Use websocket-enabled server by extending and using `HasWebsocket`:
-
-```php
-<?php
-require 'vendor/autoload.php';
-
-use Oktaax\Oktaax;
-use Oktaax\Trait\HasWebsocket;
-use Oktaax\Websocket\Server;
-use Oktaax\Websocket\Client;
-
-$app = new class extends Oktaax {
-    use HasWebsocket;
-};
-
-$app->get('/', fn($req, $res) => $res->end('OK'));
-
-$app->ws('welcome', function (Server $server, Client $client) {
-    $server->reply($client, "Hi Client {$client->fd}");
-});
-
-$app->gate(function (Server $server, $request) {
-    // Connection gate (onOpen) logic
-});
-
-$app->exit(function (Server $server, $fd) {
-    // connection close handling
-});
-
-$app->withOutEvent(function ($server, $client) {
-    $server->reply($client, 'Event payload missing');
-});
-
-$app->table(function (\Swoole\Table $table) {
-    // Initialize table values
-}, 2048);
 
 $app->listen(3000);
 ```
 
-### WebSocket events
+### Advanced Options
 
-- `ws(eventName, handler)` to register an event handler
-- `gate(handler)` on open
-- `exit(handler)` on close
-- `broadcast(payload)` send to all clients
-- `withOutEvent(handler)` when incoming frame has no `event`
+```php
+$app->setServer('worker_num', 8)
+    ->setServer('task_worker_num', 2)
+    ->setServer('max_conn', 10000)
+    ->setServer('buffer_output_size', 32 * 1024 * 1024); // 32MB
+```
+
+### Application Configuration
+
+```php
+use Oktaax\Types\OktaaxConfig;
+
+$app->setConfig(new OktaaxConfig([
+    'debug' => true,
+    'timezone' => 'UTC',
+    'upload' => [
+        'max_size' => 10 * 1024 * 1024, // 10MB
+        'temp_dir' => '/tmp/uploads'
+    ]
+]));
+```
 
 ---
 
-## 💡 Channels (optional pattern)
+## 🕸️ Middleware
 
-Define a channel condition via `Oktaax\Interfaces\Channel` and use any channel-friendly helper patterns.
+### Global Middleware
+
+```php
+$app->use(function ($req, $res, $next) {
+    // CORS headers
+    $res->header('Access-Control-Allow-Origin', '*');
+    $res->header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    $res->header('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+
+    // Logging
+    $start = microtime(true);
+    $next();
+    $duration = microtime(true) - $start;
+    Console::log("Request to {$req->path()} took {$duration}s");
+});
+```
+
+### Class-based Middleware
+
+```php
+use Oktaax\Contracts\Middleware;
+
+class AuthMiddleware implements Middleware {
+    public function handle($req, $res, $next) {
+        $token = $req->header('Authorization');
+
+        if (!$token) {
+            return $res->status(401)->json(['error' => 'Unauthorized']);
+        }
+
+        // Validate token logic
+        $req->user = ['id' => 1, 'name' => 'John'];
+        $next();
+    }
+}
+
+class RateLimitMiddleware implements Middleware {
+    private $requests = [];
+
+    public function handle($req, $res, $next) {
+        $ip = $req->header('X-Forwarded-For') ?? '127.0.0.1';
+        $now = time();
+
+        // Simple rate limiting (max 10 requests per minute)
+        if (!isset($this->requests[$ip])) {
+            $this->requests[$ip] = [];
+        }
+
+        $this->requests[$ip] = array_filter($this->requests[$ip], function ($time) use ($now) {
+            return $now - $time < 60;
+        });
+
+        if (count($this->requests[$ip]) >= 10) {
+            return $res->status(429)->json(['error' => 'Too many requests']);
+        }
+
+        $this->requests[$ip][] = $now;
+        $next();
+    }
+}
+
+$app->use(new AuthMiddleware());
+$app->use(new RateLimitMiddleware());
+```
+
+### Async Middleware
+
+```php
+$app->use(async(function ($req, $res, $next) {
+    $user = await(authenticateUser($req->header('Authorization')));
+    $req->user = $user;
+    $next();
+}));
+```
 
 ---
 
-## 🧪 Error handling
+## 💬 WebSocket Support
 
-- 404 and errors are rendered via built-in `Response::renderHttpError(code)`.
-- `Oktaax\Exception\HttpException` is thrown for no route match.
+Extend Oktaax with WebSocket capabilities using the `HasWebsocket` trait:
+
+```php
+use Oktaax\Trait\HasWebsocket;
+
+$app = new class extends Oktaax {
+    use HasWebsocket;
+};
+```
+
+### Basic WebSocket Events
+
+```php
+$app->ws('message', function ($server, $client) {
+    $data = $client->data; // Received data
+    $server->reply($client, ['echo' => $data]);
+});
+
+$app->ws('broadcast', function ($server, $client) {
+    $message = $client->data['message'];
+    $server->broadcast(['message' => $message, 'from' => $client->fd]);
+});
+```
+
+### Connection Management
+
+```php
+$app->gate(function ($server, $request) {
+    // Validate connection before accepting
+    $token = $request->header('Sec-WebSocket-Protocol');
+
+    if (!$token || !validateToken($token)) {
+        return false; // Reject connection
+    }
+
+    return true; // Accept connection
+});
+
+$app->exit(function ($server, $fd) {
+    Console::log("Client $fd disconnected");
+    // Cleanup logic
+});
+```
+
+### Client Data Storage
+
+```php
+$app->table(function (\Swoole\Table $table) {
+    $table->column('user_id', \Swoole\Table::TYPE_INT);
+    $table->column('username', \Swoole\Table::TYPE_STRING, 32);
+    $table->create();
+}, 1024);
+
+$app->ws('join', function ($server, $client) {
+    $userId = $client->data['user_id'];
+    $username = $client->data['username'];
+
+    $server->table->set($client->fd, [
+        'user_id' => $userId,
+        'username' => $username
+    ]);
+
+    $server->broadcast(['type' => 'user_joined', 'username' => $username]);
+});
+```
+
+### Event Handling
+
+```php
+$app->withOutEvent(function ($server, $client) {
+    $server->reply($client, ['error' => 'Unknown event']);
+});
+```
+
+---
+
+## 📊 Error Handling
+
+### Global Exception Handlers
+
+```php
+use Oktaax\Core\Application;
+
+$app->listen(3000, '127.0.0.1', function ($url, Application $coreApp) {
+    $coreApp->catch(\Oktaax\Exception\ValidationException::class, function ($e) {
+        response()->status(422)->json(['errors' => $e->getErrors()]);
+    });
+
+    $coreApp->catch(\Oktaax\Exception\HttpException::class, function ($e) {
+        response()->status($e->getStatusCode())->json(['error' => $e->getMessage()]);
+    });
+
+    $coreApp->catch(Exception::class, function ($e) {
+        Console::error($e->getMessage());
+        response()->status(500)->json(['error' => 'Internal server error']);
+    });
+});
+```
+
+### Custom Error Responses
+
+```php
+$app->get('/test-error', function ($req, $res) {
+    throw new \Oktaax\Exception\HttpException('Custom error message', 400);
+});
+```
+
+### Async Error Handling
+
+```php
+$app->get('/async-error', async(function ($req, $res) {
+    try {
+        $result = await(mayFailAsync());
+        $res->json(['result' => $result]);
+    } catch (Exception $e) {
+        $res->status(500)->json(['error' => $e->getMessage()]);
+    }
+}));
+```
+
+---
+
+## 📁 File Uploads
+
+### Basic File Upload
+
+```php
+$app->post('/upload', function ($req, $res) {
+    $files = $req->files();
+
+    if (empty($files)) {
+        return $res->status(400)->json(['error' => 'No files uploaded']);
+    }
+
+    $uploaded = [];
+    foreach ($files as $file) {
+        $filename = uniqid() . '_' . $file['name'];
+        $destination = "/uploads/$filename";
+
+        if (move_uploaded_file($file['tmp_name'], $destination)) {
+            $uploaded[] = $filename;
+        }
+    }
+
+    $res->json(['uploaded' => $uploaded]);
+});
+```
+
+### Chunked Uploads
+
+```php
+$app->post('/upload-chunk', function ($req, $res) {
+    $chunk = $req->file('chunk');
+    $chunkNumber = $req->input('chunkNumber');
+    $totalChunks = $req->input('totalChunks');
+    $filename = $req->input('filename');
+
+    $tempDir = '/tmp/uploads/';
+    $chunkFile = $tempDir . $filename . '.part' . $chunkNumber;
+
+    if (!is_dir($tempDir)) {
+        mkdir($tempDir, 0755, true);
+    }
+
+    if (move_uploaded_file($chunk['tmp_name'], $chunkFile)) {
+        // Check if all chunks are uploaded
+        $allChunks = true;
+        for ($i = 0; $i < $totalChunks; $i++) {
+            if (!file_exists($tempDir . $filename . '.part' . $i)) {
+                $allChunks = false;
+                break;
+            }
+        }
+
+        if ($allChunks) {
+            // Combine chunks
+            $finalFile = '/uploads/' . $filename;
+            $handle = fopen($finalFile, 'wb');
+
+            for ($i = 0; $i < $totalChunks; $i++) {
+                $chunkFile = $tempDir . $filename . '.part' . $i;
+                fwrite($handle, file_get_contents($chunkFile));
+                unlink($chunkFile);
+            }
+
+            fclose($handle);
+            $res->json(['status' => 'complete', 'file' => $filename]);
+        } else {
+            $res->json(['status' => 'chunk_received', 'chunk' => $chunkNumber]);
+        }
+    } else {
+        $res->status(500)->json(['error' => 'Failed to save chunk']);
+    }
+});
+```
+
+### Async File Processing
+
+```php
+$app->post('/upload-async', async(function ($req, $res) {
+    $file = $req->file('file');
+
+    if (!$file) {
+        return $res->status(400)->json(['error' => 'No file uploaded']);
+    }
+
+    $filename = uniqid() . '_' . $file['name'];
+    $destination = "/uploads/$filename";
+
+    // Process file asynchronously (e.g., resize image, scan for viruses)
+    $processed = await(processFileAsync($file['tmp_name'], $destination));
+
+    $res->json(['uploaded' => $filename, 'processed' => $processed]);
+}));
+```
 
 ---
 
 ## 📊 Benchmarks
 
-`benchmark/` contains scripts to compare Oktaax with Express:
-
-- `benchmark/server.php`
-- `benchmark/express_server.js`
-- `benchmark/run.sh`
+Compare Oktaax performance with other frameworks:
 
 ```bash
 cd benchmark
@@ -448,9 +837,59 @@ chmod +x run.sh
 ./run.sh
 ```
 
+The benchmark includes:
+- Oktaax server
+- Express.js server
+- Results comparison
+
 ---
 
-## 🧾 Notes
+## 📚 Examples
 
-- Oktaax is request-stateful and uses `Application::getInstance()` to share request/response inside middleware.
-- This guide reflects latest API as of codebase inspection (aliases, route handling, websocket support, CSRF, and server config).
+The `examples/` directory contains runnable examples demonstrating various features:
+
+- `http-basic.php` - Basic HTTP server
+- `websocket.php` - WebSocket server
+- `middleware.php` - Global middleware
+- `promise.php` - Promise usage
+- `async-response.php` - Async responses
+- `route-group.php` - Route grouping
+- `send-response.php` - Response methods
+- `console.php` - Logging
+- `invoker.php` - Dependency injection
+- `log.php` - Finally hooks
+- `error-handling.php` - Exception handling
+- `validation.php` - Request validation
+- `file-upload.php` - File uploads
+- `jwt-auth.php` - JWT authentication
+- `streaming.php` - Streaming responses
+- `custom-middleware.php` - Class-based middleware
+- `configuration.php` - Server configuration
+- `async-database.php` - Async database operations
+- `async-file-operations.php` - Async file I/O
+
+Run any example:
+
+```bash
+php examples/http-basic.php
+```
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+*Built with ❤️ using Swoole for high-performance PHP applications.*

@@ -4,12 +4,15 @@ namespace Oktaax\Core;
 
 use Oktaax\Core\Dispatcher\ExceptionDispatcher;
 use Oktaax\Core\Dispatcher\ReturnDispatcher;
+use Oktaax\Core\Promise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Http\Router;
 use Oktaax\Utils\MethodProxy;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebSocketServer;
+
+use function Oktaax\Utils\await;
 
 /**
  * Main Oktaax Application Kernel
@@ -19,6 +22,8 @@ use Swoole\WebSocket\Server as WebSocketServer;
  */
 class Application
 {
+    public  const float VERSION = 0.1;
+    public const SWOOLE_VERSION_ID = SWOOLE_VERSION_ID;
     /**
      * Coroutine context container
      */
@@ -230,7 +235,9 @@ class Application
             $request = self::getRequest();
 
             $result = Router::handle($request);
-
+            if ($result instanceof Promise) {
+                $result = await($result);
+            }
             $this->return->dispatch(
                 $result,
                 $request,

@@ -56,7 +56,7 @@ use TypeError;
  * @method mixed broadcast(\Oktaax\Websocket\Event | string $message = null, int $delay = 0, $opcode = 1, $flags = 1)
  */
 
-class Server 
+class Server
 {
     // use Overloadable;
 
@@ -209,5 +209,20 @@ class Server
     public function reject($fd, $reason, $code = WEBSOCKET_CLOSE_NORMAL)
     {
         $this->swooleWebsocket->disconnect($fd, $code, $reason);
+    }
+
+    public static function buildPacket(
+        string $event,
+        string $payload = '',
+        int $type = 1,
+        int $flags = 0
+    ): string {
+        return
+            \chr(1) .
+            \chr($type) .
+            \pack('n', $flags) .
+            \chr(\strlen($event)) .
+            $event .
+            $payload;
     }
 };

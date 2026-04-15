@@ -2,6 +2,8 @@
 
 namespace Oktaax\Core\Dispatcher;
 
+use Oktaax\Console;
+use Oktaax\Core\Application;
 use Oktaax\Core\Promise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
@@ -17,20 +19,18 @@ class ReturnDispatcher
         static::$handlers[$type] = $handler;
     }
 
-    public function dispatch($result, Request $req, Response $res): void
+    public function dispatch(mixed $result, Request $req, Response $res): void
     {
+        if (!$res->isWritable()) {
+            return;
+        }
 
-        if (! $res->isWritable()) {
-            return;
-        }
-        if (null == $result && $res->isWritable()) {
-            $res->header("x-no-content", 1);
+        if ($result === null) {
+            if (Application::context()->get("__async")) {
+                return;
+            }
+            $res->header("x-no-content", "1");
             $res->end();
-            return;
-        }
-        if ($result instanceof Promise) {
-            $r = await($result);
-            $this->dispatch($r, $req, $res);
             return;
         }
 
@@ -39,25 +39,16 @@ class ReturnDispatcher
             return;
         }
 
-        $type = \is_object($result)
-            ? $result::class
-            : \gettype($result);
-
-        if (isset(static::$handlers[$type])) {
-
-            $handler = static::$handlers[$type];
-
-            $handler($result, $req, $res);
-
+        if (\is_array($result) || $result instanceof \Traversable) {
+            $res->header("content-type", "application/json");
+            $res->end(json_encode($result));
             return;
         }
 
-        if (\is_array($result) || $result instanceof \Traversable) {
+        $type = \is_object($result) ? $result::class : \gettype($result);
 
-            $res->header("content-type", "application/json");
-
-            $res->end(json_encode($result));
-
+        if (isset(self::$handlers[$type])) {
+            (self::$handlers[$type])($result, $req, $res);
             return;
         }
 

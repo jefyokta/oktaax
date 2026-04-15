@@ -94,7 +94,7 @@ class CustomResponse extends Invokable
     }
 }
 
-$app->get("custom-response-method", function (Response $response) {
+$app->get("/custom-response-method", function (Response $response) {
     $response->custom();
 });
 
@@ -108,6 +108,7 @@ $app->get('/return-and-response', function (Response $response) {
 });
 
 $app->listen(8005, function (Application $application) {
+    
     $application->respond(CustomReturn::class, function (CustomReturn $result, Request $request, Response $response) {
         $response->status(202)
             ->header('X-Custom-Return', 'true')
@@ -116,5 +117,6 @@ $app->listen(8005, function (Application $application) {
                 'payload' => $result->payload,
             ]);
     });
+
     $application->inject(Response::class, 'custom', CustomResponse::class);
 });

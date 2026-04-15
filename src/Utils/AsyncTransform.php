@@ -10,7 +10,7 @@ class AsyncTransform
 {
     private static array $cache = [];
 
-    public static function isHasAsyncAttribute($callback): bool
+    public static function hasAsyncAttribute($callback): bool
     {
         try {
             $key = self::resolveKey($callback);
@@ -24,19 +24,9 @@ class AsyncTransform
             $result = !empty($ref->getAttributes(Async::class));
 
             return self::$cache[$key] = $result;
-
         } catch (Throwable) {
             return false;
         }
-    }
-
-    public static function wrap($callback, ...$args): Promise
-    {
-        return new Promise(function ($resolve, $reject) use ($callback, $args) {
-
-    
-
-        });
     }
 
 
@@ -70,4 +60,6 @@ class AsyncTransform
 
         return new \ReflectionFunction($callback);
     }
+
+
 }

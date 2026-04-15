@@ -4,18 +4,14 @@ namespace Oktaax\Core\Promise;
 
 use BadMethodCallException;
 use Oktaax\Exception\AggregateError;
+use Oktaax\Exception\PromiseException;
 use Throwable;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 
 use function Oktaax\Utils\spawn;
 
-enum PromiseState
-{
-    case Pending;
-    case Fulfilled;
-    case Rejected;
-}
+
 
 
 /**
@@ -102,6 +98,7 @@ class Promise
     {
         ['onFulfilled' => $onFulfilled, 'onRejected' => $onRejected, 'next' => $next] = $handler;
 
+
         spawn(function () use ($onFulfilled, $onRejected, $next) {
             try {
                 if ($this->state === PromiseState::Fulfilled) {
@@ -130,7 +127,7 @@ class Promise
         $onRejected ??= function ($r) {
             throw $r instanceof Throwable
                 ? $r
-                : new \RuntimeException((string)$r);
+                : new PromiseException((string)$r);
         };
 
         $next = new self();

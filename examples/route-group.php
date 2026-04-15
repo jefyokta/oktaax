@@ -3,6 +3,7 @@ require __DIR__ . "/../vendor/autoload.php";
 
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
+use Oktaax\Http\Router;
 use Oktaax\Oktaax;
 
 $app = new Oktaax();
@@ -15,8 +16,8 @@ $authMiddleware = function (Request $request, Response $response, $next) {
     $next();
 };
 
-$app->middleware([$authMiddleware], function ($router) {
-    $router->get('/api/status', function (Request $request, Response $response) {
+$app->middleware([$authMiddleware], function (Router $router) {
+    $router->get('/api/status', function (Response $response) {
         return $response->json(['status' => 'ok']);
     });
 

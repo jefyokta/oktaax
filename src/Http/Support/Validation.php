@@ -49,7 +49,7 @@ class Validation
     {
 
         if (isset(static::$rules[$rule]) || method_exists($this, $rule)) {
-            throw new \InvalidArgumentException(sprintf("Validation rule %s is already registered.",$rule));
+            throw new \InvalidArgumentException(sprintf("Validation rule %s is already registered.", $rule));
         }
         static::$rules[$rule] = $callback;
 
@@ -157,6 +157,102 @@ class Validation
             $length = strlen($data[$field]);
             if ($length < (int)$min || $length > (int)$max) {
                 $this->addError($field, 'between', "$field must be between $min and $max characters.");
+            }
+        }
+    }
+
+    protected function string(array $data, string $field): void
+    {
+        if (isset($data[$field]) && !is_string($data[$field])) {
+            $this->addError($field, 'string', "$field must be a string.");
+        }
+    }
+
+    protected function integer(array $data, string $field): void
+    {
+        if (isset($data[$field])) {
+            if (!is_numeric($data[$field]) || (int)$data[$field] != $data[$field]) {
+                $this->addError($field, 'integer', "$field must be an integer.");
+            }
+        }
+    }
+
+    protected function boolean(array $data, string $field): void
+    {
+        if (isset($data[$field])) {
+            $value = $data[$field];
+            if (!is_bool($value) && !in_array(strtolower($value), ['true', 'false', '1', '0'])) {
+                $this->addError($field, 'boolean', "$field must be a boolean.");
+            }
+        }
+    }
+
+    protected function array(array $data, string $field): void
+    {
+        if (isset($data[$field]) && !is_array($data[$field])) {
+            $this->addError($field, 'array', "$field must be an array.");
+        }
+    }
+
+    protected function nullable(array $data, string $field): void
+    {
+        // This rule does nothing - it just allows null values
+        // The absence of required means nullable is allowed
+    }
+
+    protected function regex(array $data, string $field, string $pattern): void
+    {
+        if (isset($data[$field])) {
+            if (!preg_match($pattern, $data[$field])) {
+                $this->addError($field, 'regex', "$field format is invalid.");
+            }
+        }
+    }
+
+    protected function required_if(array $data, string $field, string ...$params): void
+    {
+        if (count($params) >= 2) {
+            $otherField = $params[0];
+            $value = $params[1];
+            if (isset($data[$otherField]) && $data[$otherField] == $value) {
+                if (!isset($data[$field]) || trim($data[$field]) === '') {
+                    $this->addError($field, 'required_if', "$field is required when $otherField is $value.");
+                }
+            }
+        }
+    }
+
+    protected function date(array $data, string $field): void
+    {
+        if (isset($data[$field])) {
+            $date = date_create($data[$field]);
+            if (!$date) {
+                $this->addError($field, 'date', "$field must be a valid date.");
+            }
+        }
+    }
+
+    protected function file(array $data, string $field): void
+    {
+        // For file validation, we'd need access to $_FILES
+        // This is a simplified implementation
+        if (isset($_FILES[$field])) {
+            if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+                $this->addError($field, 'file', "$field upload failed.");
+            }
+        }
+    }
+
+    protected function mimes(array $data, string $field, string $allowedMimes): void
+    {
+        if (isset($_FILES[$field])) {
+            $file = $_FILES[$field];
+            if ($file['error'] === UPLOAD_ERR_OK) {
+                $mime = mime_content_type($file['tmp_name']);
+                $allowed = explode(',', $allowedMimes);
+                if (!in_array($mime, $allowed)) {
+                    $this->addError($field, 'mimes', "$field must be one of: " . implode(', ', $allowed) . ".");
+                }
             }
         }
     }

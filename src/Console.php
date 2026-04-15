@@ -43,6 +43,9 @@ namespace Oktaax;
 class Console
 {
     private static array $timers = [];
+    private static int $indent = 0;
+
+
 
     public static function log(...$args)
     {
@@ -59,10 +62,6 @@ class Console
         self::write("warn", $args, "\033[43m\033[30m", "\033[33m");
     }
 
-    public static function warning(...$args){
-        return self::warn(...$args);
-    }
-
     public static function info(...$args)
     {
         self::write("info", $args, "\033[44m\033[30m", "\033[36m");
@@ -73,22 +72,20 @@ class Console
         self::write("debug", $args, "\033[45m\033[97m", "\033[35m");
     }
 
-    public static function table(array $data)
+    public static function dir($data)
     {
-        if (empty($data)) {
-            self::log("[]");
-            return;
-        }
+        self::log(self::inspect($data));
+    }
 
-        $headers = array_keys((array)$data[0]);
+    public static function group(string $label = '')
+    {
+        self::log($label);
+        self::$indent++;
+    }
 
-        $output = implode("\t", $headers) . PHP_EOL;
-
-        foreach ($data as $row) {
-            $output .= implode("\t", (array)$row) . PHP_EOL;
-        }
-
-        self::write("table", [$output], "\033[46m\033[30m", "\033[0m");
+    public static function groupEnd()
+    {
+        self::$indent = max(0, self::$indent - 1);
     }
 
     public static function time(string $label)
@@ -106,24 +103,128 @@ class Console
         $duration = (microtime(true) - self::$timers[$label]) * 1000;
         unset(self::$timers[$label]);
 
-        self::info("{$label}: " . number_format($duration, 2) . " ms");
+        self::info("%s: %d ms", $label, $duration);
     }
 
-    public static function dump(...$args)
+    public static function table(array $data)
     {
-        foreach ($args as $arg) {
-            fwrite(STDOUT, "\n");
-            var_dump($arg);
+        if (empty($data)) {
+            self::log("[]");
+            return;
         }
+
+        $rows = array_map(fn($r) => (array)$r, $data);
+        $headers = array_keys($rows[0]);
+
+        $widths = [];
+
+        foreach ($headers as $h) {
+            $widths[$h] = strlen($h);
+        }
+
+        foreach ($rows as $row) {
+            foreach ($row as $k => $v) {
+                $len = strlen(self::stringify($v));
+                $widths[$k] = max($widths[$k], $len);
+            }
+        }
+
+        $line = function ($row) use ($widths) {
+            $out = "|";
+            foreach ($row as $k => $v) {
+                $v = self::stringify($v);
+                $out .= " " . str_pad($v, $widths[$k]) . " |";
+            }
+            return $out;
+        };
+
+        $separator = "+";
+        foreach ($headers as $h) {
+            $separator .= str_repeat("-", $widths[$h] + 2) . "+";
+        }
+
+        fwrite(STDOUT, $separator . PHP_EOL);
+        fwrite(STDOUT, $line(array_combine($headers, $headers)) . PHP_EOL);
+        fwrite(STDOUT, $separator . PHP_EOL);
+
+        foreach ($rows as $row) {
+            fwrite(STDOUT, $line($row) . PHP_EOL);
+        }
+
+        fwrite(STDOUT, $separator . PHP_EOL);
+    }
+
+
+    private static function write(
+        string $type,
+        array $args,
+        string $boxColor,
+        string $msgColor,
+        $output = STDOUT
+    ) {
+        $label = strtoupper($type);
+        $box = "{$boxColor} {$label} \033[0m";
+
+        $message = self::format($args);
+
+        $indent = str_repeat("  ", self::$indent);
+
+        fwrite($output, "\n{$indent}{$box} {$msgColor}{$message}\033[0m\n");
+    }
+
+
+    private static function format(array $args): string
+    {
+        if (empty($args)) return '';
+
+        $first = array_shift($args);
+
+        if (!is_string($first)) {
+            return self::stringify($first) . ' ' . implode(' ', array_map([self::class, 'stringify'], $args));
+        }
+
+        $i = 0;
+
+        $formatted = preg_replace_callback(
+            '/%(\d+)?(\.\d+)?([sdjof])/',
+            function ($match) use (&$args, &$i) {
+                if (!isset($args[$i])) return $match[0];
+
+                $val = $args[$i++];
+
+                $type = $match[3]; 
+                $precision = $match[2] ?? null;
+
+                return match ($type) {
+                    's' => (string)$val,
+                    'd' => (string)intval($val),
+                    'j' => json_encode($val),
+                    'o' => self::inspect($val),
+                    'f' => $precision
+                        ? number_format((float)$val, (int)substr($precision, 1), '.', '')
+                        : (string)(float)$val,
+                    default => $match[0],
+                };
+            },
+            $first
+        );
+
+        $rest = array_slice($args, $i);
+
+        if (!empty($rest)) {
+            $formatted .= ' ' . implode(' ', array_map([self::class, 'stringify'], $rest));
+        }
+
+        return $formatted;
     }
 
     private static function stringify($arg): string
     {
-        if (is_array($arg) || is_object($arg)) {
-            return json_encode($arg, JSON_PRETTY_PRINT);
+        if (\is_array($arg) || \is_object($arg)) {
+            return self::inspect($arg);
         }
 
-        if (is_bool($arg)) {
+        if (\is_bool($arg)) {
             return $arg ? "true" : "false";
         }
 
@@ -134,20 +235,23 @@ class Console
         return (string)$arg;
     }
 
-    private static function write(
-        string $type,
-        array $args,
-        string $boxColor,
-        string $msgColor,
-        $output = STDOUT
-    ) {
-        $label = strtoupper($type);
 
-        $box = "{$boxColor} {$label} \033[0m";
+    private static function inspect($data, int $depth = 0): string
+    {
+        if ($depth > 3) return "...";
 
-        $message = array_map(fn($a) => self::stringify($a), $args);
-        $message = implode(" ", $message);
+        if (is_array($data)) {
+            $items = array_map(function ($k, $v) use ($depth) {
+                return str_repeat("  ", $depth + 1) . "$k: " . self::inspect($v, $depth + 1);
+            }, array_keys($data), $data);
 
-        fwrite($output, "\n{$box} {$msgColor}{$message}\033[0m\n");
+            return "[\n" . implode(",\n", $items) . "\n" . str_repeat("  ", $depth) . "]";
+        }
+
+        if (\is_object($data)) {
+            return self::inspect(get_object_vars($data), $depth);
+        }
+
+        return (string)$data;
     }
 }

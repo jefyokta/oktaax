@@ -74,7 +74,7 @@ class WorkerStart extends Event
         $app->catch(ValidationException::class, function (ValidationException $e) {
             $request = Application::getRequest();
             $res = Application::getResponse()->status(422);
-            if ($request->wantsJson()) $res->end(json_encode(["error" => $e->getData()]));
+            if ($request->wantsJson()) $res->end(json_encode(["errors" => $e->getErrors()]));
         });
 
         $app->respond(StreamedResponse::class, function ($stream, $req, $res) {

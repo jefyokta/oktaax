@@ -5,6 +5,7 @@ namespace Oktaax\Http;
 use Oktaax\Console;
 use Oktaax\Contracts\Invokable;
 use Oktaax\Core\Application;
+use Oktaax\Core\Configuration;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
@@ -12,8 +13,6 @@ use Oktaax\Http\Response;
 
 class Inertia extends Invokable
 {
-
-    private static string $baseView = "app";
     /**
      * Render Inertia response
      * 
@@ -23,7 +22,7 @@ class Inertia extends Invokable
      * 
      * @return void
      */
-    public static function render($component, array $data = [])
+    public static function render(string $component, array $data = [])
     {
         $request = Application::getRequest();
         $response = Application::getResponse();
@@ -41,13 +40,15 @@ class Inertia extends Invokable
             $response->end(json_encode($payload));
             return;
         }
-        $response->render(self::$baseView, ['page' => $payload]);
+        $response->render(
+            view: Configuration::get("inertia.base_view"),
+            data: ['page' => $payload]
+        );
     }
-
 
     static function setBaseView(string $baseView)
     {
-        self::$baseView = $baseView;
+        Configuration::set("inertia.base_view", $baseView);
     }
     public function __invoke()
     {

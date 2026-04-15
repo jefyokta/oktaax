@@ -8,8 +8,6 @@ use Oktaax\Trait\HasWebsocket;
 use Oktaax\Websocket\Client;
 use Oktaax\Websocket\Server;
 use Oktaax\Http\Request;
-use Oktaax\Http\Response;
-use PhpParser\Node\Const_;
 use Swoole\Table;
 
 $app = new class extends Oktaax {
@@ -35,9 +33,7 @@ $app->ws('ping', function (Server $server, Client $client) {
         'time' => time(),
     ]);
 });
-$app->get("/ws", function (Response $response) {
-    $response->status(101)->end();
-});
+
 
 $app->gate(function($_,Request $request){
     Console::log("incoiming");

@@ -110,16 +110,15 @@ class Request implements Stringable, Injectable
      */
     public  $params;
 
+    public Headers $headers;
+
     public $post;
 
     private static $injection = [];
 
-    public $uri;
-    public static function inject(string $key, $value)
-    {
 
-        self::$injection[$key] = \is_callable($value) ? $value :  new $value;
-    }
+    public $uri;
+
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
@@ -127,7 +126,13 @@ class Request implements Stringable, Injectable
         $this->body = new RequestBody(json_decode($this->request->rawContent()) ?? array_merge($this->post ?? [], []));
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
+        $this->headers = new Headers($request->header);
         static::$instance = &$this;
+    }
+    public static function inject(string $key, $value)
+    {
+
+        self::$injection[$key] = \is_callable($value) ? $value :  new $value;
     }
     static function create(HttpRequest $request)
     {
@@ -170,7 +175,7 @@ class Request implements Stringable, Injectable
     public function setHeader($name, $value)
     {
 
-        $this->attributes['header'][$name] = $value;
+        $this->headers->set($name, $value);
     }
 
     /**
@@ -210,6 +215,11 @@ class Request implements Stringable, Injectable
         }
 
         throw new \BadMethodCallException("Method {$name} does not exist.");
+    }
+
+
+    function method(){
+        return $this->request->server['request_method'];
     }
 
     /**
@@ -274,8 +284,8 @@ class Request implements Stringable, Injectable
      */
     public function header($key)
     {
-
-        return $this->request->header[$key];
+        $key = strtolower($key);
+        return $this->headers->get($key) ?? null;
     }
 
 
@@ -308,8 +318,8 @@ class Request implements Stringable, Injectable
      */
     public function isJson(): bool
     {
-        return isset($this->request->header['content-type']) &&
-            strpos($this->request->header['content-type'], 'application/json') !== false;
+        return $this->headers->get("content-type") !== null &&
+            strpos($this->headers->get("content-type"), 'application/json') !== false;
     }
 
     /**
@@ -319,8 +329,8 @@ class Request implements Stringable, Injectable
      */
     public function isFormSubmission()
     {
-        return $this->isMethod('POST') && isset($this->request->header['content-type']) &&
-            strpos($this->request->header['content-type'], 'application/x-www-form-urlencoded') !== false;
+        return $this->isMethod('POST') && null !== $this->headers->get("content-type") &&
+            strpos($this->headers->get("content-type"), 'application/x-www-form-urlencoded') !== false;
     }
 
     /**
@@ -340,8 +350,8 @@ class Request implements Stringable, Injectable
      */
     public function wantsJson()
     {
-        return isset($this->request->header['accept']) &&
-            strpos($this->request->header['accept'], 'application/json') !== false;
+        return $this->headers->get("accept") &&
+            strpos($this->headers->get("accept"), 'application/json') !== false;
     }
 
     /**
@@ -352,8 +362,8 @@ class Request implements Stringable, Injectable
 
     public function wantsJS()
     {
-        return isset($this->request->header['accept']) &&
-            strpos($this->request->header['accept'], 'application/javascript') !== false;
+        return $this->headers->get("accept") &&
+            strpos($this->headers->get("accept"), 'application/javascript') !== false;
     }
 
     public function protocol()
@@ -367,7 +377,7 @@ class Request implements Stringable, Injectable
      */
     public function host()
     {
-        return $this->request->header['host'] ?? '';
+        return $this->headers->get("host") ?? '';
     }
     /**
      * Compare param with request method
@@ -389,12 +399,16 @@ class Request implements Stringable, Injectable
     public function validate(array $rules, array|null $data = null)
     {
         if (\is_null($data)) {
-            $data = $this->request->server["post"];
+            if ($this->isJson()) {
+                $data = (array) $this->body;
+            } else {
+                $data = $this->post ?? [];
+            }
         }
 
         $this->errors = (new Validation)->validate($data, $rules) ?? null;
 
-        $reqValidated = new RequestValidated($data, !empty($errors) ? $errors : null);
+        $reqValidated = new RequestValidated($data, !empty($this->errors) ? $this->errors : null);
         if (!$reqValidated->isOk()) {
             throw new ValidationException($reqValidated->getErrors());
         }
@@ -409,8 +423,11 @@ class Request implements Stringable, Injectable
      * 
      * @return mixed
      */
-    public function body(string $key)
+    public function body(?string $key = null)
     {
+        if (null == $key) {
+            return $this->body;
+        }
         return $this->json($key) ?? $this->post($key);
     }
 
@@ -454,7 +471,7 @@ class Request implements Stringable, Injectable
 
     public function hasHeader($key)
     {
-        return isset($this->request->header[$key]);
+        return $this->headers->has($key);
     }
     public function isInertia()
     {
@@ -464,7 +481,7 @@ class Request implements Stringable, Injectable
 
     public function isAjax()
     {
-        return isset($this->request->header['x-requested-with']) && $this->request->header['x-requested-with'] === 'XMLHttpRequest';
+        return null !== ($this->headers->get("x-request-with")) && $this->headers->get("x-request-with") === 'XMLHttpRequest';
     }
 
     public function xhr()
@@ -494,7 +511,7 @@ class Request implements Stringable, Injectable
         return json_encode($this);
     }
 
-    public function get($key,$default = null)
+    public function get($key, $default = null)
     {
         return $this->request->get[$key] ?? $default;
     }

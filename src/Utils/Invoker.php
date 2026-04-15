@@ -5,21 +5,17 @@ namespace Oktaax\Utils;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
-use ReflectionParameter;
+use Oktaax\Http\CallableWrapper;
+use Oktaax\Core\Promise\Promise;
 
-class Invoker
+final class Invoker
 {
-    /** @var array<string,object> context class type => instance */
-    protected array $context = [];
+    private array $context = [];
+    private array $positional = [];
 
-    /** @var array<int,mixed> positional arguments */
-    protected array $positional = [];
+    private static array $cache = [];
 
-    /** @var array<string, \ReflectionFunctionAbstract> cached reflection */
-    protected static array $cache = [];
-
-    /** @var null|callable custom param resolver */
-    protected ?\Closure $resolver = null;
+    private ?\Closure $resolver = null;
 
     public function addContext(object $obj): static
     {
@@ -33,77 +29,90 @@ class Invoker
         return $this;
     }
 
-    /**
-     * Set a custom resolver for callback parameters
-     *
-     * @param \Closure(ReflectionParameter $param, array $context, array $positional): mixed $resolver
-     */
     public function setResolver(\Closure $resolver): static
     {
         $this->resolver = $resolver;
         return $this;
     }
 
-    public function call($callback)
+    public function call(mixed $callback): mixed
     {
         $ref = $this->getReflection($callback);
-        $params = [];
+
+        $args = [];
         $i = 0;
 
         foreach ($ref->getParameters() as $param) {
+
+            // custom resolver (override full DI system)
             if ($this->resolver) {
-                $params[] = ($this->resolver)($param, $this->context, $this->positional);
+                $args[] = ($this->resolver)($param, $this->context, $this->positional);
                 continue;
             }
 
             $type = $param->getType();
             $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
+            // DI by type hint
             if ($typeName && isset($this->context[$typeName])) {
-                $params[] = $this->context[$typeName];
+                $args[] = $this->context[$typeName];
                 continue;
             }
 
-            if ($type?->allowsNull()) {
-                $params[] = null;
+            // positional fallback
+            if (array_key_exists($i, $this->positional)) {
+                $args[] = $this->positional[$i++];
                 continue;
             }
 
-            if (isset($this->positional[$i])) {
-                $params[] = $this->positional[$i];
-                $i++;
-                continue;
-            }
-
+            // default value
             if ($param->isDefaultValueAvailable()) {
-                $params[] = $param->getDefaultValue();
+                $args[] = $param->getDefaultValue();
                 continue;
             }
 
-            $params[] = null;
+            $args[] = null;
         }
 
-        $this->context = [];
-        $this->positional =[];
+        $this->reset();
 
-        $result = $callback(...$params);
+        $result = $callback(...$args);
+
+        // 🔥 IMPORTANT: async-aware return handling
+        if ($result instanceof Promise) {
+            return $result;
+        }
+
         return $result;
     }
 
-    protected function getReflection($callback)
+    private function reset(): void
     {
-        if (is_string($callback)) {
-            $key = $callback;
-        } elseif (is_array($callback)) {
+        $this->context = [];
+        $this->positional = [];
+    }
+
+    private function getReflection(mixed $callback)
+    {
+        if ($callback instanceof CallableWrapper) {
+            $callback = $callback->getCallable();
+            $key = $callback instanceof CallableWrapper
+                ? $callback->getKey()
+                : null;
+        }
+
+        if (is_array($callback)) {
             $key = $callback[0] . '::' . $callback[1];
+        } elseif (is_string($callback)) {
+            $key = $callback;
         } elseif ($callback instanceof \Closure) {
-            $key = spl_object_id($callback);
-        } elseif (is_object($callback)) {
+            $key = spl_object_hash($callback); // 🔥 FIXED (lebih stable dari object_id)
+        } else {
             $key = get_class($callback) . '::__invoke';
         }
 
         if (!isset(self::$cache[$key])) {
-            self::$cache[$key] =\is_array($callback)
+            self::$cache[$key] = is_array($callback)
                 ? new ReflectionMethod($callback[0], $callback[1])
                 : new ReflectionFunction($callback);
         }

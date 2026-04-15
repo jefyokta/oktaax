@@ -214,10 +214,8 @@ trait HasWebsocket
 
             $method = $handler[1] ?? throw new Error("Method not found!");
             call_user_func([$handler[0], $method], $server, $client);
-
         } elseif (is_callable($handler)) {
             $handler($server, $client);
-
         } else {
             throw new Error("Handler must be callable or array");
         }
@@ -285,18 +283,5 @@ trait HasWebsocket
         return ["request", "start", "message", "open", "close"];
     }
 
-    public static function buildPacket(
-        string $event,
-        string $payload = '',
-        int $type = 1,
-        int $flags = 0
-    ): string {
-        return
-            chr(1) .
-            chr($type) .
-            pack('n', $flags) .
-            chr(strlen($event)) .
-            $event .
-            $payload;
-    }
+
 }
