@@ -9,6 +9,7 @@ use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\OktaaxConfig;
+use Swoole\Coroutine\Http\Server;
 use Swoole\Http\Response as SwooleResponse;
 
 class Response implements Injectable
@@ -32,9 +33,8 @@ class Response implements Injectable
     ) {
 
         $this->response = $response;
-        
+
         $this->headers = new Headers(["x-powered-by" => "oktaax"]);
-        
     }
 
     public static function inject(string $name, $handler): void
@@ -244,7 +244,7 @@ class Response implements Injectable
 
         $this->content = $content;
 
-        $this->headers->forEach(function ($value,$key) {
+        $this->headers->forEach(function ($value, $key) {
 
             $this->response->header($key, $value);
         });
@@ -311,5 +311,14 @@ class Response implements Injectable
     public function getHeaders()
     {
         return $this->headers->all();
+    }
+
+    public function upgrade()
+    {
+        if (!is_subclass_of($serverClass = Application::server()::class, Server::class)) {
+            Console::warn("cannot upgrade with %s . only can upgrade request with %s", $serverClass, Server::class);
+            return;
+        }
+        return  $this->response->upgrade();
     }
 }

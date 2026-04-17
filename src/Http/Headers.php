@@ -37,8 +37,8 @@ class Headers implements \IteratorAggregate
     }
     private function makeMap()
     {
-        if (Application::SWOOLE_VERSION_ID >= 60100) {
-            return @typed_array('<string,string>');
+        if (Application::SWOOLE_VERSION_ID >= 60100 && function_exists("typed_array")) {
+             return \typed_array('<string,string>');
         }
         return [];
     }

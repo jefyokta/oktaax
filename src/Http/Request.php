@@ -218,7 +218,8 @@ class Request implements Stringable, Injectable
     }
 
 
-    function method(){
+    function method()
+    {
         return $this->request->server['request_method'];
     }
 
@@ -503,7 +504,7 @@ class Request implements Stringable, Injectable
     public function parameters()
     {
 
-        return \array_merge($this->get ?? [], $this->bodies());
+        return \array_merge($this->get ?? [], $this->bodies(), $this->params);
     }
 
     public function __toString()

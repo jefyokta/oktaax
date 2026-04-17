@@ -38,7 +38,7 @@ class WorkerStart extends Event
         [$server, $workerId] = $this->unpack(...$args);
 
         $app = Application::getInstance();
-        $app->worker = new Worker($workerId, $server->taskworker);
+        $app->worker = new Worker($workerId, $server->taskworker ?? false);
 
         if ($this->callback === null) {
             return;
@@ -74,7 +74,7 @@ class WorkerStart extends Event
         $app->catch(ValidationException::class, function (ValidationException $e) {
             $request = Application::getRequest();
             $res = Application::getResponse()->status(422);
-            if ($request->wantsJson()) $res->end(json_encode(["errors" => $e->getErrors()]));
+            $res->type('json')->end(json_encode(["errors" => $e->getErrors()]));
         });
 
         $app->respond(StreamedResponse::class, function ($stream, $req, $res) {

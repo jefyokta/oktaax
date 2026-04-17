@@ -57,6 +57,9 @@ class Oktaax
      */
     protected Router $router;
 
+
+    protected $startCallback;
+
     /**
      * Registered custom events.
      *
@@ -109,9 +112,7 @@ class Oktaax
         $this->server = ($mode && $sock)
             ? new $class($host, $port, $mode, $sock)
             : new $class($host, $port);
-        Container::register(HttpServer::class,$this->server);
-
-        // new ServerBag($this->server);
+        Container::register(HttpServer::class, $this->server);
     }
 
 
@@ -211,13 +212,13 @@ class Oktaax
             is_string($hostOrCallback) ? $hostOrCallback : '127.0.0.1'
         );
 
-        
+
         $this->init();
         $this->callIfExists('boot');
 
         $this->callIfExists('eventRegistery');
-
-        $this->registerCoreEvents($hostOrCallback, $callback);
+        $this->startCallback = is_callable($hostOrCallback) ? $hostOrCallback : $callback;
+        $this->registerCoreEvents();
         $this->registerCustomEvents();
         $this->server->set(Configuration::get('server', []));
 
@@ -229,7 +230,8 @@ class Oktaax
 
         return new MethodProxy(Configuration::class);
     }
-    public function container(){
+    public function container()
+    {
         return new MethodProxy(Container::class);
     }
     /**
@@ -254,25 +256,29 @@ class Oktaax
 
     /**
      * Register core events.
-     *
-     * @param mixed $hostOrCallback
-     * @param mixed $callback
      * @return void
      */
-    protected function registerCoreEvents($hostOrCallback, $callback): void
+    protected function registerCoreEvents(): void
     {
 
-        $this->server->on("workerstart", function ($server, $workerId) use ($hostOrCallback, $callback) {
+        $this->onWorkerStart();
+        $this->onRequest();
+
+
+        if ($this->taskEnabled()) {
+            $this->server->on("task", fn(...$args) => (new Task())->handle(...$args));
+            $this->server->on("finish", fn(...$args) => (new Finish())->handle(...$args));
+        }
+    }
+
+    protected function onWorkerStart()
+    {
+        $this->server->on("workerstart", function ($server, $workerId) {
 
             Application::setServer($server);
 
             $host = Configuration::get('app.host');
             $port = Configuration::get('app.port');
-
-            $cb = is_callable($hostOrCallback)
-                ? $hostOrCallback
-                : (is_callable($callback) ? $callback : null);
-
             (new WorkerStart(
                 new URL(
                     $host,
@@ -280,21 +286,15 @@ class Oktaax
                     Configuration::get('app.protocol', 'http'),
                     method_exists($this, 'ws')
                 ),
-                $cb
+                $this->startCallback
             ))->handle($server, $workerId);
         });
-
-
-
+    }
+    protected function onRequest()
+    {
         $this->server->on("request", function ($request, $response) {
             (new EventRequest())->handle($request, $response);
         });
-
-
-        if ($this->taskEnabled()) {
-            $this->server->on("task", fn(...$args) => (new Task())->handle(...$args));
-            $this->server->on("finish", fn(...$args) => (new Finish())->handle(...$args));
-        }
     }
 
     /**

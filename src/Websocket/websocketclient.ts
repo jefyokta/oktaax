@@ -1,6 +1,6 @@
 //Oktaax ws client example
 
-const ws :  WebSocket = new WebSocket("ws://127.0.0.1:8000")
+const ws = new WebSocket("ws://127.0.0.1:8000")
 
 type Message = {
     event : string;
