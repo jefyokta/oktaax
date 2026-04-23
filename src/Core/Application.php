@@ -2,6 +2,7 @@
 
 namespace Oktaax\Core;
 
+use Oktaax\Console;
 use Oktaax\Core\Dispatcher\ExceptionDispatcher;
 use Oktaax\Core\Dispatcher\ReturnDispatcher;
 use Oktaax\Core\Promise\Promise;
@@ -9,6 +10,7 @@ use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Http\Router;
 use Oktaax\Utils\MethodProxy;
+use Swoole\Coroutine;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebSocketServer;
 
@@ -61,6 +63,10 @@ class Application
      */
     private array $finallyCallbacks = [];
 
+    // Fast access - no coroutine context lookup
+    private static ?Request $currentRequest = null;
+    private static ?Response $currentResponse = null;
+
     private function __construct()
     {
         $this->return = new ReturnDispatcher();
@@ -78,6 +84,9 @@ class Application
     public static function create(Request $request, Response $response): static
     {
         $app = self::getInstance();
+
+        self::$currentRequest = $request;
+        self::$currentResponse = $response;
 
         $app->context->set(Request::class, $request);
         $app->context->set(Response::class, $response);
@@ -124,23 +133,19 @@ class Application
     }
 
     /**
-     * Get current request from coroutine context
+     * Get current request - direct property access, no context lookup
      */
     public static function getRequest(): ?Request
     {
-        return self::getInstance()
-            ->context
-            ->get(Request::class);
+        return self::$currentRequest;
     }
 
     /**
-     * Get current response from coroutine context
+     * Get current response - direct property access, no context lookup
      */
     public static function getResponse(): ?Response
     {
-        return self::getInstance()
-            ->context
-            ->get(Response::class);
+        return self::$currentResponse;
     }
 
     /**
@@ -230,33 +235,28 @@ class Application
             throw new \RuntimeException("Application context has not been created.");
         }
 
+        // Direct property access - no context lookup
+        $request = self::$currentRequest;
+        $response = self::$currentResponse;
+
         try {
-
-            $request = self::getRequest();
-
-            $result = Router::handle($request);
+            $result = Router::handle($request, $response);
             if ($result instanceof Promise) {
                 $result = await($result);
             }
-            $this->return->dispatch(
-                $result,
-                $request,
-                self::getResponse()
-            );
+            $this->return->dispatch($result, $request, $response);
         } catch (\Throwable $th) {
-
             $this->exception->dispatch($th);
         } finally {
-
-            $req = self::getRequest();
-            $res = self::getResponse();
-
             foreach ($this->finallyCallbacks as $callback) {
-                $callback($req, $res);
+                $callback($request, $response);
             }
 
-            $this->context->destroy();
+            // Clear direct references
+            self::$currentRequest = null;
+            self::$currentResponse = null;
 
+            $this->context->destroy();
             self::$booted = false;
         }
     }

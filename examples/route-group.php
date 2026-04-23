@@ -13,11 +13,11 @@ $authMiddleware = function (Request $request, Response $response, $next) {
         return $response->status(401)->json(['error' => 'Unauthorized']);
     }
 
-    $next();
+    return $next();
 };
 
 $app->middleware([$authMiddleware], function (Router $router) {
-    $router->get('/api/status', function (Response $response) {
+    $router->get('/api/status', function ($_,Response $response) {
         return $response->json(['status' => 'ok']);
     });
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace Oktaax;
+namespace Oktaax\Trait;
 
 use Event;
 use Oktaax\Core\Application;
@@ -8,35 +8,25 @@ use Oktaax\Core\Configuration;
 use Oktaax\Core\Event\Request;
 use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\URL;
-use Oktaax\Http\Router;
+use Oktaax\Error\CombineException;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Http\Server;
-use Swoole\Process\Pool;
 
 use function Swoole\Coroutine\run;
 
-/**
- * @mixin Router
- */
-
-class CoroutineServer
+trait CoroutineServer
 {
+   
 
-    private Router $router;
-
-    public readonly bool $taskWorker;
-
-    private ?Pool $pool = null;
-
-    public function __construct()
-    {
-        $this->router = new Router;
-    }
-
-
-    public function listen($port, $hostOrCallback = null, $callback = null)
-    {
-
+    public function listen(
+        int $port,
+        string|callable|null $hostOrCallback = null,
+        ?callable $callback = null
+    ): void {
+        if (method_exists($this,'ws')) {
+            throw new CombineException("cannot using websocket trait while using corotine server");
+            
+        }
         run(function () use ($callback, $hostOrCallback, $port) {
             $server = new Server(
                 $hostOrCallback && !is_callable($hostOrCallback) ? $hostOrCallback : "127.0.0.1",
@@ -51,13 +41,5 @@ class CoroutineServer
             ))->handle(...[$server, Coroutine::getCid()]);
             $server->start();
         });
-    }
-
-
-    public function __call($name, $arguments)
-    {
-        $this->router->{$name}(...$arguments);
-
-        return $this;
     }
 }

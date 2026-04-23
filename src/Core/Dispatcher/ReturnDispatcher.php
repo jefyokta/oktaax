@@ -25,17 +25,18 @@ class ReturnDispatcher
             return;
         }
 
+        // Fast path for string responses (most common) - no headers needed
+        if (\is_string($result)) {
+            $res->end($result);
+            return;
+        }
+
         if ($result === null) {
             if (Application::context()->get("__async")) {
                 return;
             }
             $res->header("x-no-content", "1");
             $res->end();
-            return;
-        }
-
-        if (\is_string($result)) {
-            $res->end($result);
             return;
         }
 

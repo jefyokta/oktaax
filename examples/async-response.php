@@ -7,7 +7,6 @@ use Oktaax\Contracts\Middleware;
 use Oktaax\Core\Application;
 use Oktaax\Core\Promise\Promise;
 use Oktaax\Exception\PromiseException;
-use Oktaax\Http\CallableWrapper;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Oktaax;
@@ -94,7 +93,7 @@ function httpGet(string $host, string $path): Promise
     });
 }
 // wrong implement
-$app->get("/bad-async-response", function (Response $response) {
+$app->get("/bad-async-response", function ($_, Response $response) {
     //application doesnt now that u running coroutine function here, will detect null return and response is still writtable
     go(function () use ($response) {
         $result = await(Promise::all([
@@ -113,7 +112,7 @@ $app->get("/bad-async-response", function (Response $response) {
 });
 
 //bad if u wishing promise1 & 2 run paralle
-$app->get("/await-blocking-async-2", function (Response $response) {
+$app->get("/await-blocking-async-2", function ($_, Response $response) {
     //the result 1 will have blocking exection
     $result = await(promise(1));
     //the code below will executed after 2s
@@ -124,7 +123,7 @@ $app->get("/await-blocking-async-2", function (Response $response) {
 
 $app->get(
     "/async-2",
-    function (Response $response) {
+    function ($_, Response $response) {
         try {
             $p1 = promise(1);
             $p2 = promise(2);
@@ -145,7 +144,7 @@ $app->get(
     "/async-without-await",
     //without Async attribute, application will preventing that we return null/void and respnse is still writable, client will get no content. its due to unwaiting promise task
     #[Async]
-    function (Response $response, Request $request) {
+    function (Request $request, Response $response, ) {
         $promise = promise(2);
 
         $promise->then(function ($t) use (&$response) {
@@ -160,7 +159,7 @@ $app->get(
         });
     }
 );
-$app->get("/http-client", function (Response $res) {
+$app->get("/http-client", function ($_,Response $res) {
 
     $start = microtime(true);
 

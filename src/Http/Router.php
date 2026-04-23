@@ -9,7 +9,7 @@ use Oktaax\Exception\HttpException;
 
 class Router
 {
-  
+
     /**
      * [method][path] => Route
      */
@@ -102,18 +102,14 @@ class Router
         return $this;
     }
 
-    public static function handle(Request $request)
+    public static function handle(Request $request, Response $response)
     {
         $url = $request->uri;
         $method = $request->getMethod();
 
         [$route, $params] = self::findHandler($url, $method);
 
-        return $route->terminate(
-            Application::getRequest(),
-            Application::getResponse(),
-            $params
-        );
+        return $route->terminate($request, $response, $params);
     }
 
     /**
@@ -125,17 +121,12 @@ class Router
      */
     public static function findHandler(string $url, string $method): array
     {
-
-        $routes = self::$routes[$method] ?? [];
-
-        if (isset($routes[$url])) {
-            $result = [$routes[$url], []];
-            return $result;
+        if (isset(self::$routes[$method][$url])) {
+            return [self::$routes[$method][$url], []];
         }
 
         foreach (self::$dynamicRoutes[$method] ?? [] as $route) {
             $params = $route->match($url, $method);
-
             if ($params !== false) {
                 return [$route, $params];
             }
@@ -143,5 +134,4 @@ class Router
 
         throw new HttpException(404, "Not Found");
     }
-
 }

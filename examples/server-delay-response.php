@@ -15,7 +15,7 @@ $app->get("/delay/{delay}", function (Request $request) {
     return [
         "request" => $request->all(),
         "delay" => $request->params['delay'],
-        "headers"=>$request->headers->all()
+        "headers"=>$request->headers
     ];
 });
 $app->setServer("worker_num", 2);

@@ -5,7 +5,6 @@ namespace Oktaax\Utils;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
-use Oktaax\Http\CallableWrapper;
 use Oktaax\Core\Promise\Promise;
 
 final class Invoker
@@ -35,6 +34,11 @@ final class Invoker
         return $this;
     }
 
+    function  compile($callback)
+    {
+        $this->getReflection($callback);
+    }
+
     public function call(mixed $callback): mixed
     {
         $ref = $this->getReflection($callback);
@@ -44,7 +48,6 @@ final class Invoker
 
         foreach ($ref->getParameters() as $param) {
 
-            // custom resolver (override full DI system)
             if ($this->resolver) {
                 $args[] = ($this->resolver)($param, $this->context, $this->positional);
                 continue;
@@ -53,19 +56,16 @@ final class Invoker
             $type = $param->getType();
             $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
-            // DI by type hint
             if ($typeName && isset($this->context[$typeName])) {
                 $args[] = $this->context[$typeName];
                 continue;
             }
 
-            // positional fallback
-            if (array_key_exists($i, $this->positional)) {
+            if (\array_key_exists($i, $this->positional)) {
                 $args[] = $this->positional[$i++];
                 continue;
             }
 
-            // default value
             if ($param->isDefaultValueAvailable()) {
                 $args[] = $param->getDefaultValue();
                 continue;
@@ -78,7 +78,6 @@ final class Invoker
 
         $result = $callback(...$args);
 
-        // 🔥 IMPORTANT: async-aware return handling
         if ($result instanceof Promise) {
             return $result;
         }
@@ -94,21 +93,16 @@ final class Invoker
 
     private function getReflection(mixed $callback)
     {
-        if ($callback instanceof CallableWrapper) {
-            $callback = $callback->getCallable();
-            $key = $callback instanceof CallableWrapper
-                ? $callback->getKey()
-                : null;
-        }
+
 
         if (is_array($callback)) {
             $key = $callback[0] . '::' . $callback[1];
-        } elseif (is_string($callback)) {
+        } elseif (\is_string($callback)) {
             $key = $callback;
         } elseif ($callback instanceof \Closure) {
-            $key = spl_object_hash($callback); // 🔥 FIXED (lebih stable dari object_id)
+            $key = spl_object_hash($callback);
         } else {
-            $key = get_class($callback) . '::__invoke';
+            $key = \get_class($callback) . '::__invoke';
         }
 
         if (!isset(self::$cache[$key])) {

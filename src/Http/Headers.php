@@ -2,8 +2,6 @@
 
 namespace Oktaax\Http;
 
-use Oktaax\Core\Application;
-
 /**
  * Mirrors the Web API Headers interface.
  *
@@ -11,12 +9,13 @@ use Oktaax\Core\Application;
  */
 class Headers implements \IteratorAggregate
 {
+
+
     private  $map = [];
     private const string COOKIE_DELIMITER = "\x00";
 
-    public function __construct(array|Headers $init = [])
+    public function __construct(array|Headers $init = [], private $trusted = false)
     {
-        $this->map = $this->makeMap();
 
         if ($init instanceof Headers) {
             foreach ($init->entries() as [$key, $value]) {
@@ -35,14 +34,6 @@ class Headers implements \IteratorAggregate
             }
         }
     }
-    private function makeMap()
-    {
-        if (Application::SWOOLE_VERSION_ID >= 60100 && function_exists("typed_array")) {
-             return \typed_array('<string,string>');
-        }
-        return [];
-    }
-
 
 
 
@@ -50,6 +41,9 @@ class Headers implements \IteratorAggregate
     {
         if ($name === '') {
             throw new \InvalidArgumentException('Header name must not be empty.');
+        }
+        if ($this->trusted) {
+            return;
         }
 
         if (!preg_match('/^[a-zA-Z0-9!#$%&\'*+\-.^_`|~]+$/', $name)) {
@@ -61,6 +55,9 @@ class Headers implements \IteratorAggregate
 
     private function validateValue(string $value): void
     {
+        if ($this->trusted) {
+            return;
+        }
         if (preg_match('/\r|\n/', $value)) {
             throw new \InvalidArgumentException(
                 "Invalid header value: contains CR or LF characters (possible header injection)."

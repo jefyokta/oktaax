@@ -3,7 +3,8 @@
 namespace Oktaax\Http;
 
 use Oktaax\Core\Application;
-use Oktaax\Core\Promise\Promise;
+use Oktaax\Core\Promise\Asynchronous;
+use Oktaax\Utils\AsyncTransform;
 use Oktaax\Utils\Invoker;
 
 final class Route
@@ -12,26 +13,23 @@ final class Route
     private string $pattern;
     private array $paramNames = [];
 
-    private Invoker $invoker;
 
-    private CallableWrapper $handler;
+    /** @var callable */
+    private $handler;
+
+    /** @var callable[] */
     private array $middlewares = [];
 
     public function __construct(
         private string $path,
         private string $method,
-        mixed $handler,
+        callable $handler,
         array $middlewares = []
     ) {
-        $this->handler = new CallableWrapper($handler);
-
-        $this->middlewares = array_map(
-            fn($m) => new CallableWrapper($m, true),
-            $middlewares
-        );
+        $this->handler = AsyncTransform::hasAsyncAttribute($handler) ? new Asynchronous($handler) : $handler;
+        $this->middlewares = $middlewares;
 
         $this->compile();
-        $this->invoker = new Invoker();
     }
 
     private function compile(): void
@@ -59,6 +57,7 @@ final class Route
     {
         return $this->dynamic;
     }
+
     public function match(string $url, string $method = ''): array|false
     {
         if (!$this->dynamic) {
@@ -78,60 +77,25 @@ final class Route
 
     public function terminate(Request $request, Response $response, array $params = [])
     {
-        $stack = $this->middlewares;
-        $stack[] = $this->handler;
-
         $request->params = $params;
 
-        $next = function () use (&$stack, $request, $response, &$next) {
+        $count = \count($this->middlewares);
+        $index = 0;
 
-            if (empty($stack)) {
-                return null;
+        $next = function () use ($request, $response, &$index, &$count, &$next) {
+            if ($index >= $count) {
+                return ($this->handler)($request, $response);
             }
-
-            /** @var CallableWrapper $cb */
-            $cb = array_shift($stack);
-
-            $r = $this->callHandler($cb, $request, $response, $next);
-            return $r;
+            $cb = $this->middlewares[$index++];
+            return $cb($request, $response, $next);
         };
 
-        $result = $next();
-
-
-        return $result;
+        return $next();
     }
 
-    private function callHandler(
-        CallableWrapper $handler,
-        Request $request,
-        Response $response,
-        callable $next
-    ) {
-        if ($handler->isAsync()) {
-            Application::context()->set('__async', true);
-        }
 
-        if ($handler->isMiddleware()) {
-            return $handler($request, $response, $next);
-        }
-
-        $result = $this->invoker
-            ->addContext($request)
-            ->addContext($response)
-            ->addContext(Application::context())
-            ->setPositional([$request, $response, $request->params])
-            ->call($handler);
-
-        return $result;
-    }
-
-    public function isAsync(): bool
+    public function getPath()
     {
-        return $this->handler->isAsync();
-    }
-
-    function getPath(){
         return $this->path;
     }
 }

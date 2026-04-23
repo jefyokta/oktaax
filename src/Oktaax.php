@@ -77,6 +77,7 @@ class Oktaax
         Configuration::set('app.protocol', 'http');
         Configuration::set('app.debug', false);
         Configuration::set('app.name', 'Oktaax');
+        Configuration::set("app.chunk_size", 8192);
         Container::register(View::class, new PhpView("views/"));
         Container::register(AppConfig::class, new AppConfig(null, false, 300, 'Oktaax'));
 

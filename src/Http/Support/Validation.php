@@ -196,8 +196,7 @@ class Validation
 
     protected function nullable(array $data, string $field): void
     {
-        // This rule does nothing - it just allows null values
-        // The absence of required means nullable is allowed
+       
     }
 
     protected function regex(array $data, string $field, string $pattern): void
@@ -234,8 +233,7 @@ class Validation
 
     protected function file(array $data, string $field): void
     {
-        // For file validation, we'd need access to $_FILES
-        // This is a simplified implementation
+
         if (isset($_FILES[$field])) {
             if ($_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
                 $this->addError($field, 'file', "$field upload failed.");

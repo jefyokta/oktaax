@@ -143,7 +143,7 @@ class CorsMiddleware implements Middleware
         }
 
         // Handle preflight requests
-        if ($request->method() === 'OPTIONS') {
+        if ($request->getMethod() === 'OPTIONS') {
             $response->status(200)->end();
             return;
         }

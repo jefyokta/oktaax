@@ -5,6 +5,7 @@ namespace Oktaax\Http;
 use Oktaax\Console;
 use Oktaax\Contracts\JsonScheme;
 use Oktaax\Core\Application;
+use Oktaax\Core\Configuration;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;
@@ -23,18 +24,17 @@ class Response implements Injectable
 
     protected mixed $content = null;
 
-    protected Headers $headers;
+    protected array $headers = [];
+
+    public static int $chunkSize = 8192;
 
     protected static array $injected = [];
-    private static $chunkSize = 8192;
 
     public function __construct(
         SwooleResponse $response,
     ) {
 
         $this->response = $response;
-
-        $this->headers = new Headers(["x-powered-by" => "oktaax"]);
     }
 
     public static function inject(string $name, $handler): void
@@ -44,10 +44,7 @@ class Response implements Injectable
             : new $handler;
     }
 
-    public  static function setChunkSize(int $chunkSize): void
-    {
-        self::$chunkSize = $chunkSize;
-    }
+
 
     public function __call($name, $arguments)
     {
@@ -62,7 +59,7 @@ class Response implements Injectable
 
     public function header(string $key, string $value): static
     {
-        $this->headers->set($key, $value);
+        $this->headers[$key] = $value;
         return $this;
     }
 
@@ -76,7 +73,7 @@ class Response implements Injectable
     public function json(mixed $data = null, string $message = '', array $error = []): void
     {
 
-        $this->headers->set('Content-Type', 'application/json');
+        $this->headers['content-type'] = 'application/json';
 
         if ($data instanceof JsonScheme) {
             $this->end($data->encode());
@@ -244,18 +241,19 @@ class Response implements Injectable
 
         $this->content = $content;
 
-        $this->headers->forEach(function ($value, $key) {
-
-            $this->response->header($key, $value);
-        });
-
         $this->response->status($this->status);
-        $contentLength = \strlen($this->content ?? '');
-        if (self::$chunkSize >= $contentLength) {
+
+        if (!empty($this->headers)) {
+            foreach ($this->headers as $key => $value) {
+                $this->response->header($key, $value);
+            }
+        }
+
+        $contentLength = \strlen($content ?? '');
+        if ($contentLength <= self::$chunkSize) {
             $this->response->end($content);
             return;
         }
-
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
@@ -310,7 +308,7 @@ class Response implements Injectable
 
     public function getHeaders()
     {
-        return $this->headers->all();
+        return $this->headers;
     }
 
     public function upgrade()
@@ -320,5 +318,33 @@ class Response implements Injectable
             return;
         }
         return  $this->response->upgrade();
+    }
+
+
+    public function recv()
+    {
+        if (!is_subclass_of($serverClass = Application::server()::class, Server::class)) {
+            Console::warn("cannot recv with %s . only can recv request with %s", $serverClass, Server::class);
+            return;
+        }
+        return $this->response->recv();
+    }
+
+    public function push($data, $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, $flag = SWOOLE_WEBSOCKET_FLAG_FIN)
+    {
+        if (!is_subclass_of($serverClass = Application::server()::class, Server::class)) {
+            Console::warn("cannot push with %s . only can push request with %s", $serverClass, Server::class);
+            return;
+        }
+        return $this->response->push($data, $opcode, $flag);
+    }
+
+    public function close()
+    {
+        if (!is_subclass_of($serverClass = Application::server()::class, Server::class)) {
+            Console::warn("cannot close with %s . only can close request with %s", $serverClass, Server::class);
+            return;
+        }
+        return $this->response->close();
     }
 }

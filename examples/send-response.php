@@ -94,12 +94,12 @@ class CustomResponse extends Invokable
     }
 }
 
-$app->get("/custom-response-method", function (Response $response) {
+$app->get("/custom-response-method", function ($_,Response $response) {
     $response->custom();
 });
 
 // Return JSON while also showing Response header usage
-$app->get('/return-and-response', function (Response $response) {
+$app->get('/return-and-response', function ($_,Response $response) {
     $response->header('X-Returned', 'true');
     return [
         'status' => 'ok',
