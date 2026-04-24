@@ -43,8 +43,8 @@ class Context
     }
     public function destroy()
     {
-        $this->remove(Request::class);
-        $this->remove(Response::class);
+        $ctx = Coroutine::getContext();
+        unset($ctx[Request::class], $ctx[Response::class]);
     }
 
     function request()

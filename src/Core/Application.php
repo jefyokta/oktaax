@@ -56,7 +56,6 @@ class Application
      */
     private ExceptionDispatcher $exception;
 
-    private static Server | WebSocketServer $server;
 
     /**
      * @var array<int,\Closure(Request,Response):void>
@@ -83,7 +82,7 @@ class Application
      */
     public static function create(Request $request, Response $response): static
     {
-        $app = self::getInstance();
+        $app =  self::getInstance();
 
         self::$currentRequest = $request;
         self::$currentResponse = $response;
@@ -97,7 +96,7 @@ class Application
     }
     public  static function setServer(Server | WebSocketServer $server)
     {
-        self::$server = $server;
+        Container::register(Server::class, $server);
     }
     public static function server()
     {
@@ -235,7 +234,6 @@ class Application
             throw new \RuntimeException("Application context has not been created.");
         }
 
-        // Direct property access - no context lookup
         $request = self::$currentRequest;
         $response = self::$currentResponse;
 
@@ -252,7 +250,6 @@ class Application
                 $callback($request, $response);
             }
 
-            // Clear direct references
             self::$currentRequest = null;
             self::$currentResponse = null;
 

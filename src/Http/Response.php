@@ -241,8 +241,12 @@ class Response implements Injectable
 
         $this->content = $content;
 
-        $this->response->status($this->status);
+        // Only set status if not default 200
+        if ($this->status !== 200) {
+            $this->response->status($this->status);
+        }
 
+        // Set headers only if any are set
         if (!empty($this->headers)) {
             foreach ($this->headers as $key => $value) {
                 $this->response->header($key, $value);

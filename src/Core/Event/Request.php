@@ -28,10 +28,9 @@ class Request extends Event
         [$req, $res] = $this->unpack(...$args);
 
         $request = HttpRequest::create($req);
-        
-        //iteration in end function also has overhead
-        $response = new Response($res);
-        Application::setContext($request, $response)->handle();
 
+        $response = new Response($res);
+        Application::setContext($request, $response)
+            ->handle();
     }
 }
