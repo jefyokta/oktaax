@@ -16,7 +16,7 @@ class Task
     /**
      * Dispatch a task to the task worker.
      *
-     * @param class-string $task
+     * @param class-string<Taskable> $task
      * @param array $payload
      */
     public static function dispatch(string $task, array $payload = []): void

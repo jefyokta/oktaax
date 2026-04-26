@@ -38,7 +38,9 @@
 
 
 namespace Oktaax\Types;
-
+/**
+ * @deprecated 
+ */
 class BladeConfig
 {
 

@@ -19,7 +19,15 @@ class Finish extends Event
     }
     public function handle(...$args): void
     {
+
         [$server, $taskId, $data] = $this->unpack(...$args);
+        if ($data['exception']['class']) {
+            if ($data['exception']['handled']) {
+                return;
+            }
+            $e = $data['exception'];
+            throw new $e['class']($e['message']);
+        }
         if (is_subclass_of($data['class'], Completable::class)) {
             \call_user_func([$data['class'], 'onComplete'], $data['result']);
             return;

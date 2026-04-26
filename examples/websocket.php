@@ -35,6 +35,7 @@ $app->ws('ping', function (Server $server, Client $client) {
 });
 
 
+
 $app->gate(function($_,Request $request){
     Console::log("incoiming");
     Console::log($request->name);

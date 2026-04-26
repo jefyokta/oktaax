@@ -35,6 +35,7 @@ class Task extends Event
                 'file'    => null,
                 'line'    => null,
                 'trace'   => null,
+                "handled" => false,
             ],
             "class" => $class
         ];
@@ -60,6 +61,7 @@ class Task extends Event
         } catch (Throwable $e) {
             if (is_subclass_of($class, Catchable::class)) {
                 \call_user_func([$class, 'catch'], $e);
+                $result['exception']['handled'] = true;
                 return;
             }
             $result['exception'] = [

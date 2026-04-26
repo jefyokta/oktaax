@@ -41,7 +41,9 @@ namespace Oktaax\Types;
 use ReflectionClass;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
-
+/**
+ * @deprecated 
+ */
 class Laravel
 {
     private $directory;

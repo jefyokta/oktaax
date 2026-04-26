@@ -42,7 +42,6 @@
 namespace Oktaax\Http;
 
 use Oktaax\Exception\ValidationException;
-use Oktaax\Http\Support\RequestBody;
 use Oktaax\Http\Support\Validation;
 use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Request as HttpRequest;
