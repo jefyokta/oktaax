@@ -174,14 +174,62 @@ class Promise
                 $result = $onFinally();
 
                 if ($result instanceof self) {
-                    $result->then(fn() => null);
+                    return $result->then(function () use ($reason) {
+                        throw $reason instanceof Throwable
+                            ? $reason
+                            : new PromiseException((string)$reason);
+                    });
                 }
 
                 throw $reason instanceof Throwable
                     ? $reason
-                    : new \RuntimeException((string)$reason);
+                    : new PromiseException((string)$reason);
             }
         );
+    }
+
+    /**
+     * Wait for the promise to settle and return its value.
+     *
+     * A channel is used here because promise callbacks are dispatched
+     * into detached coroutines. Coroutine::join / waitGroup would not
+     * reliably capture the callback result without changing the dispatcher.
+     *
+     * @return mixed
+     * @throws PromiseException
+     */
+    public function wait(): mixed
+    {
+        $channel = new Channel(1);
+
+        $this->then(
+            fn($value) => $channel->push(['ok', $value]),
+            fn($reason) => $channel->push(['err', $reason])
+        );
+
+        $getResult = function () use ($channel) {
+            [$status, $payload] = $channel->pop();
+            $channel->close();
+
+            return ['status' => $status, 'payload' => $payload];
+        };
+
+        if (Coroutine::getCid() > 0) {
+            $result = $getResult();
+        } else {
+            $result = null;
+            \Swoole\Coroutine\run(function () use ($getResult, &$result) {
+                $result = $getResult();
+            });
+        }
+
+        if ($result['status'] === 'err') {
+            throw $result['payload'] instanceof Throwable
+                ? $result['payload']
+                : new PromiseException((string)$result['payload']);
+        }
+
+        return $result['payload'];
     }
 
     /**
@@ -292,7 +340,7 @@ class Promise
         });
     }
 
-    public function __call($name, $arguments)
+    public function __call(string $name, mixed ...$arguments)
     {
         if ($name !== 'reject') {
             throw new BadMethodCallException;
@@ -300,7 +348,7 @@ class Promise
         return $this->rejectInstance(...$arguments);
     }
 
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic(string $name, mixed ...$arguments)
     {
         if ($name !== 'reject') {
             throw new BadMethodCallException;

@@ -8,6 +8,7 @@ use Oktaax\Core\Worker;
 use Oktaax\Utils\Invoker;
 use Oktaax\Exception\HttpException;
 use Oktaax\Exception\ValidationException;
+use Oktaax\Http\Support\File;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Websocket\Client;
 use Oktaax\Websocket\Server as OktaaxWebsocketServer;
@@ -71,12 +72,17 @@ class WorkerStart extends Event
             fn($e) => Application::getResponse()->renderHttpError($e->getStatusCode())
         );
 
-        $app->catch(ValidationException::class, function (ValidationException $e) {
-            $request = Application::getRequest();
+        $app->catch(ValidationException::class, function ($e) {
             $res = Application::getResponse()->status(422);
             $res->type('json')->end(json_encode(["errors" => $e->getErrors()]));
         });
-
+        $app->respond(File::class, function ($file, $req, $res) {
+            $res->status($file->status);
+            foreach ($file->getHeaders() as $key => $value) {
+                $res->header($key, $value);
+            }
+            $res->sendfile($file->getFilePath());
+        });
         $app->respond(StreamedResponse::class, function ($stream, $req, $res) {
             $res->status($stream->getStatus());
             foreach ($stream->getHeaders() as $k => $v) $res->header($k, $v);

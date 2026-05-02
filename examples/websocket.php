@@ -28,18 +28,19 @@ $app->ws('message', function (Server $server, Client $client) {
 });
 
 $app->ws('ping', function (Server $server, Client $client) {
-    $server->reply([
-        'event' => 'pong',
-        'time' => time(),
-    ]);
+    $server->tick(200, function () use ($server) {
+        $server->reply([
+            'event' => 'pong',
+            'time' => time(),
+        ]);
+    });
 });
 
 
 
-$app->gate(function($_,Request $request){
+$app->gate(function ($_, Request $request) {
     Console::log("incoiming");
     Console::log($request->name);
-
 });
 
 $app->get('/', fn() => "WebSocket server is running. Connect at ws://localhost:8001 and send { event: 'message', data: ... }.");

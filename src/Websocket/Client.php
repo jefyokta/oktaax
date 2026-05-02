@@ -102,4 +102,8 @@ class Client
     public function info(){
         return Table::get($this->fd);
     }
+
+    function getData(){
+        return $this->data['data'];
+    }
 }

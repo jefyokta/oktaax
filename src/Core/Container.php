@@ -7,6 +7,7 @@ use Closure;
 class Container
 {
     private static $container = [];
+    private static $aliases = [];
     private function __construct() {}
     /**
      * Register a service into the container.
@@ -31,8 +32,13 @@ class Container
      * @param class-string<T> $service
      * @return T
      */
-    public static function get($service)
+    public static function get(string $service)
     {
-        return self::$container[$service];
+        return self::$container[$service] ?? self::$container[self::$aliases[$service]];
+    }
+
+    public static function alias(string $alias, string $serviceKey)
+    {
+        self::$aliases[$alias] = $serviceKey;
     }
 }

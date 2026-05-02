@@ -230,30 +230,7 @@ function spawn(callable $fn): void
  */
 function await(Promise $promise): mixed
 {
-    $channel = new Channel(1);
-
-    $promise->then(
-        fn($v) => $channel->push(['ok', $v]),
-        fn($r) => $channel->push(['err', $r]),
-    );
-
-    $wait = function () use ($channel) {
-        [$status, $payload] = $channel->pop();
-        $channel->close();
-
-        if ($status === 'err') {
-            throw $payload instanceof Throwable
-                ? $payload
-                : new PromiseException((string)$payload);
-        }
-
-        return $payload;
-    };
-
-    if (inCoroutine()) {
-        return $wait();
-    }
-    return run($wait);
+    return $promise->wait();
 }
 
 if (! function_exists('xcsrf_token')) {

@@ -181,8 +181,11 @@ class Server
 
     public function after($ms, $callback, ...$params)
     {
+        if (method_exists($this->swooleWebsocket, 'after')) {
+            return $this->swooleWebsocket->after($ms, $callback, ...$params);
+        }
 
-        $this->swooleWebsocket->after($ms, $callback, ...$params);
+        return Timer::after($ms, $callback);
     }
 
 

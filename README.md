@@ -840,7 +840,9 @@ chmod +x run.sh
 The benchmark includes:
 - Oktaax server
 - Express.js server
-- Results comparison
+- Fastify server
+- Koa server
+- Results comparison saved in `benchmark/results`
 
 ---
 

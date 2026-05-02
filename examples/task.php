@@ -25,7 +25,7 @@ class MyTask implements
     public function handle()
     {
         if ($this->name == 'okta') {
-            return $this->name . $this->age;
+            return (string)$this->name . $this->age;
         }
 
         throw new \Exception('Name must be okta');
@@ -41,7 +41,7 @@ class MyTask implements
     }
 }
 $app = new Oktaax;
-
+//enable task event
 $app->setServer("task_worker_num", 1);
 
 

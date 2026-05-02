@@ -8,7 +8,7 @@ use Oktaax\Oktaax;
 $app = new Oktaax();
 
 $app->get('/', function (Request $request, Response $response) {
-    $response->end('Hello from Oktaax!');
+    return 'Hello from Oktaax!';
 });
 
 $app->get('/user/{id}', function (Request $request, Response $response) {
