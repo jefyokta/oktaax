@@ -37,11 +37,13 @@
 
 namespace Oktaax\Utils;
 
+use Deprecated;
+use InvalidArgumentException;
 use Oktaax\Console;
 use Oktaax\Core\Application;
-use Oktaax\Core\Promise\Asynchronous;
-use Oktaax\Core\Promise\Promise;
-use Oktaax\Exception\PromiseException;
+use JefyOkta\PhpPromise\Asynchronous;
+use JefyOkta\PhpPromise\Promise;
+use JefyOkta\PhpPromise\Exception\PromiseException;
 use Oktaax\Http\Client\Request as ClientRequest;
 use Oktaax\Http\Client\RequestOptions;
 use Oktaax\Http\Client\Response;
@@ -51,14 +53,13 @@ use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Oktaax\ServerBag;
+use stdClass;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Throwable;
 
-use TParams;
-use function Swoole\Coroutine\run;
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -85,7 +86,7 @@ if (! function_exists('xsocket')) {
     /**`
      * 
      * Get a instsance of Oktaax with websocket
-     * @return Xsocket;
+     * @return Xsocket
      */
     function xsocket()
     {
@@ -119,16 +120,6 @@ if (!function_exists('xrequest')) {
         return Application::context()->get(Request::class);
     }
 }
-/**
- * @template TParams
- * @template TReturn
- * @param callable(...TParams):TReturn $fn
- * @return Asynchronous<TReturn,TParams>
- */
-function async(callable $fn)
-{
-    return new Asynchronous($fn);
-}
 
 
 /**
@@ -139,99 +130,73 @@ function async(callable $fn)
 function fetch(string $url, array|RequestOptions $options = []): Promise
 {
     return new Promise(function ($resolve, $reject) use ($url, $options) {
-
-        spawn(function () use ($reject, $url, $resolve, $options) {
-            try {
-                if (!$options instanceof RequestOptions) {
-                    $options = new RequestOptions(
-                        method: $options['method'] ?? 'GET',
-                        headers: $options['headers'] ?? [],
-                        body: $options['body'] ?? null,
-                        timeout: $options['timeout'] ?? 5
-                    );
-                }
-
-                $u = parse_url($url);
-                $host = $u['host'] ?? null;
-                if (!$host) throw new \Exception("Invalid URL");
-
-                $path = ($u['path'] ?? '/') . (isset($u['query']) ? '?' . $u['query'] : '');
-                $port = $u['port'] ?? (($u['scheme'] ?? 'http') === 'https' ? 443 : 80);
-                $ssl  = ($u['scheme'] ?? 'http') === 'https';
-
-                $cli = new Client($ssl ? SWOOLE_SOCK_TCP | SWOOLE_SSL : SWOOLE_SOCK_TCP);
-
-                $cli->set([
-                    'timeout' => $options->timeout,
-                ]);
-
-                if (!$cli->connect($host, $port, $options->timeout)) {
-                    throw new \Exception($cli->errMsg, $cli->errCode);
-                }
-
-                $cli->send(new ClientRequest($path, $host, $options));
-
-                $buffer = '';
-                while (!str_contains($buffer, "\r\n\r\n")) {
-                    $chunk = $cli->recv();
-                    if ($chunk === '' || $chunk === false) {
-                        throw new \Exception("Connection closed while reading header");
-                    }
-                    $buffer .= $chunk;
-                }
-
-                [$head, $rest] = explode("\r\n\r\n", $buffer, 2);
-
-                $lines = explode("\r\n", $head);
-
-                if (!preg_match('#HTTP/\d\.\d\s+(\d+)#', array_shift($lines), $m)) {
-                    throw new \Exception("Invalid HTTP response");
-                }
-
-                $status = intval($m[1]);
-
-                $headers = [];
-                foreach ($lines as $line) {
-                    if (str_contains($line, ':')) {
-                        [$k, $v] = explode(':', $line, 2);
-                        $headers[strtolower(trim($k))] = trim($v);
-                    }
-                }
-
-                $resolve(new Response($cli, $status, new Headers($headers), $rest));
-            } catch (Throwable $e) {
-                $reject($e);
+        try {
+            if (!$options instanceof RequestOptions) {
+                $options = new RequestOptions(
+                    method: $options['method'] ?? 'GET',
+                    headers: $options['headers'] ?? [],
+                    body: $options['body'] ?? null,
+                    timeout: $options['timeout'] ?? 0
+                );
             }
-        });
+
+            $u = parse_url($url);
+            $host = $u['host'] ?? null;
+            if (!$host) throw new \Exception("Invalid URL");
+
+            $path = ($u['path'] ?? '/') . (isset($u['query']) ? '?' . $u['query'] : '');
+            $port = $u['port'] ?? (($u['scheme'] ?? 'http') === 'https' ? 443 : 80);
+            $ssl  = ($u['scheme'] ?? 'http') === 'https';
+
+            $cli = new Client($ssl ? SWOOLE_SOCK_TCP | SWOOLE_SSL : SWOOLE_SOCK_TCP);
+
+            $cli->set([
+                'timeout' => $options->timeout,
+            ]);
+
+            if (!$cli->connect($host, $port, $options->timeout)) {
+                throw new \Exception($cli->errMsg, $cli->errCode);
+            }
+
+            $cli->send(new ClientRequest($path, $host, $options));
+
+            $buffer = '';
+            while (!str_contains($buffer, "\r\n\r\n")) {
+                $chunk = $cli->recv();
+                if ($chunk === '' || $chunk === false) {
+                    throw new \Exception("Connection closed while reading header");
+                }
+                $buffer .= $chunk;
+            }
+
+            [$head, $rest] = explode("\r\n\r\n", $buffer, 2);
+
+            $lines = explode("\r\n", $head);
+
+            if (!preg_match('#HTTP/\d\.\d\s+(\d+)#', array_shift($lines), $m)) {
+                throw new \Exception("Invalid HTTP response");
+            }
+
+            $status = \intval($m[1]);
+
+            $headers = [];
+            foreach ($lines as $line) {
+                if (str_contains($line, ':')) {
+                    [$k, $v] = explode(':', $line, 2);
+                    $headers[strtolower(trim($k))] = trim($v);
+                }
+            }
+
+            $resolve(new Response($cli, $status, new Headers($headers), $rest));
+        } catch (Throwable $e) {
+            $reject($e);
+        }
     });
 }
 
-function inCoroutine(): bool
-{
-    return Coroutine::getCid() > 0;
-}
 
-function spawn(callable $fn): void
-{
-    if (inCoroutine()) {
-        Coroutine::create($fn);
-    } else {
-        run(function () use ($fn) {
-            Coroutine::create($fn);
-        });
-    }
-}
 
-/**
- * @template T
- * @param Promise<T>
- * @return T
- * @throws PromiseException
- */
-function await(Promise $promise): mixed
-{
-    return $promise->wait();
-}
+
 
 if (! function_exists('xcsrf_token')) {
 
@@ -263,5 +228,38 @@ if (! function_exists('clearTimeout')) {
     function clearTimeout($id)
     {
         return Timer::clear($id);
+    }
+}
+
+if (! function_exists('_o')) {
+
+    /**
+     * Dynamically converts named arguments into a stdClass object.
+     * 
+     * @param mixed ...$args Named arguments mapping to object properties.
+     * @return stdClass
+     * @throws InvalidArgumentException If a positional argument is passed instead of a named argument.
+     */
+    function _o(mixed ...$args): stdClass
+    {
+        $object = new stdClass();
+
+        foreach ($args as $key => $value) {
+            if (is_int($key)) {
+                $argumentPosition = $key + 1;
+                $culpritValue = is_scalar($value) ? "'$value'" : '[' . gettype($value) . ']';
+
+                throw new InvalidArgumentException(
+                    "Missing argument name at position #{$argumentPosition}.\n" .
+                        "Details: Received the value {$culpritValue} as a positional argument, but _o() requires named arguments.\n\n" .
+                        "Correct Usage Example:\n" .
+                        "\t_o(name: \"value\", status: \"active\")\n"
+                );
+            }
+
+            $object->{$key} = $value;
+        }
+
+        return $object;
     }
 }

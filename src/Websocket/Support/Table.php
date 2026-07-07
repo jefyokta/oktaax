@@ -106,12 +106,8 @@ class Table
         return self::getTable()->get($fd);
     }
 
-    /**
-     * Retrieve all rows as a collection.
-     *
-     * @return Collection The collection of all rows.
-     */
-    public static function all(): Collection
+   
+    public static function all()
     {
         $collection = [];
 
@@ -119,7 +115,7 @@ class Table
             $collection[] = $row;
         }
 
-        return collect($collection);
+        return $collection;
     }
 
     /**

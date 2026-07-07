@@ -2,19 +2,21 @@
 
 namespace Oktaax\Core;
 
+use BadMethodCallException;
 use Oktaax\Console;
 use Oktaax\Core\Dispatcher\ExceptionDispatcher;
 use Oktaax\Core\Dispatcher\ReturnDispatcher;
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Http\Router;
 use Oktaax\Utils\MethodProxy;
 use Swoole\Coroutine;
 use Swoole\Http\Server;
+use Swoole\Table;
 use Swoole\WebSocket\Server as WebSocketServer;
 
-use function Oktaax\Utils\await;
+
 
 /**
  * Main Oktaax Application Kernel
@@ -278,5 +280,19 @@ class Application
     public function after(\Closure $callback): static
     {
         return $this->finally($callback);
+    }
+
+    /**
+     * Summary of table
+     * @param string $name
+     * @return ($name is null ? MethodProxy<TableRegistery> : ?Table)
+     */
+    public function table(mixed $name =null)
+    {
+       if(! (null === $name)){
+            return TableRegistery::get($name);
+       }
+
+       return new MethodProxy(TableRegistery::class);
     }
 }

@@ -5,7 +5,7 @@ namespace Oktaax\Utils;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;
 
 final class Invoker
 {

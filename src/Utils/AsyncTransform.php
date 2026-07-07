@@ -3,7 +3,7 @@
 namespace Oktaax\Utils;
 
 use Oktaax\Attributes\Async;
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;
 use Throwable;
 
 class AsyncTransform
@@ -60,6 +60,4 @@ class AsyncTransform
 
         return new \ReflectionFunction($callback);
     }
-
-
 }

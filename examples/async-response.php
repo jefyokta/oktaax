@@ -5,13 +5,13 @@ use Oktaax\Attributes\Async;
 use Oktaax\Console;
 use Oktaax\Contracts\Middleware;
 use Oktaax\Core\Application;
-use Oktaax\Core\Promise\Promise;
-use Oktaax\Exception\PromiseException;
+use JefyOkta\PhpPromise\Promise;
+use JefyOkta\PhpPromise\Exception\PromiseException;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Oktaax;
 
-use function Oktaax\Utils\await;
+
 use function Oktaax\Utils\fetch;
 use function Oktaax\Utils\setTimeout;
 use function Swoole\Coroutine\run;
@@ -144,7 +144,7 @@ $app->get(
     "/async-without-await",
     //without Async attribute, application will preventing that we return null/void and respnse is still writable, client will get no content. its due to unwaiting promise task
     #[Async]
-    function (Request $request, Response $response, ) {
+    function (Request $request, Response $response,) {
         $promise = promise(2);
 
         $promise->then(function ($t) use (&$response) {
@@ -159,7 +159,7 @@ $app->get(
         });
     }
 );
-$app->get("/http-client", function ($_,Response $res) {
+$app->get("/http-client", function ($_, Response $res) {
 
     $start = microtime(true);
 

@@ -2,13 +2,13 @@
 
 namespace Oktaax\Core\Dispatcher;
 
-use Oktaax\Console;
+use Oktaax\Contracts\Jsonable;
 use Oktaax\Core\Application;
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 
-use function Oktaax\Utils\await;
+
 
 class ReturnDispatcher
 {
@@ -25,7 +25,6 @@ class ReturnDispatcher
             return;
         }
 
-        // Fast path for string responses (most common) - no headers needed
         if (\is_string($result)) {
             $res->end($result);
             return;
@@ -43,6 +42,11 @@ class ReturnDispatcher
         if (\is_array($result) || $result instanceof \Traversable) {
             $res->header("content-type", "application/json");
             $res->end(json_encode($result));
+            return;
+        }
+        if ($result instanceof Jsonable) {
+            $res->header("content-type", "application/json");
+            $res->end(json_encode($result->toJson()));
             return;
         }
 

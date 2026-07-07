@@ -9,12 +9,12 @@
 
 require 'vendor/autoload.php';
 
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;
 use Oktaax\Oktaax;
 use Oktaax\Http\Request;
-use Oktaax\Http\Response;
-use function Oktaax\Utils\async;
-use function Oktaax\Utils\await;
+use Oktaax\Http\Response;;
+
+
 use function Oktaax\Utils\setTimeout;
 
 $app = new Oktaax();

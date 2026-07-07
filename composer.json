@@ -24,7 +24,8 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.0",
-        "firebase/php-jwt": "^6.10"
+        "firebase/php-jwt": "^6.10",
+        "jefyokta/php-promise": "^0.0.3"
         },
     "repositories": [
         {

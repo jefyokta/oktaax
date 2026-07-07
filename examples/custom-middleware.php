@@ -14,11 +14,10 @@ use Oktaax\Oktaax;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Contracts\Middleware;
-use Oktaax\Core\Promise\Promise;
-use Oktaax\Http\Router;
+use JefyOkta\PhpPromise\Promise;
+use Oktaax\Http\Router;;
 
-use function Oktaax\Utils\async;
-use function Oktaax\Utils\await;
+
 use function Oktaax\Utils\setTimeout;
 
 $app = new Oktaax();

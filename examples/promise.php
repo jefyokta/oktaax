@@ -1,10 +1,9 @@
 <?php
 
 use Oktaax\Console;
-use Oktaax\Core\Promise\Promise;
+use JefyOkta\PhpPromise\Promise;;
 
-use function Oktaax\Utils\async;
-use function Oktaax\Utils\await;
+
 use function Oktaax\Utils\setTimeout;
 
 require_once __DIR__ . "/../vendor/autoload.php";

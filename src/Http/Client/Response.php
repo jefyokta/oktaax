@@ -2,13 +2,12 @@
 
 namespace Oktaax\Http\Client;
 
-use Oktaax\Core\Promise\Promise;
-use Oktaax\Exception\PromiseException;
+use JefyOkta\PhpPromise\Promise;
+use JefyOkta\PhpPromise\Exception\PromiseException;
 use Oktaax\Http\Headers;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Client;
 
-use function Oktaax\Utils\spawn;
 
 class Response
 {
@@ -53,9 +52,6 @@ class Response
     public function text(): Promise
     {
         return new Promise(function ($resolve, $reject) {
-
-            spawn(function () use ($resolve, $reject) {
-
                 if ($this->bodyUsed) {
                     $reject("Body already used");
                     return;
@@ -82,7 +78,6 @@ class Response
                     $reject($e);
                 }
             });
-        });
     }
 
     /** 
@@ -95,7 +90,7 @@ class Response
             $data = json_decode($text);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new PromiseException(substr($text, 0, strlen($text) > 100 ? 100 : \strlen($text)) . "\n" . "is not a valid json");
+                throw new PromiseException(substr($text, 0, \strlen($text) > 100 ? 100 : \strlen($text)) . "\n" . "is not a valid json");
             }
 
             return $data;
@@ -235,8 +230,8 @@ class Response
         $delimiter = "--{$boundary}";
         $parts     = explode($delimiter, $raw);
 
-        array_shift($parts); 
-        array_pop($parts);   
+        array_shift($parts);
+        array_pop($parts);
 
         foreach ($parts as $part) {
             $part = ltrim($part, "\r\n");
@@ -246,7 +241,7 @@ class Response
             if ($headerBodySplit === false) continue;
 
             $rawPartHeaders = substr($part, 0, $headerBodySplit);
-            $body           = substr($part, $headerBodySplit + 4); 
+            $body           = substr($part, $headerBodySplit + 4);
 
             $partHeaders = $this->parsePartHeaders($rawPartHeaders);
 

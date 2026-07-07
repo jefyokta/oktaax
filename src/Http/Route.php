@@ -3,7 +3,7 @@
 namespace Oktaax\Http;
 
 use Oktaax\Core\Application;
-use Oktaax\Core\Promise\Asynchronous;
+use JefyOkta\PhpPromise\Asynchronous;
 use Oktaax\Utils\AsyncTransform;
 use Oktaax\Utils\Invoker;
 

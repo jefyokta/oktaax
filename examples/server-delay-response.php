@@ -11,7 +11,7 @@ $app = new Oktaax();
 
 
 $app->get("/delay/{delay}", function (Request $request) {
-    Coroutine::sleep($request->params['delay']);
+    Coroutine::sleep((float)$request->params['delay']);
     return [
         "request" => $request->all(),
         "delay" => $request->params['delay'],

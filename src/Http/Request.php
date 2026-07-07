@@ -102,12 +102,12 @@ class Request implements Stringable, Injectable
      */
     public  $params;
 
-    public array $headers;
+    public ?array $headers;
 
     private static $injection = [];
 
 
-    public $uri;
+    public ?string $uri;
 
     public function __construct(HttpRequest $request)
     {

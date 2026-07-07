@@ -6,9 +6,9 @@ use Swoole\Timer;
 
 class Worker
 {
-    public $name;
-    public $pid;
-    public function __construct(public $id, private $taskWorker = false)
+    public string $name;
+    public int $pid;
+    public function __construct(public int $id, private $taskWorker = false)
     {
         $this->pid = posix_getpid();
         $this->name = ($this->taskWorker ? "taskworker" : "worker") . "." . $id;
