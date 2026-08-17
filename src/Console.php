@@ -40,10 +40,18 @@
 
 namespace Oktaax;
 
+use JefyOkta\PhpPromise\Promise;
+use Oktaax\Utils\GetterProperty;
+use Oktaax\Utils\Interfaces\HasDebugInfo;
+use Oktaax\Utils\Struct;
+use Oktaax\Utils\Undefined;
+
 class Console
 {
     private static array $timers = [];
     private static int $indent = 0;
+
+    public static int $maxDepth = 3;
 
 
 
@@ -72,9 +80,9 @@ class Console
         self::write("debug", $args, "\033[45m\033[97m", "\033[35m");
     }
 
-    public static function dir($data)
+    public static function dir($data, $depth = 3)
     {
-        self::log(self::inspect($data));
+        self::log(self::inspect($data, $depth));
     }
 
     public static function group(string $label = '')
@@ -160,7 +168,7 @@ class Console
         array $args,
         string $boxColor,
         string $msgColor,
-        $output = STDOUT
+        mixed $output = STDOUT
     ) {
         $label = strtoupper($type);
         $box = "{$boxColor} {$label} \033[0m";
@@ -169,9 +177,8 @@ class Console
 
         $indent = str_repeat("  ", self::$indent);
 
-        fwrite($output, "\n{$indent}{$box} {$msgColor}{$message}\033[0m\n");
+        fwrite($output, "\n{$indent}{$box} {$message}\033[0m\n");
     }
-
 
     private static function format(array $args): string
     {
@@ -180,7 +187,7 @@ class Console
         $first = array_shift($args);
 
         if (!is_string($first)) {
-            return self::stringify($first) . ' ' . implode(' ', array_map([self::class, 'stringify'], $args));
+            return (((is_object($first) && !($first instanceof Promise)) || is_array($first)) ? "\n\n" : "") . self::stringify($first) . ' ' . implode(' ', array_map([self::class, 'stringify'], $args));
         }
 
         $i = 0;
@@ -192,7 +199,7 @@ class Console
 
                 $val = $args[$i++];
 
-                $type = $match[3]; 
+                $type = $match[3];
                 $precision = $match[2] ?? null;
 
                 return match ($type) {
@@ -218,40 +225,104 @@ class Console
         return $formatted;
     }
 
-    private static function stringify($arg): string
+    private static function stringify(mixed $arg): string
     {
-        if (\is_array($arg) || \is_object($arg)) {
-            return self::inspect($arg);
-        }
-
-        if (\is_bool($arg)) {
-            return $arg ? "true" : "false";
-        }
-
-        if ($arg === null) {
-            return "null";
-        }
-
-        return (string)$arg;
+        return self::inspect($arg);
     }
 
 
-    private static function inspect($data, int $depth = 0): string
+    private static function inspect(mixed $data, int $depth = 0): string
     {
-        if ($depth > 3) return "...";
+        if ($depth > self::$maxDepth) {
+            return match (true) {
+                $data instanceof Undefined => "\033[90mundefined\033[0m",
+                $data instanceof \Closure => "\033[35m[Function]\033[0m",
+                $data instanceof GetterProperty => "\033[35m[get]\033[0m",
+                $data instanceof Promise => "\033[90m" . $data . "\033[0m",
+                \is_array($data) => "[\033[33m" . \count($data) . "\033[0m]",
+                \is_object($data) => "\033[90m" . $data::class . "\033[0m",
+                \is_string($data) => "\033[32m\"{$data}\"\033[0m",
+                \is_int($data), is_float($data) => "\033[33m{$data}\033[0m",
 
-        if (is_array($data)) {
+                \is_bool($data) => $data
+                    ? "\033[34mtrue\033[0m"
+                    : "\033[34mfalse\033[0m",
+
+                $data === null => "\033[90mnull\033[0m",
+
+                default => (string) $data,
+            };
+        }
+        if ($data instanceof \Closure) {
+            return "\033[35m[Function]\033[0m";
+        }
+
+        if (\is_array($data)) {
+            if (empty($data)) return "[]";
             $items = array_map(function ($k, $v) use ($depth) {
-                return str_repeat("  ", $depth + 1) . "$k: " . self::inspect($v, $depth + 1);
+                $key = "\033[36m{$k}\033[0m";
+                return str_repeat("  ", $depth + 1)
+                    . $key . ": "
+                    . self::inspect($v, $depth + 1);
             }, array_keys($data), $data);
 
-            return "[\n" . implode(",\n", $items) . "\n" . str_repeat("  ", $depth) . "]";
+            return "[\n"
+                . implode(",\n", $items)
+                . "\n"
+                . str_repeat("  ", $depth)
+                . "]";
         }
 
         if (\is_object($data)) {
-            return self::inspect(get_object_vars($data), $depth);
+            if ($data instanceof Undefined) {
+                return "\033[90mundefined\033[0m";
+            }
+            if ($data instanceof GetterProperty) {
+                return "\033[35m[get]\033[0m";
+            }
+            if ($data instanceof Promise) {
+                return (string) $data;
+            }
+            if ($data instanceof HasDebugInfo) {
+                return $data->onDebug();
+            }
+
+            $vars = $data instanceof Struct
+                ? Struct::entries($data)
+                : get_object_vars($data);
+
+            $items = array_map(function ($k, $v) use ($depth) {
+                $key = "\033[36m{$k}\033[0m";
+                return str_repeat("  ", $depth + 1)
+                    . $key . ": "
+                    . self::inspect($v, $depth + 1);
+            }, array_keys($vars), $vars);
+
+            return "{\n"
+                . implode(",\n", $items)
+                . "\n"
+                . str_repeat("  ", $depth)
+                . "}";
         }
 
-        return (string)$data;
+        if (\gettype($data) == 'string') {
+            return "\033[32m\"{$data}\"\033[0m";
+        }
+
+        if (is_int($data) || is_float($data)) {
+            return "\033[33m{$data}\033[0m";
+        }
+
+        if (\is_bool($data)) {
+            return $data
+                ? "\033[34mtrue\033[0m"
+                : "\033[34mfalse\033[0m";
+        }
+
+        if ($data === null) {
+            return "\033[90mnull\033[0m";
+        }
+
+        return (string) $data;
     }
 }

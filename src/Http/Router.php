@@ -132,6 +132,9 @@ class Router
             }
         }
 
-        throw new HttpException(404, "Not Found");
+        throw new HttpException(
+            statusCode: 404,
+            message: "Not Found"
+        );
     }
 }

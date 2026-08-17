@@ -18,12 +18,11 @@ class TableRegistery
     {
         if(self::$preventRecreate && isset(self::$tables[$tableName])) return;
 
-        self::$tables[$tableName] = $table;
+        return self::_create(...func_get_args());
     }
 
     private static function _create(string $tableName, Table $table)
     {
-        if(self::$preventRecreate && isset(self::$tables[$tableName])) return;
         
         self::$tables[$tableName] = $table;
     }

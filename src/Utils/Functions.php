@@ -53,6 +53,7 @@ use Oktaax\Oktaa;
 use Oktaax\Oktaax;
 use Oktaax\Trait\HasWebsocket;
 use Oktaax\ServerBag;
+use Oktaax\Utils\Interfaces\CanConvertToBoolean;
 use stdClass;
 use Swoole\Coroutine;
 use Swoole\Coroutine\Channel;
@@ -60,6 +61,7 @@ use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Throwable;
 
+define("undefined", Undefined::get());
 
 if (! function_exists('oktaa')) {
     function oktaa()
@@ -104,7 +106,7 @@ if (! function_exists('setTimeout')) {
 }
 
 if (! function_exists('setInterval')) {
-    function setInterval($cb, $ms)
+    function setInterval(callable $cb, int $ms)
     {
         return Timer::tick($ms, $cb);
     }
@@ -218,14 +220,14 @@ if (! function_exists('xserver')) {
 }
 
 if (! function_exists('clearInterval')) {
-    function clearInterval($id)
+    function clearInterval(int $id)
     {
         return Timer::clear($id);
     }
 }
 
 if (! function_exists('clearTimeout')) {
-    function clearTimeout($id)
+    function clearTimeout(int $id)
     {
         return Timer::clear($id);
     }
@@ -233,33 +235,27 @@ if (! function_exists('clearTimeout')) {
 
 if (! function_exists('_o')) {
 
-    /**
-     * Dynamically converts named arguments into a stdClass object.
-     * 
-     * @param mixed ...$args Named arguments mapping to object properties.
-     * @return stdClass
-     * @throws InvalidArgumentException If a positional argument is passed instead of a named argument.
-     */
-    function _o(mixed ...$args): stdClass
+    function _o(mixed ...$args): Struct
     {
-        $object = new stdClass();
+        return new Struct(...$args);
+    }
+}
 
-        foreach ($args as $key => $value) {
-            if (is_int($key)) {
-                $argumentPosition = $key + 1;
-                $culpritValue = is_scalar($value) ? "'$value'" : '[' . gettype($value) . ']';
+if (! function_exists("Boolean")) {
+    function Boolean(mixed $val)
+    {
 
-                throw new InvalidArgumentException(
-                    "Missing argument name at position #{$argumentPosition}.\n" .
-                        "Details: Received the value {$culpritValue} as a positional argument, but _o() requires named arguments.\n\n" .
-                        "Correct Usage Example:\n" .
-                        "\t_o(name: \"value\", status: \"active\")\n"
-                );
-            }
-
-            $object->{$key} = $value;
+        if (\is_object($val) && $val instanceof CanConvertToBoolean) {
+            return $val->getBooleanValue();
         }
+        return !! $val;
+    }
+}
 
-        return $object;
+if (! function_exists("getter")) {
+    function getter(\Closure $callback)
+    {
+
+        return new GetterProperty($callback);
     }
 }

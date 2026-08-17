@@ -12,7 +12,8 @@ use Oktaax\Http\Response;
 use Oktaax\Http\Router;
 use Oktaax\Utils\MethodProxy;
 use Swoole\Coroutine;
-use Swoole\Http\Server;
+use Oktaax\Contracts\Server;
+use Swoole\Http\Server as HttpServer;
 use Swoole\Table;
 use Swoole\WebSocket\Server as WebSocketServer;
 
@@ -96,8 +97,10 @@ class Application
 
         return $app;
     }
-    public  static function setServer(Server | WebSocketServer $server)
+    public  static function setServer(HttpServer | WebSocketServer $server)
     {
+        /**
+         * @disregard */
         Container::register(Server::class, $server);
     }
     public static function server()
@@ -204,15 +207,32 @@ class Application
     {
         return Container::get($class);
     }
-
-    public  function config()
+    /**
+     * Summary of container
+     * @param string|null $config
+     * @param mixed $default
+     *
+     * @return ($config is null ? MethodProxy<Configuration> : mixed)
+     */
+    public  function config($config = null, $default = null)
     {
 
-        return new MethodProxy(Configuration::class);
+        if (null == $config)    return new MethodProxy(Configuration::class);
+
+        return Configuration::get($config, $default);
     }
-    public function container()
+    /**
+     * Summary of container
+     * @template T
+     * @param class-string<T>|null $service
+     *
+     * @return ($service is null ? MethodProxy<Container> : T)
+     */
+    public function container(?string $service = null)
     {
-        return new MethodProxy(Container::class);
+        if (null == $service)   return new MethodProxy(Container::class);
+
+        return Container::get($service);
     }
 
     /**
@@ -287,12 +307,12 @@ class Application
      * @param string $name
      * @return ($name is null ? MethodProxy<TableRegistery> : ?Table)
      */
-    public function table(mixed $name =null)
+    public function table(mixed $name = null)
     {
-       if(! (null === $name)){
+        if (! (null === $name)) {
             return TableRegistery::get($name);
-       }
+        }
 
-       return new MethodProxy(TableRegistery::class);
+        return new MethodProxy(TableRegistery::class);
     }
 }

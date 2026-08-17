@@ -12,6 +12,7 @@ namespace Oktaax;
 
 use BadMethodCallException;
 use Error;
+use InvalidArgumentException;
 use Oktaax\Core\Application;
 use Oktaax\Core\Configuration;
 use Oktaax\Core\Container;
@@ -19,6 +20,7 @@ use Oktaax\Core\Event\Finish;
 use Oktaax\Core\Event\Request as EventRequest;
 use Oktaax\Core\Event\Task;
 use Oktaax\Core\Event\WorkerStart;
+use Oktaax\Core\TableRegistery;
 use Oktaax\Core\URL;
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
@@ -27,14 +29,13 @@ use Oktaax\Utils\MethodProxy;
 use Oktaax\Views\PhpView;
 use Swoole\Http\Server as HttpServer;
 use Swoole\WebSocket\Server as WebSocketServer;
-use Symfony\Component\Translation\Exception\InvalidResourceException;
 
 /**
  * A class to make a raw HTTP/WebSocket application server
  *
  * @package Oktaax
  *
- * @mixin \Oktaax\Http\Router
+ * @mixin Router
  *
  * @method void listen(int $port)
  * @method void listen(int $port, callable(string $url): void $callback)
@@ -80,7 +81,6 @@ class Oktaax
         Configuration::set("app.chunk_size", 8192);
         Container::register(View::class, new PhpView("views/"));
         Container::register(AppConfig::class, new AppConfig(null, false, 300, 'Oktaax'));
-
         $this->router = new Router();
     }
 
@@ -104,7 +104,6 @@ class Oktaax
     {
         $host = Configuration::get('app.host');
         $port = Configuration::get('app.port');
-
         $mode = Configuration::get('server.mode');
         $sock = Configuration::get('server.sock_type');
 
@@ -114,6 +113,8 @@ class Oktaax
             ? new $class($host, $port, $mode, $sock)
             : new $class($host, $port);
         Container::register(HttpServer::class, $this->server);
+
+        Container::register(TableRegistery::class, new TableRegistery);
     }
 
 
@@ -159,11 +160,11 @@ class Oktaax
     public function withSSL(string $cert, string $key)
     {
         if (!file_exists($cert)) {
-            throw new InvalidResourceException("Certificate not found!");
+            throw new Error("Certificate not found!");
         }
 
         if (!file_exists($key)) {
-            throw new InvalidResourceException("Key not found!");
+            throw new Error("Key not found!");
         }
 
         $this->setServer([
@@ -210,7 +211,7 @@ class Oktaax
         Configuration::set('app.port', $port);
         Configuration::set(
             'app.host',
-            is_string($hostOrCallback) ? $hostOrCallback : '127.0.0.1'
+            \is_string($hostOrCallback) ? $hostOrCallback : '127.0.0.1'
         );
 
 

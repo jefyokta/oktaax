@@ -2,6 +2,7 @@
 
 namespace Oktaax\Core\Dispatcher;
 
+use Generator;
 use Oktaax\Contracts\Jsonable;
 use Oktaax\Core\Application;
 use JefyOkta\PhpPromise\Promise;
@@ -25,6 +26,8 @@ class ReturnDispatcher
             return;
         }
 
+
+
         if (\is_string($result)) {
             $res->end($result);
             return;
@@ -35,6 +38,13 @@ class ReturnDispatcher
                 return;
             }
             $res->header("x-no-content", "1");
+            $res->end();
+            return;
+        }
+        if ($result instanceof Generator) {
+            foreach ($result as $content) {
+                $res->write($content);
+            }
             $res->end();
             return;
         }
