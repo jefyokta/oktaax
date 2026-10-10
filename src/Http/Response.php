@@ -36,6 +36,9 @@ class Response implements Injectable
 
         $this->response = $response;
     }
+    public function swoole(){
+        return $this->response;
+    }
 
     public static function inject(string $name, $handler): void
     {

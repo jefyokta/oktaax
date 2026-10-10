@@ -26,7 +26,7 @@ final class Route
         callable $handler,
         array $middlewares = []
     ) {
-        $this->handler = AsyncTransform::hasAsyncAttribute($handler) ? new Asynchronous($handler) : $handler;
+        $this->handler =  $handler;
         $this->middlewares = $middlewares;
 
         $this->compile();
@@ -84,6 +84,9 @@ final class Route
 
         $next = function () use ($request, $response, &$index, &$count, &$next) {
             if ($index >= $count) {
+                if ($this->handler instanceof Asynchronous) {
+                    return (($this->handler)($request, $response))->wait();
+                }
                 return ($this->handler)($request, $response);
             }
             $cb = $this->middlewares[$index++];

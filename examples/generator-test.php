@@ -1,18 +1,23 @@
 <?php
 
+use Oktaax\Http\Request;
+use Oktaax\Oktaax;
 use Swoole\Coroutine;
 
 require_once __DIR__ . "/../vendor/autoload.php";
 
-$app = new Oktaax\Oktaax;
+$app = new Oktaax;
 
 
 
-$delay = async(function (string $name, int|float $seconds) {
+$delay = async(function (...$args) {
+
+    $args = func_get_args();
+    $seconds = count($args) == 2 ? $args[1] : $args[0];
     Coroutine::sleep($seconds);
 
     return [
-        'name' => $name,
+        'name' => $args[0],
         'took' => $seconds,
     ];
 });
@@ -67,11 +72,7 @@ $getNotifications = async(function (int $userId) use ($delay) {
 
 
 
-$dashboard = async(function (int $userId) use (
-    $getUser,
-    $getOrders,
-    $getNotifications
-) {
+$dashboard = async(function (int $userId) use ($getUser, $getOrders, $getNotifications) {
 
     $user = await($getUser($userId));
 
@@ -106,7 +107,7 @@ $dashboard = async(function (int $userId) use (
 
     $orderItems = array_filter(
         $orders,
-        fn ($item) => isset($item['total'])
+        fn($item) => isset($item['total'])
     );
 
     $totalSpent = array_sum(
@@ -120,7 +121,7 @@ $dashboard = async(function (int $userId) use (
         'notifications_count' => count(
             array_filter(
                 $notifications,
-                fn ($item) => isset($item['message'])
+                fn($item) => isset($item['message'])
             )
         ),
     ];
@@ -144,8 +145,28 @@ foreach ($generator as $event) {
 
 
 
-$summary = $generator->getReturn();
 
-echo "===== SUMMARY =====\n";
+$app->get("/generator", function (Request $req) use ($delay) {
+    $eol =  str_starts_with($req->header('user-agent'), "curl/") ? "\n" :  "</br>";
+    yield 1;
+    await($delay(1));
+    yield $eol;
+    await($delay(1));
+    yield 2;
+    await($delay(1));
 
-print_r($summary);
+    yield $eol;
+    await($delay(1));
+
+
+    yield 3;
+    await($delay(1));
+
+    yield $eol;
+
+
+    return "done";
+});
+
+
+$app->listen(3000);

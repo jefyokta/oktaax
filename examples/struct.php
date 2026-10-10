@@ -110,18 +110,14 @@ class Person
 
 /** @var Struct<Person> */
 $person = _o(
-
     firstName: "Jefy",
     lastName: "Okta",
-
     birthDay: new DateTime("2002-10-06"),
-
     address: _o(
         street: "Jl. HR. Soebrantas",
         city: "Pekanbaru",
         province: "Riau",
         country: "Indonesia",
-
         fullAddress: getter(function () {
             return "{$this->street}, {$this->city}, {$this->province}, {$this->country}";
         }),
@@ -294,7 +290,6 @@ $user->friend = null;
 
 $user->skills = ['', ''];
 
-// $user->friend[] = new Person;
 Console::log($user);
 
 

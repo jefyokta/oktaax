@@ -12,8 +12,7 @@ use Oktaax\Http\Response;
 use Oktaax\Http\Router;
 use Oktaax\Utils\MethodProxy;
 use Swoole\Coroutine;
-use Oktaax\Contracts\Server;
-use Swoole\Http\Server as HttpServer;
+use Swoole\Http\Server;
 use Swoole\Table;
 use Swoole\WebSocket\Server as WebSocketServer;
 
@@ -27,7 +26,7 @@ use Swoole\WebSocket\Server as WebSocketServer;
  */
 class Application
 {
-    public  const float VERSION = 0.1;
+    public  const string VERSION = "0.0.1";
     public const SWOOLE_VERSION_ID = SWOOLE_VERSION_ID;
     /**
      * Coroutine context container
@@ -97,7 +96,7 @@ class Application
 
         return $app;
     }
-    public  static function setServer(HttpServer | WebSocketServer $server)
+    public  static function setServer(Server | WebSocketServer $server)
     {
         /**
          * @disregard */

@@ -315,6 +315,51 @@ $app->get('/page', function ($req, $res) {
 ```
 
 ---
+### Return
+```php
+    //support all scalar types
+    $app->get("/string",fn()=>"Hello World");
+
+    //returning array will convert to json and also auto create it content-type
+    $app->get("/array",function(){
+        $users = \App\Model\User::all();
+        return [
+            "users"=>$users;
+        ];
+    });
+
+    //generator 
+
+    $app->get("/generator",function(){
+        yield "hello\n";
+        yield "world\n";
+        return "done";
+    });
+
+    // 
+    $app->get("/async-generator",function(){
+        $user =await(getUser(1));
+        yield $user;
+        $friend = await(getUserFriend($user));
+        yield $friend;
+
+        return "done";
+    });
+
+    //promise 
+    $app->get("/promise",function(){
+        return new Promise(function($res,$rej){
+            $res("ok");
+        });
+        //or
+        return (async(function($res,$rej){
+           return "ok";
+        }))()
+    });
+
+
+```
+
 
 ## ⚡ Asynchronous Programming
 

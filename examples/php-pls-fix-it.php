@@ -32,4 +32,6 @@ Console::log($map->count(),$nonWeak);
 
 unset($object,$key);
 
+$map[new stdClass] =1;
+
 Console::log($map->count(),$nonWeak);

@@ -1,7 +1,6 @@
 <?php
 require __DIR__ . "/../vendor/autoload.php";
 
-use Oktaax\Attributes\Async;
 use Oktaax\Console;
 use Oktaax\Contracts\Middleware;
 use Oktaax\Core\Application;
@@ -142,8 +141,6 @@ $app->get(
 
 $app->get(
     "/async-without-await",
-    //without Async attribute, application will preventing that we return null/void and respnse is still writable, client will get no content. its due to unwaiting promise task
-    #[Async]
     function (Request $request, Response $response,) {
         $promise = promise(2);
 

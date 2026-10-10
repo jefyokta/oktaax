@@ -3,11 +3,13 @@
 namespace Oktaax\Core\Dispatcher;
 
 use Generator;
+use JefyOkta\PhpPromise\Promise;
 use Oktaax\Contracts\Jsonable;
 use Oktaax\Core\Application;
-use JefyOkta\PhpPromise\Promise;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
+use Oktaax\Http\Support\SSEResponse;
+use Stringable;
 
 
 
@@ -20,13 +22,12 @@ class ReturnDispatcher
         static::$handlers[$type] = $handler;
     }
 
+
     public function dispatch(mixed $result, Request $req, Response $res): void
     {
         if (!$res->isWritable()) {
             return;
         }
-
-
 
         if (\is_string($result)) {
             $res->end($result);
@@ -43,9 +44,22 @@ class ReturnDispatcher
         }
         if ($result instanceof Generator) {
             foreach ($result as $content) {
-                $res->write($content);
+                if (
+                    $content === null ||
+                    \is_scalar($content) ||
+                    $content instanceof Stringable
+                ) {
+                    $res->write((string) $content);
+                    continue;
+                }
+
+                throw new \RuntimeException(
+                    "Unhandled generator content type: " .
+                        (\is_object($content) ? $content::class : \gettype($content))
+                );
             }
-            $res->end();
+
+            $res->end($result->getReturn());
             return;
         }
 
@@ -57,6 +71,15 @@ class ReturnDispatcher
         if ($result instanceof Jsonable) {
             $res->header("content-type", "application/json");
             $res->end(json_encode($result->toJson()));
+            return;
+        }
+        if ($result instanceof Promise) {
+            $this->dispatch(await($result), $req, $res);
+            return;
+        }
+        if ($result instanceof SSEResponse) {
+            $result->start($res);
+
             return;
         }
 
