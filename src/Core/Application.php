@@ -7,6 +7,7 @@ use Oktaax\Console;
 use Oktaax\Core\Dispatcher\ExceptionDispatcher;
 use Oktaax\Core\Dispatcher\ReturnDispatcher;
 use JefyOkta\PhpPromise\Promise;
+use Oktaax\Exception\ClientClosed;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Http\Router;
@@ -72,6 +73,9 @@ class Application
     {
         $this->return = new ReturnDispatcher();
         $this->exception = new ExceptionDispatcher();
+        //ignore client closed exception by default
+        $this->exception->register(ClientClosed::class, function () {});
+
         $this->context = new Context();
     }
 

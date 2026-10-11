@@ -2,6 +2,8 @@
 
 namespace Oktaax\Core\Dispatcher;
 
+
+
 class ExceptionDispatcher
 {
     private static array $handlers = [];

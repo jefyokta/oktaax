@@ -6,6 +6,7 @@ use Oktaax\Console;
 use Oktaax\Contracts\JsonScheme;
 use Oktaax\Core\Application;
 use Oktaax\Core\Configuration;
+use Oktaax\Exception\ClientClosed;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;
@@ -231,7 +232,10 @@ class Response implements Injectable
     public function write(string $data)
     {
 
-        return $this->response->write($data);
+        $sent = $this->response->write($data);
+        if(!$sent){
+            throw new ClientClosed();
+        }
     }
 
 

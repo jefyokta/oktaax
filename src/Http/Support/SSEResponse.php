@@ -3,6 +3,7 @@
 namespace Oktaax\Http\Support;
 
 use Closure;
+use Exception;
 use InvalidArgumentException;
 use Oktaax\Console;
 use Oktaax\Core\Application;
@@ -38,7 +39,6 @@ class SSEResponse
         $this->response = $response;
 
         try {
-            //code...
 
             if ($this->started) {
                 return;
@@ -56,8 +56,7 @@ class SSEResponse
             );
             $this->response->swoole()->header('X-Accel-Buffering', 'no');
 
-            while (true) {
-
+            setInterval(function () {
                 try {
                     $message = ($this->callback)();
 
@@ -69,14 +68,11 @@ class SSEResponse
                     Console::log(($message));
                     Coroutine::sleep($this->interval);
                 } catch (Throwable $exception) {
-                 
+
                     Console::error($exception);
                     throw $exception;
-
                 }
-            }
-
-
+            }, $this->interval);
         } catch (Throwable $th) {
             throw $th;
         }
@@ -175,10 +171,9 @@ class SSEResponse
             );
 
         foreach (preg_split('/\r\n|\r|\n/', $payload) as $line) {
-            $this->response->write("data: {$line}\n");
+           $this->response->write("data: {$line}\n");
         }
 
-        // An empty line terminates the SSE message.
         $this->response->write("\n");
     }
 
@@ -207,6 +202,4 @@ class SSEResponse
 
         $this->response->write("{$name}: {$value}\n");
     }
-
-
 }
