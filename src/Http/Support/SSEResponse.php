@@ -2,127 +2,101 @@
 
 namespace Oktaax\Http\Support;
 
-use Closure;
-use Exception;
 use InvalidArgumentException;
-use Oktaax\Console;
-use Oktaax\Core\Application;
 use Oktaax\Http\Response;
-use Swoole\Coroutine;
-use Throwable;
-use function Oktaax\Utils\clearInterval;
-use function Oktaax\Utils\setInterval;
+use JsonException;
+use Oktaax\Event\EventEmitter;
+use RuntimeException;
 
 class SSEResponse
 {
-    private int|string|null $intervalId = null;
-
     private bool $started = false;
+
+    private bool $stopped = false;
 
     private Response $response;
 
-    public function __construct(
-        private readonly Closure $callback,
-        private readonly int $interval = 1000,
-    ) {
-        if ($interval < 1) {
-            throw new InvalidArgumentException(
-                'SSE interval must be greater than zero.'
-            );
-        }
+    private EventEmitter $eventEmitter;
 
-        $this->response = Application::getResponse();
+
+    public function __construct(public array $headers = [])
+    {
+        $this->eventEmitter = new EventEmitter;
+        $this->response = \Oktaax\Core\Application::getResponse();
     }
 
-    public function start(Response $response): void
+
+    /**
+     * Summary of on
+     * @param "close"|"start" $event
+     * @param mixed $listener
+     * @return void
+     */
+    public function on(string $event, $listener)
     {
-        $this->response = $response;
+        $this->eventEmitter->on($event, $listener);
+    }
 
-        try {
-
-            if ($this->started) {
-                return;
-            }
-
-            $this->started = true;
-
-            $this->response->swoole()->header(
-                'Content-Type',
-                'text/event-stream'
-            );
-            $this->response->swoole()->header(
-                'Cache-Control',
-                'no-cache'
-            );
-            $this->response->swoole()->header('X-Accel-Buffering', 'no');
-
-            setInterval(function () {
-                try {
-                    $message = ($this->callback)();
-
-                    if ($message === null || $message === false) {
-                        return;
-                    }
-
-                    $this->writeMessage($message);
-                    Console::log(($message));
-                    Coroutine::sleep($this->interval);
-                } catch (Throwable $exception) {
-
-                    Console::error($exception);
-                    throw $exception;
-                }
-            }, $this->interval);
-        } catch (Throwable $th) {
-            throw $th;
+    public function start(?Response $response = null): void
+    {
+        if ($this->started) {
+            return;
         }
+
+        if ($this->stopped) {
+            throw new RuntimeException(
+                'Cannot start a stopped SSE connection.'
+            );
+        }
+
+        if ($response !== null) {
+            $this->response = $response;
+        }
+
+        $this->response->preventEnd();
+
+
+        $this->response->header('Content-Type', 'text/event-stream; charset=utf-8');
+        $this->response->header('Cache-Control', 'no-cache');
+        $this->response->header('X-Accel-Buffering', 'no');
+        foreach ($this->headers as $key => $value) {
+            $this->response->header($key, $value);
+        }
+        $this->response->sendHeaders();
+
+        $this->started = true;
+        $this->eventEmitter->emit("start");
     }
 
     /**
-     * Encode and write an SSE message.
+     * Send an SSE message.
      *
-     * Supported envelope:
-     * [
-     *     'data' => mixed,
-     *     'event' => string|null,
-     *     'id' => string|int|null,
-     *     'retry' => int|null,
-     * ]
+     * Supported options:
+     * - event: string
+     * - id: string|int
+     * - retry: int
+     * - comment: string
      *
-     * A comment-only message can use:
-     * ['comment' => 'heartbeat']
+     * @throws JsonException
      */
-    private function writeMessage(mixed $message): void
-    {
-        $metadataKeys = ['data', 'event', 'id', 'retry', 'comment'];
+    public function send(
+        mixed $data,
+        array $options = [],
+    ): void {
 
-        $isEnvelope = is_array($message)
-            && array_intersect(
-                $metadataKeys,
-                array_keys($message)
-            ) !== [];
-
-        if (!$isEnvelope) {
-            $this->writeData($message);
-
-            return;
+        try {
+            $this->assertWritable();
+        } catch (\Throwable $th) {
+            $this->stop();
+            $this->eventEmitter->emit("close", ["error" => $th]);
         }
 
-        if (
-            array_key_exists('comment', $message)
-            && !array_key_exists('data', $message)
-        ) {
-            $this->writeComment((string) $message['comment']);
-
-            return;
+        if (isset($options['event'])) {
+            $this->writeField('event', (string) $options['event']);
         }
 
-        if (isset($message['event'])) {
-            $this->writeField('event', (string) $message['event']);
-        }
-
-        if (isset($message['id'])) {
-            $id = (string) $message['id'];
+        if (isset($options['id'])) {
+            $id = (string) $options['id'];
 
             if (str_contains($id, "\0")) {
                 throw new InvalidArgumentException(
@@ -133,32 +107,81 @@ class SSEResponse
             $this->writeField('id', $id);
         }
 
-        if (isset($message['retry'])) {
+        if (isset($options['retry'])) {
             if (
-                !is_int($message['retry'])
-                || $message['retry'] < 0
+                !\is_int($options['retry'])
+                || $options['retry'] < 0
             ) {
                 throw new InvalidArgumentException(
                     'SSE retry must be a non-negative integer.'
                 );
             }
 
-            $this->writeField('retry', (string) $message['retry']);
+            $this->writeField(
+                'retry',
+                (string) $options['retry']
+            );
         }
 
-        if (array_key_exists('data', $message)) {
-            $this->writeData($message['data']);
+        $this->writeData($data);
+    }
 
-            return;
+    /**
+     * Send a comment, commonly used as a heartbeat.
+     */
+    public function comment(string $comment = 'heartbeat'): void
+    {
+        $this->assertWritable();
+
+        foreach ($this->splitLines($comment) as $line) {
+            $this->response->write(": {$line}\n");
         }
 
-        // An event without data is not dispatched by EventSource.
         $this->response->write("\n");
     }
 
     /**
-     * Write a data field, splitting multiline payloads correctly.
+     * End the SSE connection.
      */
+    public function stop(): void
+    {
+        if ($this->stopped) {
+            return;
+        }
+
+        $this->stopped = true;
+
+        if ($this->started && $this->response->isWritable()) {
+            $this->response->swoole()->end();
+        }
+        $this->eventEmitter->emit("close");
+    }
+
+    public function isStarted(): bool
+    {
+        return $this->started;
+    }
+
+    public function isStopped(): bool
+    {
+        return $this->stopped;
+    }
+
+    private function assertWritable(): void
+    {
+        if (!$this->started) {
+            throw new RuntimeException(
+                'SSE connection has not been started.'
+            );
+        }
+
+        if ($this->stopped || !$this->response->isWritable()) {
+            throw new RuntimeException(
+                'SSE connection is no longer writable.'
+            );
+        }
+    }
+
     private function writeData(mixed $data): void
     {
         $payload = is_string($data)
@@ -170,28 +193,13 @@ class SSEResponse
                     | JSON_UNESCAPED_SLASHES,
             );
 
-        foreach (preg_split('/\r\n|\r|\n/', $payload) as $line) {
-           $this->response->write("data: {$line}\n");
+        foreach ($this->splitLines($payload) as $line) {
+            $this->response->write("data: {$line}\n");
         }
 
         $this->response->write("\n");
     }
 
-    /**
-     * Write an SSE comment, commonly used for heartbeats.
-     */
-    private function writeComment(string $comment): void
-    {
-        foreach (preg_split('/\r\n|\r|\n/', $comment) as $line) {
-            $this->response->write(": {$line}\n");
-        }
-
-        $this->response->write("\n");
-    }
-
-    /**
-     * Write a protocol field.
-     */
     private function writeField(string $name, string $value): void
     {
         if (preg_match('/[\r\n\0]/', $value)) {
@@ -201,5 +209,13 @@ class SSEResponse
         }
 
         $this->response->write("{$name}: {$value}\n");
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function splitLines(string $value): array
+    {
+        return preg_split('/\r\n|\r|\n/', $value);
     }
 }

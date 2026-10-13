@@ -29,7 +29,7 @@ class Container
     }
     /**
      * @template T
-     * @param class-string<T> $service
+     * @param class-string<T>  $service
      * @return T
      */
     public static function get(string $service)

@@ -41,11 +41,17 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Core\Container;
+use Oktaax\Event\EventEmitter;
 use Oktaax\Exception\ValidationException;
 use Oktaax\Http\Support\Validation;
 use Oktaax\Interfaces\Injectable;
 use Swoole\Http\Request as HttpRequest;
 use Stringable;
+use Swoole\Http\Server;
+
+use function Oktaax\Utils\clearInterval;
+use function Oktaax\Utils\setInterval;
 
 /**
  * @package Oktaax\Http
@@ -71,7 +77,7 @@ class Request implements Stringable, Injectable
     /**
      * The original Swoole HTTP Request instance.
      * 
-     * @var \Swoole\Http\Request
+     * @var HttpRequest
      */
 
     public $request;
@@ -109,12 +115,15 @@ class Request implements Stringable, Injectable
 
     public ?string $uri;
 
+    private EventEmitter $emitter;
+
     public function __construct(HttpRequest $request)
     {
         $this->request = $request;
         $this->fd = $request->fd ?? null;
         $this->uri = $request->server['request_uri'] ?? '/';
         $this->headers = $request->header;
+        $this->emitter = new EventEmitter;
     }
     public static function inject(string $key, $value)
     {
@@ -140,12 +149,59 @@ class Request implements Stringable, Injectable
     }
 
     /**
+     * subscribe and create interval for close event.
+     * this method must called very early 
+     * @example ```php
+     * $app->get("/bad",function(){
+     * tookLongTimeFn();
+     * $req->onClose(function(){
+     * echo "req closed";
+     * });
+     * });
+     * 
+     * $app->get("/good",function(){
+     * $req->onClose(function(){
+     * echo "req closed";
+     * });
+     * tookLongTimeFn();
+     * });
+     * ```
+     * @param callable $callback
+     * @return void
+     */
+    public function onClose(callable $callback)
+    {
+        $id = null;
+
+        $this->emitter->once("close", function () use ($callback, &$id) {
+            if ($id !== null) {
+                clearInterval($id);
+                $id = null;
+            }
+
+            $callback();
+        });
+
+        $id = setInterval(function () {
+            if (!Container::get(Server::class)->getClientInfo($this->fd)) {
+                $this->emitter->emit("close");
+            }
+        }, 10);
+    }
+
+    public function close()
+    {
+        $this->emitter->emit("close");
+    }
+
+    /**
      * 
      * @param string $name
      * @param mixed $value
      */
     public function __set($name, $value)
     {
+        
         $this->attributes[$name] = $value;
     }
 

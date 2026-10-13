@@ -22,6 +22,7 @@ use Oktaax\Core\Event\Task;
 use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\TableRegistery;
 use Oktaax\Core\URL;
+use Oktaax\Event\EventEmitter;
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
@@ -79,7 +80,9 @@ class Oktaax
         Configuration::set('app.debug', false);
         Configuration::set('app.name', 'Oktaax');
         Configuration::set("app.chunk_size", 8192);
+        Configuration::set("server.hook_flags", SWOOLE_HOOK_ALL);
         Container::register(View::class, new PhpView("views/"));
+        Container::alias("view", View::class);
         Container::register(AppConfig::class, new AppConfig(null, false, 300, 'Oktaax'));
         $this->router = new Router();
     }
@@ -115,6 +118,8 @@ class Oktaax
         Container::register(HttpServer::class, $this->server);
 
         Container::register(TableRegistery::class, new TableRegistery);
+        Container::register(EventEmitter::class, new EventEmitter);
+        Container::alias('event', EventEmitter::class);
     }
 
 

@@ -9,22 +9,29 @@ class EventEmitter
     /**
      * Registered event listeners.
      *
-     * @var array<string, array<int, Closure>>
+     * @var array<string, array<int, Closure(Event $ev):mixed>>
      */
     private array $listeners = [];
 
     /**
      * Registered one-time event listeners.
      *
-     * @var array<string, array<int, Closure>>
+     * @var array<string, array<int, Closure(Event $ev):mixed>>
      */
     private array $onceListeners = [];
 
     /**
      * Register an event listener.
+     * @param string  $event
+     * @param callable(Event $e ):mixed $listener
+     * @param bool  $single when its true and event already has listener, the current listener wont be registered
+     * 
      */
-    public function on(string $event, callable $listener): self
+    public function on(string $event, callable $listener, bool $single = false): self
     {
+        if ($single && \count($this->listeners[$event] ?? []) > 0) {
+            return $this;
+        }
         $this->listeners[$event][] = Closure::fromCallable($listener);
 
         return $this;
@@ -71,7 +78,7 @@ class EventEmitter
             $this->{$property}[$event] = array_values(
                 array_filter(
                     $this->{$property}[$event],
-                    static fn (Closure $registered): bool => $registered !== $target,
+                    static fn(Closure $registered): bool => $registered !== $target,
                 ),
             );
 
@@ -90,16 +97,17 @@ class EventEmitter
     {
         $listeners = $this->listeners[$event] ?? [];
         $onceListeners = $this->onceListeners[$event] ?? [];
+        $ev = new Event($event, $payload);
 
         // Remove one-time listeners before execution to prevent re-entrant calls.
         unset($this->onceListeners[$event]);
 
         foreach ($listeners as $listener) {
-            $listener(...$payload);
+            $listener($ev);
         }
 
         foreach ($onceListeners as $listener) {
-            $listener(...$payload);
+            $listener($ev);
         }
 
         return $this;
@@ -119,8 +127,8 @@ class EventEmitter
      */
     public function listenerCount(string $event): int
     {
-        return count($this->listeners[$event] ?? [])
-            + count($this->onceListeners[$event] ?? []);
+        return \count($this->listeners[$event] ?? [])
+            + \count($this->onceListeners[$event] ?? []);
     }
 
     /**

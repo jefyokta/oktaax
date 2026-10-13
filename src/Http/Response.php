@@ -27,6 +27,8 @@ class Response implements Injectable
 
     protected array $headers = [];
 
+    private bool $preventEnd = false;
+
     public static int $chunkSize = 8192;
 
     protected static array $injected = [];
@@ -37,8 +39,20 @@ class Response implements Injectable
 
         $this->response = $response;
     }
-    public function swoole(){
+    public function swoole()
+    {
         return $this->response;
+    }
+
+    public function preventEnd()
+    {
+
+        $this->preventEnd = true;
+    }
+
+    public function isEndPrevented()
+    {
+        return $this->preventEnd;
     }
 
     public static function inject(string $name, $handler): void
@@ -60,6 +74,12 @@ class Response implements Injectable
         return \call_user_func(self::$injected[$name], ...$arguments);
     }
 
+    public function sendHeaders()
+    {
+        foreach ($this->headers as $key => $value) {
+            $this->response->header($key, $value);
+        }
+    }
 
     public function header(string $key, string $value): static
     {
@@ -233,9 +253,9 @@ class Response implements Injectable
     {
 
         $sent = $this->response->write($data);
-        if(!$sent){
-            throw new ClientClosed();
-        }
+        // if (!$sent) {
+        //     throw new ClientClosed();
+        // }
     }
 
 
@@ -268,6 +288,7 @@ class Response implements Injectable
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
+        Application::getRequest()->close();
     }
 
     function isEnded()

@@ -8,7 +8,6 @@ use Oktaax\Contracts\Jsonable;
 use Oktaax\Core\Application;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
-use Oktaax\Http\Support\SSEResponse;
 use Stringable;
 
 
@@ -25,7 +24,7 @@ class ReturnDispatcher
 
     public function dispatch(mixed $result, Request $req, Response $res): void
     {
-        if (!$res->isWritable()) {
+        if (!$res->isWritable() || $res->isEndPrevented()) {
             return;
         }
 
@@ -60,14 +59,17 @@ class ReturnDispatcher
             }
 
             $res->end($result->getReturn());
+
             return;
         }
 
         if (\is_array($result) || $result instanceof \Traversable) {
             $res->header("content-type", "application/json");
             $res->end(json_encode($result));
+
             return;
         }
+
         if ($result instanceof Jsonable) {
             $res->header("content-type", "application/json");
             $res->end(json_encode($result->toJson()));
@@ -75,21 +77,19 @@ class ReturnDispatcher
         }
         if ($result instanceof Promise) {
             $this->dispatch(await($result), $req, $res);
-            return;
-        }
-        if ($result instanceof SSEResponse) {
-            $result->start($res);
 
             return;
         }
+
 
         $type = \is_object($result) ? $result::class : \gettype($result);
 
         if (isset(self::$handlers[$type])) {
             (self::$handlers[$type])($result, $req, $res);
+            $req->close();
             return;
         }
-
+        $req->close();
         throw new \RuntimeException("Unhandled return type: $type");
     }
 }

@@ -4,11 +4,14 @@ namespace Oktaax\Http\Client;
 
 use Oktaax\Http\Headers;
 
+
 class Request
 {
     public string $method;
     public Headers $headers;
     public string $body = '';
+
+
 
     public function __construct(
         private string $path,
@@ -27,6 +30,8 @@ class Request
         }
     }
 
+
+
     public function __toString(): string
     {
         return "{$this->method} {$this->path} HTTP/1.1\r\n"
@@ -38,9 +43,8 @@ class Request
     private function buildRawHeaders(): string
     {
         $headers = '';
-        $this->headers->forEach(function($key,$value) use ($headers){
+        $this->headers->forEach(function ($key, $value) use ($headers) {
             $headers .= $key . ": " . $value . "\r\n";
-
         });
 
 
