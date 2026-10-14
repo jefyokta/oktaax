@@ -24,13 +24,14 @@ $app->get("/stream", function (Request $req) {
         ]);
     };
     $emitter->on("test", $listener);
-    $req->onClose(function () use ($emitter, $listener) {
-        $emitter->off("test", $listener);
+    $req->onClose(function () use ($emitter, $listener, $sse) {
+        $emitter->off("test", $listener);  
+        $sse->stop();      
     });
 
 
     $sse->on("start", function (Event $event) use ($emitter, $listener, $sse) {
-        $sse->send([], ["event" => "connected"]);
+        $sse->send('sse started', ["event" => "connected"]);
         echo $emitter->listenerCount('test') . "\n";
         echo "SSE started\n";
     });

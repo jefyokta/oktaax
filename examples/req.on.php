@@ -22,7 +22,7 @@ $app->get("/", function (Request $req) {
     $data = null;
 
     $req->onClose(function () use (&$data) {
-        echo "closed while data " . ($data ?: "is empty").PHP_EOL;
+        echo "closed while data " . ($data ?: "is empty") . PHP_EOL;
     });
 
     Coroutine::sleep(5);

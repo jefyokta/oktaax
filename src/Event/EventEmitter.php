@@ -22,8 +22,9 @@ class EventEmitter
 
     /**
      * Register an event listener.
+     * @template T of mixed
      * @param string  $event
-     * @param callable(Event $e ):mixed $listener
+     * @param callable(Event<T> $e ):mixed $listener
      * @param bool  $single when its true and event already has listener, the current listener wont be registered
      * 
      */
