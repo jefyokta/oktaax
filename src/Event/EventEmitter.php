@@ -94,13 +94,12 @@ class EventEmitter
     /**
      * Dispatch an event to its registered listeners.
      */
-    public function emit(string $event, mixed ...$payload): self
+    public function emit(string $event, array|Event $payload=[]): self
     {
         $listeners = $this->listeners[$event] ?? [];
         $onceListeners = $this->onceListeners[$event] ?? [];
-        $ev = new Event($event, $payload);
+        $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
 
-        // Remove one-time listeners before execution to prevent re-entrant calls.
         unset($this->onceListeners[$event]);
 
         foreach ($listeners as $listener) {

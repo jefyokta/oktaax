@@ -1,36 +1,46 @@
 <?php
 
+use Oktaax\Console;
+use Oktaax\Core\Application;
 use Oktaax\Event\EventEmitter;
+use Oktaax\Oktaax;
+use Swoole\Http\Server;
+
+use function Oktaax\Utils\_o;
+use function Oktaax\Utils\app;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$emiter = new EventEmitter;
+$app = new Oktaax();
 
-$counter = 0;
+$app->setServer("worker_num", 4);
 
-$emiter->on("test", function () use (&$counter) {
-    echo ++$counter . PHP_EOL;
+$app->get("/dispatch", function () {
+    $server = app()->container(Server::class);
+    $current_worker_id = app()->worker->id;
+
+    $total_workers = $server->setting['worker_num'] ?? 4;
+
+    $payload = _o(
+        from:$current_worker_id,
+        message:"hello from $current_worker_id!\n"
+    );
+
+    for ($i = 0; $i < $total_workers; $i++) {
+        if ($i === $current_worker_id) {
+            continue;
+        }
+
+        $server->sendMessage($payload, $i);
+    }
+
+    return "ok";
 });
 
 
+$app->on('PipeMessage', function (Swoole\Http\Server $server, int $src_worker_id, mixed $message) {
 
-$emiter->once("test", function () use (&$counter) {
-    echo ++$counter . PHP_EOL;
+    var_dump($message);
 });
 
-$child = new class extends EventEmitter {};
-
-$child->on("test", function () {
-    echo "child\n";
-});
-
-
-echo $child->listenerCount('test') . "\n";
-$child->emit("test");
-
-
-
-
-$emiter->emit("test");
-$emiter->emit("test");
-$emiter->emit("test");
+$app->listen(3000);

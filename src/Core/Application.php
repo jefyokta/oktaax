@@ -102,8 +102,7 @@ class Application
     }
     public  static function setServer(Server | WebSocketServer $server)
     {
-        /**
-         * @disregard */
+        
         Container::register(Server::class, $server);
     }
     public static function server()

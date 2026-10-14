@@ -31,6 +31,8 @@ use Oktaax\Views\PhpView;
 use Swoole\Http\Server as HttpServer;
 use Swoole\WebSocket\Server as WebSocketServer;
 
+use function Oktaax\Utils\app;
+
 /**
  * A class to make a raw HTTP/WebSocket application server
  *
@@ -270,12 +272,24 @@ class Oktaax
 
         $this->onWorkerStart();
         $this->onRequest();
+        $this->onPipeMessage();
 
 
         if ($this->taskEnabled()) {
             $this->server->on("task", fn(...$args) => (new Task())->handle(...$args));
             $this->server->on("finish", fn(...$args) => (new Finish())->handle(...$args));
         }
+    }
+
+    protected function onPipeMessage()
+    {
+        $this->server->on("pipemessage", function ($_server, $_fromWorkerId, $data) {
+            if ($data instanceof Event\Event) {
+                Console::log($data);
+                app()->container(EventEmitter::class)->emit($data->name, ...$data->data);
+                return;
+            }
+        });
     }
 
     protected function onWorkerStart()
@@ -323,7 +337,7 @@ class Oktaax
      */
     public function getHandledEvents(): array
     {
-        return ['request', 'workerstart'];
+        return ['request', 'workerstart', 'pipemessage'];
     }
 
 

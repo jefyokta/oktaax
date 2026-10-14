@@ -13,6 +13,9 @@ require_once __DIR__ . "/../vendor/autoload.php";
 
 $app = new Oktaax;
 
+//while using singleton of EventEmitter, it suggest to use single worker so each request handled by the same worker and same EventEmitter instance
+$app->setServer("worker_num", 1);
+
 // SSE endpoint
 $app->get("/stream", function (Request $req) {
     $sse = new SSEResponse();
@@ -25,8 +28,8 @@ $app->get("/stream", function (Request $req) {
     };
     $emitter->on("test", $listener);
     $req->onClose(function () use ($emitter, $listener, $sse) {
-        $emitter->off("test", $listener);  
-        $sse->stop();      
+        $emitter->off("test", $listener);
+        $sse->stop();
     });
 
 

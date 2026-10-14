@@ -60,9 +60,8 @@ use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Throwable;
-function declareFuncs(){
-    
-}
+
+function declareFuncs() {}
 define("undefined", Undefined::get());
 
 if (! function_exists('oktaa')) {
@@ -260,4 +259,9 @@ if (! function_exists("getter")) {
 
         return new GetterProperty($callback);
     }
+}
+
+function app()
+{
+    return Application::getInstance();
 }
