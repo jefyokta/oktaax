@@ -19,11 +19,22 @@ $app->get("/", function () {
     return "ok";
 });
 
+$app->get("/another", function () {
+
+    app()->worker->send(["test"]);
+    return "okok";
+});
+
 
 
 
 $app->listen(3000, function ($url) {
-    app()->container(EventEmitter::class)->on("test",function ($e) {
-        Console::log("emitted to worker",app()->worker->name);
+    app()->container(EventEmitter::class)->on("test", function ($e) {
+        Console::log("received by worker %s, emitted by %s", app()->worker->name, $e->sender['name']);
     });
+    if (!app()->worker->isTaskWorker()) {
+        app()->worker->onMessage = function (Event $e) {
+            Console::log($e);
+        };
+    }
 });

@@ -5,8 +5,6 @@ namespace Oktaax\Http;
 use Oktaax\Console;
 use Oktaax\Contracts\JsonScheme;
 use Oktaax\Core\Application;
-use Oktaax\Core\Configuration;
-use Oktaax\Exception\ClientClosed;
 use Oktaax\Http\Support\StreamedResponse;
 use Oktaax\Interfaces\Injectable;
 use Oktaax\Interfaces\View;

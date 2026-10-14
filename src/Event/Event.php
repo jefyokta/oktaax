@@ -12,7 +12,7 @@ class Event
 
     public  readonly string $name;
 
-    public readonly ?array $sender;
+    public ?array $sender ;
 
     public function __construct(
         string $eventName,

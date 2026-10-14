@@ -16,6 +16,7 @@ use ReflectionParameter;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebsocketServer;
 
+
 /**
  * @extends Event<array{Server|WebsocketServer,int}>
  */
@@ -57,6 +58,7 @@ class WorkerStart extends Event
                     Application::class => $app,
                     OktaaxWebsocketServer::class => new OktaaxWebsocketServer($server, new Client(-1)),
                     URL::class => $this->url,
+                    Worker::class => $app->worker,
                     default => null
                 };
             })

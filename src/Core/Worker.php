@@ -2,6 +2,8 @@
 
 namespace Oktaax\Core;
 
+use Closure;
+use Oktaax\Event\WorkerMessagedEvent;
 use Swoole\Http\Server;
 use Swoole\Timer;
 
@@ -11,11 +13,19 @@ class Worker
 {
     public string $name;
     public int $pid;
+
+    /**
+     * handle swoole pipemessage event
+     * @var Closure(WorkerMessagedEvent $e) 
+     */
+    public ?Closure $onMessage = null;
+
+
     public function __construct(public int $id, private $taskWorker = false)
     {
         $this->pid = posix_getpid();
         $this->name = ($this->taskWorker ? "taskworker" : "worker") . "." . $id;
-        swoole_set_process_name("php " . $this->name);
+        swoole_set_process_name((string)"php " . $this->name);
     }
 
     public function isTaskWorker()
@@ -35,7 +45,6 @@ class Worker
         $server = app()->container(Server::class);
 
         if (null !== $toWorkerId) {
-
             $server->sendMessage($data, $toWorkerId);
             return;
         }
@@ -49,4 +58,5 @@ class Worker
             $server->sendMessage($data, $i);
         }
     }
+   
 };

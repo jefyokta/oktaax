@@ -23,6 +23,7 @@ use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\TableRegistery;
 use Oktaax\Core\URL;
 use Oktaax\Event\EventEmitter;
+use Oktaax\Event\WorkerMessagedEvent;
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
@@ -287,6 +288,11 @@ class Oktaax
             if ($data instanceof Event\Event) {
                 Console::log($data);
                 app()->container(EventEmitter::class)->emit($data->name, ...$data->data);
+                return;
+            }
+
+            if (app()->worker->onMessage !== null) {
+                (app()->worker->onMessage)(new WorkerMessagedEvent($_fromWorkerId, $data));
                 return;
             }
         });
