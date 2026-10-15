@@ -3,6 +3,7 @@
 namespace Oktaax\Event;
 
 use Closure;
+use Oktaax\Exception\EventDispatchException;
 
 class EventEmitter
 {
@@ -94,20 +95,32 @@ class EventEmitter
     /**
      * Dispatch an event to its registered listeners.
      */
-    public function emit(string $event, array|Event $payload=[]): self
+    public function emit(string $event, array|Event $payload = []): self
     {
         $listeners = $this->listeners[$event] ?? [];
         $onceListeners = $this->onceListeners[$event] ?? [];
         $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
-
+        $errors = [];
         unset($this->onceListeners[$event]);
 
         foreach ($listeners as $listener) {
-            $listener($ev);
+
+            try {
+                $listener($ev);
+            } catch (\Throwable $th) {
+                $errors[] = $th;
+            }
         }
 
         foreach ($onceListeners as $listener) {
-            $listener($ev);
+            try {
+                $listener($ev);
+            } catch (\Throwable $th) {
+                $errors[] = $th;
+            }
+        }
+        if (!empty($errors)) {
+            throw new EventDispatchException($event, $errors);
         }
 
         return $this;

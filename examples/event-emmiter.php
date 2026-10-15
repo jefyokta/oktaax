@@ -11,36 +11,20 @@ use function Oktaax\Utils\app;
 
 require __DIR__ . '/../vendor/autoload.php';
 
-$app = new Oktaax();
 
-$app->setServer("worker_num", 4);
+$emiter = new EventEmitter;
 
-$app->get("/dispatch", function () {
-    $server = app()->container(Server::class);
-    $current_worker_id = app()->worker->id;
 
-    $total_workers = $server->setting['worker_num'] ?? 4;
-
-    $payload = _o(
-        from:$current_worker_id,
-        message:"hello from $current_worker_id!\n"
-    );
-
-    for ($i = 0; $i < $total_workers; $i++) {
-        if ($i === $current_worker_id) {
-            continue;
-        }
-
-        $server->sendMessage($payload, $i);
-    }
-
-    return "ok";
+$emiter->on("test", function ($e) {
+    throw new Error("test");
 });
 
-
-$app->on('PipeMessage', function (Swoole\Http\Server $server, int $src_worker_id, mixed $message) {
-
-    var_dump($message);
+$emiter->on("test", function ($e) {
+    // throw new Error("test");
+    Console::log("test");
+});
+$emiter->on("test", function ($e) {
+    throw new Error("test2");
 });
 
-$app->listen(3000);
+$emiter->emit("test");

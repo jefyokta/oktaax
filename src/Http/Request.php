@@ -41,6 +41,7 @@
 
 namespace Oktaax\Http;
 
+use Oktaax\Console;
 use Oktaax\Core\Container;
 use Oktaax\Event\EventEmitter;
 use Oktaax\Exception\ValidationException;
@@ -509,7 +510,7 @@ class Request implements Stringable, Injectable
 
     public function isAjax()
     {
-        return null !== ($this->headers['x-request-with']) && $this->headers['x-request-with'] === 'XMLHttpRequest';
+        return null !== ($this->headers['x-requested-with']) && $this->headers['x-requested-with'] === 'XMLHttpRequest';
     }
 
     public function xhr()
@@ -543,4 +544,5 @@ class Request implements Stringable, Injectable
     {
         return $this->request->get[$key] ?? $default;
     }
+
 }

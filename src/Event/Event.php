@@ -21,7 +21,7 @@ class Event
     ) {
         $this->name = $eventName;
 
-        if (app()) {
+        if (app()->worker) {
             $this->sender = [
                 "name" => app()->worker->name,
                 "id" => app()->worker->id

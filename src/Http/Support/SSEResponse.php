@@ -86,44 +86,45 @@ class SSEResponse
 
         try {
             $this->assertWritable();
+
+
+            if (isset($options['event'])) {
+                $this->writeField('event', (string) $options['event']);
+            }
+
+            if (isset($options['id'])) {
+                $id = (string) $options['id'];
+
+                if (str_contains($id, "\0")) {
+                    throw new InvalidArgumentException(
+                        'SSE event ID cannot contain a null character.'
+                    );
+                }
+
+                $this->writeField('id', $id);
+            }
+
+            if (isset($options['retry'])) {
+                if (
+                    !\is_int($options['retry'])
+                    || $options['retry'] < 0
+                ) {
+                    throw new InvalidArgumentException(
+                        'SSE retry must be a non-negative integer.'
+                    );
+                }
+
+                $this->writeField(
+                    'retry',
+                    (string) $options['retry']
+                );
+            }
+
+            $this->writeData($data);
         } catch (\Throwable $th) {
             $this->stop();
             $this->eventEmitter->emit("close", ["error" => $th]);
         }
-
-        if (isset($options['event'])) {
-            $this->writeField('event', (string) $options['event']);
-        }
-
-        if (isset($options['id'])) {
-            $id = (string) $options['id'];
-
-            if (str_contains($id, "\0")) {
-                throw new InvalidArgumentException(
-                    'SSE event ID cannot contain a null character.'
-                );
-            }
-
-            $this->writeField('id', $id);
-        }
-
-        if (isset($options['retry'])) {
-            if (
-                !\is_int($options['retry'])
-                || $options['retry'] < 0
-            ) {
-                throw new InvalidArgumentException(
-                    'SSE retry must be a non-negative integer.'
-                );
-            }
-
-            $this->writeField(
-                'retry',
-                (string) $options['retry']
-            );
-        }
-
-        $this->writeData($data);
     }
 
     /**

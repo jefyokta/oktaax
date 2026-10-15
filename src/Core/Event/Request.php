@@ -11,6 +11,8 @@ use Swoole\Coroutine;
 use Swoole\Http\Request as SwooleRequest;
 use Swoole\Http\Response as SwooleResponse;
 
+use function Oktaax\Utils\app;
+
 /**
  * @extends Event<array{SwooleRequest,SwooleResponse>}
  */
@@ -30,7 +32,12 @@ class Request extends Event
         $request = HttpRequest::create($req);
 
         $response = new Response($res);
-        Application::setContext($request, $response)
-            ->handle();
+        try {
+            Application::setContext($request, $response)
+                ->handle();
+        } finally {
+            unset($request, $response, $req, $res);
+            
+        }
     }
 }

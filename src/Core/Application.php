@@ -37,7 +37,7 @@ class Application
     /**
      * Worker instance (assigned during server bootstrap)
      */
-    public Worker $worker;
+    public ?Worker $worker = null;
 
     /**
      * Singleton instance
@@ -65,9 +65,7 @@ class Application
      */
     private array $finallyCallbacks = [];
 
-    // Fast access - no coroutine context lookup
-    private static ?Request $currentRequest = null;
-    private static ?Response $currentResponse = null;
+
 
     private function __construct()
     {
@@ -78,6 +76,8 @@ class Application
 
         $this->context = new Context();
     }
+
+    public function refresh(){}
 
     /**
      * Create application request context
@@ -90,8 +90,7 @@ class Application
     {
         $app =  self::getInstance();
 
-        self::$currentRequest = $request;
-        self::$currentResponse = $response;
+     
 
         $app->context->set(Request::class, $request);
         $app->context->set(Response::class, $response);
@@ -102,7 +101,7 @@ class Application
     }
     public  static function setServer(Server | WebSocketServer $server)
     {
-        
+
         Container::register(Server::class, $server);
     }
     public static function server()
@@ -141,17 +140,19 @@ class Application
     /**
      * Get current request - direct property access, no context lookup
      */
-    public static function getRequest(): ?Request
+    public static function getRequest($explicit = false): ?Request
     {
-        return self::$currentRequest;
+            return self::context()->get(Request::class);
+  
     }
 
     /**
      * Get current response - direct property access, no context lookup
      */
-    public static function getResponse(): ?Response
+    public static function getResponse($explicit = false): ?Response
     {
-        return self::$currentResponse;
+            return self::context()->get(Response::class);
+        
     }
 
     /**
@@ -258,8 +259,8 @@ class Application
             throw new \RuntimeException("Application context has not been created.");
         }
 
-        $request = self::$currentRequest;
-        $response = self::$currentResponse;
+        $request = self::context()->request();
+        $response = self::context()->response();
 
         try {
             $result = Router::handle($request, $response);
@@ -274,8 +275,7 @@ class Application
                 $callback($request, $response);
             }
 
-            self::$currentRequest = null;
-            self::$currentResponse = null;
+
 
             $this->context->destroy();
             self::$booted = false;

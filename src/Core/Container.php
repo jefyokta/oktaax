@@ -3,6 +3,7 @@
 namespace Oktaax\Core;
 
 use Closure;
+use InvalidArgumentException;
 
 class Container
 {
@@ -39,6 +40,9 @@ class Container
 
     public static function alias(string $alias, string $serviceKey)
     {
+        if (!isset(self::$container[$serviceKey])) {
+            throw new InvalidArgumentException("cannot aliasing for non existence service");
+        }
         self::$aliases[$alias] = $serviceKey;
     }
 }

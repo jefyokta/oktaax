@@ -6,9 +6,7 @@ use Closure;
 
 class StreamedResponse
 {
-    /**
-     * Callback yang menghasilkan stream
-     */
+   
     protected Closure $callback;
 
     /**

@@ -266,12 +266,9 @@ class Response implements Injectable
 
         $this->content = $content;
 
-        // Only set status if not default 200
         if ($this->status !== 200) {
             $this->response->status($this->status);
         }
-
-        // Set headers only if any are set
         if (!empty($this->headers)) {
             foreach ($this->headers as $key => $value) {
                 $this->response->header($key, $value);
@@ -286,6 +283,7 @@ class Response implements Injectable
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
+        $this->response->end();
         Application::getRequest()->close();
     }
 

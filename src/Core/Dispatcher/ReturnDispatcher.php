@@ -81,6 +81,8 @@ class ReturnDispatcher
             return;
         }
 
+       
+
 
         $type = \is_object($result) ? $result::class : \gettype($result);
 
