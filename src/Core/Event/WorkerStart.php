@@ -3,8 +3,12 @@
 namespace Oktaax\Core\Event;
 
 use Oktaax\Core\Application;
+use Oktaax\Core\Configuration;
+use Oktaax\Core\Container;
 use Oktaax\Core\URL;
 use Oktaax\Core\Worker;
+use Oktaax\Event\EventEmitter;
+use Oktaax\Event\MultiWorkerEventEmitter;
 use Oktaax\Utils\Invoker;
 use Oktaax\Exception\HttpException;
 use Oktaax\Exception\ValidationException;
@@ -16,6 +20,7 @@ use ReflectionParameter;
 use Swoole\Http\Server;
 use Swoole\WebSocket\Server as WebsocketServer;
 
+use function Oktaax\Utils\app;
 
 /**
  * @extends Event<array{Server|WebsocketServer,int}>
@@ -45,7 +50,14 @@ class WorkerStart extends Event
         if ($this->callback === null) {
             return;
         }
-
+        Container::register(EventEmitter::class, function () {
+            $workerNum = Configuration::get("server.worker_num", 1);
+            if ($workerNum > 1) {
+                return new MultiWorkerEventEmitter;
+            }
+            return new  EventEmitter;
+        });
+        Container::alias('event', EventEmitter::class);
         $this->invoker
             ->addContext($app)
             ->addContext($server)

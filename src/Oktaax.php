@@ -17,13 +17,12 @@ use Oktaax\Core\Application;
 use Oktaax\Core\Configuration;
 use Oktaax\Core\Container;
 use Oktaax\Core\Event\Finish;
+use Oktaax\Core\Event\PipeMessage;
 use Oktaax\Core\Event\Request as EventRequest;
 use Oktaax\Core\Event\Task;
 use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\TableRegistery;
 use Oktaax\Core\URL;
-use Oktaax\Event\EventEmitter;
-use Oktaax\Event\WorkerMessagedEvent;
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
@@ -121,8 +120,6 @@ class Oktaax
         Container::register(HttpServer::class, $this->server);
 
         Container::register(TableRegistery::class, new TableRegistery);
-        Container::register(EventEmitter::class, new EventEmitter);
-        Container::alias('event', EventEmitter::class);
     }
 
 
@@ -285,16 +282,7 @@ class Oktaax
     protected function onPipeMessage()
     {
         $this->server->on("pipemessage", function ($_server, $_fromWorkerId, $data) {
-            if ($data instanceof Event\Event) {
-                Console::log($data);
-                app()->container(EventEmitter::class)->emit($data->name, ...$data->data);
-                return;
-            }
-
-            if (app()->worker->onMessage !== null) {
-                (app()->worker->onMessage)(new WorkerMessagedEvent($_fromWorkerId, $data));
-                return;
-            }
+            return (new PipeMessage())->handle($_server, $_fromWorkerId, $data);
         });
     }
 

@@ -24,8 +24,8 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.0",
-        "firebase/php-jwt": "^6.10",
-        "jefyokta/php-promise": "^0.0.3"
+        "firebase/php-jwt": "^7.2",
+        "jefyokta/php-promise": "^0.0.4"
         },
     "repositories": [
         {
@@ -34,7 +34,7 @@
         }
     ],
     "require-dev": {
-        "pestphp/pest": "^3.8",
+        "pestphp/pest": "^5.3",
         "mockery/mockery": "^1.6",
         "swoole/ide-helper": "@dev",
         "phpstan/phpstan": "^2.2"

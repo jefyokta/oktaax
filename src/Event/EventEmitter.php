@@ -12,14 +12,14 @@ class EventEmitter
      *
      * @var array<string, array<int, Closure(Event $ev):mixed>>
      */
-    private array $listeners = [];
+    protected array $listeners = [];
 
     /**
      * Registered one-time event listeners.
      *
      * @var array<string, array<int, Closure(Event $ev):mixed>>
      */
-    private array $onceListeners = [];
+    protected array $onceListeners = [];
 
     /**
      * Register an event listener.
