@@ -14,12 +14,6 @@ class EventEmitter
      */
     protected array $listeners = [];
 
-    /**
-     * Registered one-time event listeners.
-     *
-     * @var array<string, array<int, Closure(Event $ev):mixed>>
-     */
-    protected array $onceListeners = [];
 
     /**
      * Register an event listener.
@@ -44,9 +38,12 @@ class EventEmitter
      */
     public function once(string $event, callable $listener): self
     {
-        $this->onceListeners[$event][] = Closure::fromCallable($listener);
+        $once = function (...$args) use ($event, $listener, &$once) {
 
-        return $this;
+            $this->off($event, $once);
+            $listener(...$args);
+        };
+        return $this->on($event, $once);
     }
 
     /**
@@ -64,29 +61,21 @@ class EventEmitter
         if ($listener === null) {
             unset(
                 $this->listeners[$event],
-                $this->onceListeners[$event],
             );
 
             return $this;
         }
 
         $target = Closure::fromCallable($listener);
+        if ($this->listeners[$event] === []) {
+            unset($this->listeners[$event]);
+        }
 
-        foreach (['listeners', 'onceListeners'] as $property) {
-            if (!isset($this->{$property}[$event])) {
-                continue;
-            }
-
-            $this->{$property}[$event] = array_values(
-                array_filter(
-                    $this->{$property}[$event],
-                    static fn(Closure $registered): bool => $registered !== $target,
-                ),
-            );
-
-            if ($this->{$property}[$event] === []) {
-                unset($this->{$property}[$event]);
-            }
+        if (isset($this->listeners[$event])) {
+            $this->listeners[$event] = array_values(array_filter(
+                $this->listeners[$event],
+                static fn(Closure $registered): bool => $registered !== $target
+            ));
         }
 
         return $this;
@@ -98,10 +87,8 @@ class EventEmitter
     public function emit(string $event, array|Event $payload = []): self
     {
         $listeners = $this->listeners[$event] ?? [];
-        $onceListeners = $this->onceListeners[$event] ?? [];
         $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
         $errors = [];
-        unset($this->onceListeners[$event]);
 
         foreach ($listeners as $listener) {
 
@@ -112,13 +99,7 @@ class EventEmitter
             }
         }
 
-        foreach ($onceListeners as $listener) {
-            try {
-                $listener($ev);
-            } catch (\Throwable $th) {
-                $errors[] = $th;
-            }
-        }
+
         if (!empty($errors)) {
             throw new EventDispatchException($event, $errors);
         }
@@ -131,8 +112,7 @@ class EventEmitter
      */
     public function hasListeners(string $event): bool
     {
-        return !empty($this->listeners[$event])
-            || !empty($this->onceListeners[$event]);
+        return !empty($this->listeners[$event]);
     }
 
     /**
@@ -140,8 +120,7 @@ class EventEmitter
      */
     public function listenerCount(string $event): int
     {
-        return \count($this->listeners[$event] ?? [])
-            + \count($this->onceListeners[$event] ?? []);
+        return \count($this->listeners[$event] ?? []);
     }
 
     /**
@@ -150,7 +129,6 @@ class EventEmitter
     public function clear(): self
     {
         $this->listeners = [];
-        $this->onceListeners = [];
 
         return $this;
     }

@@ -77,8 +77,6 @@ class Application
         $this->context = new Context();
     }
 
-    public function refresh(){}
-
     /**
      * Create application request context
      *
@@ -90,7 +88,7 @@ class Application
     {
         $app =  self::getInstance();
 
-     
+
 
         $app->context->set(Request::class, $request);
         $app->context->set(Response::class, $response);
@@ -103,6 +101,11 @@ class Application
     {
 
         Container::register(Server::class, $server);
+    }
+
+    public static function setInstance(Application $app){
+
+        self::$instance = $app;
     }
     public static function server()
     {
@@ -140,19 +143,28 @@ class Application
     /**
      * Get current request - direct property access, no context lookup
      */
-    public static function getRequest($explicit = false): ?Request
+    public static function getRequest(): ?Request
     {
-            return self::context()->get(Request::class);
-  
+        return self::context()->get(Request::class);
+    }
+
+    /**
+     * Create fresh application
+     * @return Application
+     */
+    public static function createApplication(): Application
+    {
+        self::$instance = new static;
+
+        return self::$instance;
     }
 
     /**
      * Get current response - direct property access, no context lookup
      */
-    public static function getResponse($explicit = false): ?Response
+    public static function getResponse(): ?Response
     {
-            return self::context()->get(Response::class);
-        
+        return self::context()->get(Response::class);
     }
 
     /**

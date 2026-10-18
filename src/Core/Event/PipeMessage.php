@@ -22,9 +22,12 @@ class PipeMessage extends Event
     #[Override]
     public function handle(...$args): void
     {
-        [$server, $src, $data] = $this->unpack(...$args);
+        [$_, $src, $data] = $this->unpack(...$args);
         if ($data instanceof Ev) {
-            app()->container(EventEmitter::class)->emit($data->name, ...$data->data);
+            /**
+             * @disregard
+             */
+            app()->container(EventEmitter::class)->_emit($data->name, ...$data->data);
             return;
         }
 

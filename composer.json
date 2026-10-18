@@ -25,7 +25,8 @@
     "require": {
         "php": ">=8.0",
         "firebase/php-jwt": "^7.2",
-        "jefyokta/php-promise": "^0.0.4"
+        "jefyokta/php-promise": "^0.0.4",
+        "nikic/fast-route": "^1.3"
         },
     "repositories": [
         {

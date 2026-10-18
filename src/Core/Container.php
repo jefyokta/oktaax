@@ -35,7 +35,13 @@ class Container
      */
     public static function get(string $service)
     {
-        return self::$container[$service] ?? self::$container[self::$aliases[$service]];
+        if (isset(self::$container[$service])) {
+            return self::$container[$service];
+        }
+        if (isset(self::$container[self::$aliases[$service]])) {
+            return self::$container[self::$aliases[$service]];
+        }
+        return null;
     }
 
     public static function alias(string $alias, string $serviceKey)

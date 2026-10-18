@@ -61,6 +61,7 @@ it('does not leak request/response after handle', function () {
     $request = new FakeRequest($swooleRequest);
     $response = new OktaaxResponse(
         $swooleResponse,
+        $request
     );
 
     $router = new Router();
@@ -85,6 +86,7 @@ it('lets application inject request/response helpers, register catcher and respo
     $request = new FakeRequest($swooleRequest);
     $response = new OktaaxResponse(
         $swooleResponse,
+        $request
     );
 
     class DummyResult {}

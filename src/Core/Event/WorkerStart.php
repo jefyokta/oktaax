@@ -3,12 +3,9 @@
 namespace Oktaax\Core\Event;
 
 use Oktaax\Core\Application;
-use Oktaax\Core\Configuration;
-use Oktaax\Core\Container;
+
 use Oktaax\Core\URL;
 use Oktaax\Core\Worker;
-use Oktaax\Event\EventEmitter;
-use Oktaax\Event\MultiWorkerEventEmitter;
 use Oktaax\Utils\Invoker;
 use Oktaax\Exception\HttpException;
 use Oktaax\Exception\ValidationException;
@@ -46,19 +43,13 @@ class WorkerStart extends Event
 
         $app = Application::getInstance();
         $app->worker = new Worker($workerId, $server->taskworker ?? false);
+       
+        
 
         if ($this->callback === null) {
             return;
         }
-        Container::register(EventEmitter::class, function () {
-            $workerNum = Configuration::get("server.worker_num", 1);
-            if ($workerNum > 1) {
-                return new MultiWorkerEventEmitter;
-            }
-            return new  EventEmitter;
-        });
-        Container::alias('event', EventEmitter::class);
-        $this->invoker
+          $this->invoker
             ->addContext($app)
             ->addContext($server)
             ->setResolver(function (ReflectionParameter $param, array $contexts) use ($server, $app) {

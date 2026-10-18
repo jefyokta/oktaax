@@ -31,13 +31,12 @@ class Request extends Event
 
         $request = HttpRequest::create($req);
 
-        $response = new Response($res);
+        $response = new Response($res, $request);
         try {
             Application::setContext($request, $response)
                 ->handle();
         } finally {
             unset($request, $response, $req, $res);
-            
         }
     }
 }

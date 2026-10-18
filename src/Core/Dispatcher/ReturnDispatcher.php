@@ -14,6 +14,10 @@ use Stringable;
 
 class ReturnDispatcher
 {
+    /**
+     * Summary of handlers
+     * @var array<string,callable(mixed, Request, Response)>
+     */
     private static array $handlers = [];
 
     public function register(string $type, \Closure $handler): void
@@ -81,7 +85,7 @@ class ReturnDispatcher
             return;
         }
 
-       
+
 
 
         $type = \is_object($result) ? $result::class : \gettype($result);
@@ -90,6 +94,15 @@ class ReturnDispatcher
             (self::$handlers[$type])($result, $req, $res);
             $req->close();
             return;
+        }
+        if (\is_object($res)) {
+            foreach (self::$handlers as $key => $value) {
+                if (class_exists($key) && is_subclass_of($res, $key, false)) {
+                    ($value)($result, $req, $res);
+                    $req->close();
+                    return;
+                }
+            }
         }
         $req->close();
         throw new \RuntimeException("Unhandled return type: $type");

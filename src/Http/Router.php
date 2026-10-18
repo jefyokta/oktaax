@@ -2,9 +2,10 @@
 
 namespace Oktaax\Http;
 
-use Oktaax\Contracts\Middleware;
-use Oktaax\Core\Application;
-use Oktaax\Core\Configuration;
+use FastRoute\DataGenerator\MarkBased;
+use FastRoute\Dispatcher\GroupCountBased;
+use FastRoute\RouteCollector;
+use FastRoute\RouteParser\Std;
 use Oktaax\Exception\HttpException;
 
 class Router
@@ -21,6 +22,16 @@ class Router
 
     private static array $currentMiddleware = [];
 
+    private static ?RouteCollector $collector=null;
+
+    public function collector()
+    {
+        if (! self::$collector) {
+            self::$collector = new RouteCollector(new Std, new MarkBased);
+        }
+        return self::$collector;
+    }
+
     private function addRoute(string $path, string $method, string|callable|array $handler, array $middlewares)
     {
         $middlewares = [
@@ -29,58 +40,52 @@ class Router
             ...$middlewares
         ];
 
-        $route = new Route($path, $method, $handler, $middlewares);
-
-        if ($route->isDynamic()) {
-            self::$dynamicRoutes[$method][] = $route;
-        } else {
-            self::$routes[$method][$path] = $route;
-        }
+        self::collector()->addRoute($method, $path, new CallStack(...[...$middlewares, $handler]));
     }
 
-    public function get(string $path, string|callable|array $callback, ...$middlewares)
+    public function get(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "GET", $callback, $middlewares);
         return $this;
     }
 
-    public function post(string $path, string|callable|array $callback, ...$middlewares)
+    public function post(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "POST", $callback, $middlewares);
         return $this;
     }
 
-    public function put(string $path, string|callable|array $callback, ...$middlewares)
+    public function put(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "PUT", $callback, $middlewares);
         return $this;
     }
 
-    public function delete(string $path, string|callable|array $callback, ...$middlewares)
+    public function delete(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "DELETE", $callback, $middlewares);
         return $this;
     }
 
-    public function patch(string $path, string|callable|array $callback, ...$middlewares)
+    public function patch(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "PATCH", $callback, $middlewares);
         return $this;
     }
 
-    public function options(string $path, string|callable|array $callback, ...$middlewares)
+    public function options(string $path, string|callable|array $callback, mixed ...$middlewares)
     {
         $this->addRoute($path, "OPTIONS", $callback, $middlewares);
         return $this;
     }
 
-    public function head(string $path, string|callable|array $callback, ...$middlewares)
+    public function head(string $path, string|callable|array $callback,mixed ...$middlewares)
     {
         $this->addRoute($path, "HEAD", $callback, $middlewares);
         return $this;
     }
 
-    public function use(...$middlewares)
+    public function use(mixed ...$middlewares)
     {
         self::$globalMiddlewares = [
             ...self::$globalMiddlewares,
@@ -90,11 +95,11 @@ class Router
         return $this;
     }
 
-    public function middleware($middlewares, callable $callback)
+    public function middleware(callable |array $middlewares, callable $callback)
     {
-        self::$currentMiddleware = \is_array($middlewares)
-            ? $middlewares
-            : [$middlewares];
+        self::$currentMiddleware = \is_callable($middlewares)
+            ? [$middlewares]
+            : $middlewares;
 
         $callback($this);
 
@@ -106,10 +111,15 @@ class Router
     {
         $url = $request->uri;
         $method = $request->getMethod();
+        $dispatcher = new GroupCountBased(self::$collector->getData());
 
-        [$route, $params] = self::findHandler($url, $method);
+        [$stat, $handler, $param] =  $dispatcher->dispatch($method, $url);
+        if ($stat !== \FastRoute\Dispatcher::FOUND) {
+            throw new HttpException(statusCode: 404, message: "Not Found");
+        }
+        $request->params = $param;
+        return $handler($request, $response);
 
-        return $route->terminate($request, $response, $params);
     }
 
     /**
@@ -137,4 +147,6 @@ class Router
             message: "Not Found"
         );
     }
+
+
 }

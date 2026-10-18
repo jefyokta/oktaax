@@ -37,7 +37,9 @@
 
 
 namespace Oktaax\Types;
-
+/**
+ * @deprecated message
+ */
 class AppConfig
 {
 

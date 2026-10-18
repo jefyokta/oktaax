@@ -42,7 +42,7 @@ namespace Oktaax\Http\Support;
 
 class Validation
 {
-    protected static $rules;
+    protected static array $rules;
     public  array $errors = [];
 
     public function register(string $rule, callable $callback)

@@ -14,10 +14,8 @@ class MultiWorkerEventEmitter extends EventEmitter
     public function emit(string $event, array|Event $payload = []): EventEmitter
     {
         $listeners = $this->listeners[$event] ?? [];
-        $onceListeners = $this->onceListeners[$event] ?? [];
         $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
         $errors = [];
-        unset($this->onceListeners[$event]);
 
         foreach ($listeners as $listener) {
             try {
@@ -27,18 +25,15 @@ class MultiWorkerEventEmitter extends EventEmitter
             }
         }
 
-        foreach ($onceListeners as $listener) {
-            try {
-                $listener($ev);
-            } catch (\Throwable $th) {
-                $errors[] = $th;
-            }
-        }
         app()->worker->send($ev);
         if (!empty($errors)) {
             throw new EventDispatchException($event, $errors);
         }
 
         return $this;
+    }
+
+    public function _emit(string $event, array|Event $payload = []){
+        return parent::emit(...func_get_args());
     }
 }

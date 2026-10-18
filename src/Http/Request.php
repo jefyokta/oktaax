@@ -51,11 +51,13 @@ use Swoole\Http\Request as HttpRequest;
 use Stringable;
 use Swoole\Http\Server;
 
+use function Oktaax\Utils\app;
 use function Oktaax\Utils\clearInterval;
 use function Oktaax\Utils\setInterval;
 
 /**
  * @package Oktaax\Http
+ * @mixin HttpRequest
  */
 
 class Request implements Stringable, Injectable
@@ -154,10 +156,10 @@ class Request implements Stringable, Injectable
      * this method must called very early 
      * @example ```php
      * $app->get("/bad",function(){
-     * tookLongTimeFn();
-     * $req->onClose(function(){
-     * echo "req closed";
-     * });
+     *   tookLongTimeFn();
+     *   $req->onClose(function(){
+     *    echo "req closed";
+     *    });
      * });
      * 
      * $app->get("/good",function(){
@@ -167,32 +169,27 @@ class Request implements Stringable, Injectable
      * tookLongTimeFn();
      * });
      * ```
-     * @param callable $callback
+     * @param callable $
+     * @param ?bool $interval
      * @return void
      */
-    public function onClose(callable $callback)
+    public function onClose(callable $callback, ?bool $interval = false)
     {
-        $id = null;
 
-        $this->emitter->once("close", function () use ($callback, &$id) {
-            if ($id !== null) {
-                clearInterval($id);
-                $id = null;
-            }
-
-            $callback();
-        });
-
-        $id = setInterval(function () {
-            if (!Container::get(Server::class)->getClientInfo($this->fd)) {
-                $this->emitter->emit("close");
-            }
-        }, 10);
+        $this->emitter->once("close", $callback);
+        if ($interval) {
+            setInterval(function ($timer) {
+                if (!app()->server()->getClientInfo($this->fd)) {
+                    $this->emitter->emit("close");
+                    clearInterval($timer);
+                }
+            }, 10);
+        }
     }
 
-    public function close()
+    public function close($aborted = false)
     {
-        $this->emitter->emit("close");
+        $this->emitter->emit("close", ["aborted" => $aborted]);
     }
 
     /**
@@ -202,7 +199,7 @@ class Request implements Stringable, Injectable
      */
     public function __set($name, $value)
     {
-        
+
         $this->attributes[$name] = $value;
     }
 
@@ -544,5 +541,4 @@ class Request implements Stringable, Injectable
     {
         return $this->request->get[$key] ?? $default;
     }
-
 }

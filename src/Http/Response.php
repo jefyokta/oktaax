@@ -31,11 +31,14 @@ class Response implements Injectable
 
     protected static array $injected = [];
 
+
     public function __construct(
         SwooleResponse $response,
+        protected   Request $request
     ) {
 
         $this->response = $response;
+        $this->request = $request;
     }
     public function swoole()
     {
@@ -150,7 +153,7 @@ class Response implements Injectable
     {
 
         $this->redirect(
-            Application::getRequest()->header("referer") ?? $default
+            $this->request?->header("referer") ?? $default
         );
     }
 
@@ -251,9 +254,9 @@ class Response implements Injectable
     {
 
         $sent = $this->response->write($data);
-        // if (!$sent) {
-        //     throw new ClientClosed();
-        // }
+        if (!$sent) {
+            $this->request?->close(true);
+        }
     }
 
 
@@ -261,6 +264,7 @@ class Response implements Injectable
     {
 
         if (!$this->response->isWritable()) {
+            $this->request?->close(true);
             return;
         }
 
@@ -278,13 +282,14 @@ class Response implements Injectable
         $contentLength = \strlen($content ?? '');
         if ($contentLength <= self::$chunkSize) {
             $this->response->end($content);
+            $this->request?->close();
             return;
         }
         for ($i = 0; $i < $contentLength; $i += self::$chunkSize) {
             $this->write(substr($this->content, $i, self::$chunkSize));
         }
         $this->response->end();
-        Application::getRequest()->close();
+        $this->request?->close();
     }
 
     function isEnded()
@@ -302,7 +307,7 @@ class Response implements Injectable
 
         ob_start();
 
-        $req =  Application::getRequest();
+        $req =  $this->request;
         $status = $this->status;
         $title = $title[$code] ?? $code;
 

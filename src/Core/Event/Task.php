@@ -2,8 +2,6 @@
 
 namespace Oktaax\Core\Event;
 
-use Oktaax\Console;
-use Oktaax\Core\Application;
 use Oktaax\Core\Task\Catchable;
 use Throwable;
 use Swoole\Http\Server as HttpServer;

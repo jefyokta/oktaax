@@ -40,6 +40,9 @@ namespace Oktaax\Types;
 
 use Oktaax\Interfaces\View;
 
+/**
+ * @deprecated message
+ */
 class OktaaxConfig
 {
     public function __construct(

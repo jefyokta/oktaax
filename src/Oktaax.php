@@ -23,6 +23,8 @@ use Oktaax\Core\Event\Task;
 use Oktaax\Core\Event\WorkerStart;
 use Oktaax\Core\TableRegistery;
 use Oktaax\Core\URL;
+use Oktaax\Event\EventEmitter;
+use Oktaax\Event\MultiWorkerEventEmitter;
 use Oktaax\Http\Router;
 use Oktaax\Interfaces\View;
 use Oktaax\Types\AppConfig;
@@ -62,7 +64,7 @@ class Oktaax
     protected Router $router;
 
 
-    protected $startCallback;
+    protected mixed $startCallback;
 
     /**
      * Registered custom events.
@@ -85,7 +87,6 @@ class Oktaax
         Configuration::set("server.hook_flags", SWOOLE_HOOK_ALL);
         Container::register(View::class, new PhpView("views/"));
         Container::alias("view", View::class);
-        Container::register(AppConfig::class, new AppConfig(null, false, 300, 'Oktaax'));
         $this->router = new Router();
     }
 
@@ -222,12 +223,20 @@ class Oktaax
 
         $this->init();
         $this->callIfExists('boot');
-
         $this->callIfExists('eventRegistery');
         $this->startCallback = is_callable($hostOrCallback) ? $hostOrCallback : $callback;
+        $this->server->set(Configuration::get('server', []));
+
+        Container::register(EventEmitter::class, function () {
+            $workerNum = Configuration::get("server.worker_num", 1);
+            if ($workerNum > 1) {
+                return new MultiWorkerEventEmitter;
+            }
+            return new  EventEmitter;
+        });
+        Container::alias('event', EventEmitter::class);
         $this->registerCoreEvents();
         $this->registerCustomEvents();
-        $this->server->set(Configuration::get('server', []));
 
         $this->server->start();
     }
