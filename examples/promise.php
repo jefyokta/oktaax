@@ -1,18 +1,15 @@
 <?php
 
 use Oktaax\Console;
-use JefyOkta\PhpPromise\Promise;;
-
+use JefyOkta\PhpPromise\Promise;
 
 use function Oktaax\Utils\setTimeout;
 
-require_once __DIR__ . "/../vendor/autoload.php";
-
-
+require_once __DIR__ . '/../vendor/autoload.php';
 
 $promise = new Promise(function ($resolver, $p1) {
     setTimeout(function () use ($resolver) {
-        $resolver("ok");
+        $resolver('ok');
     }, 1000);
 });
 $asyncFn = async(function (int $number) use ($promise) {

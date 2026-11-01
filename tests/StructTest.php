@@ -5,12 +5,10 @@ use Oktaax\Utils\Struct;
 use function Oktaax\Utils\_o;
 
 describe('Struct basic behavior', function () {
-
     it('creates struct with named arguments', function () {
         $user = _o(name: 'Jefy', age: 22);
 
-        expect($user->name)->toBe('Jefy')
-            ->and($user->age)->toBe(22);
+        expect($user->name)->toBe('Jefy')->and($user->age)->toBe(22);
     });
 
     it('throws exception when using positional arguments', function () {
@@ -35,13 +33,12 @@ describe('Struct basic behavior', function () {
 });
 
 describe('Closure binding', function () {
-
     it('binds this correctly inside closure', function () {
         $user = _o(
             name: 'Jefy',
             greet: function () {
                 return 'Hello, ' . $this->name;
-            }
+            },
         );
 
         expect($user->greet())->toBe('Hello, Jefy');
@@ -52,7 +49,7 @@ describe('Closure binding', function () {
             count: 0,
             increment: function () {
                 $this->count++;
-            }
+            },
         );
 
         $counter->increment();
@@ -69,7 +66,7 @@ describe('Closure binding', function () {
             },
             greet: function () {
                 return 'Hi ' . $this->getName();
-            }
+            },
         );
 
         expect($user->greet())->toBe('Hi Jefy');
@@ -77,14 +74,12 @@ describe('Closure binding', function () {
 });
 
 describe('ArrayAccess behavior', function () {
-
     it('supports array syntax for get and set', function () {
         $user = _o(name: 'Jefy');
 
         $user['age'] = 22;
 
-        expect($user['name'])->toBe('Jefy')
-            ->and($user['age'])->toBe(22);
+        expect($user['name'])->toBe('Jefy')->and($user['age'])->toBe(22);
     });
 
     it('supports array push via reference', function () {
@@ -104,13 +99,15 @@ describe('ArrayAccess behavior', function () {
 });
 
 describe('Object static helpers', function () {
-
     it('returns keys values and entries', function () {
         $user = _o(name: 'Jefy', age: 22);
 
-        expect(Struct::keys($user))->toBe(['name', 'age'])
-            ->and(Struct::values($user))->toBe(['Jefy', 22])
-            ->and(Struct::entries($user))->toBe([
+        expect(Struct::keys($user))
+            ->toBe(['name', 'age'])
+            ->and(Struct::values($user))
+            ->toBe(['Jefy', 22])
+            ->and(Struct::entries($user))
+            ->toBe([
                 'name' => 'Jefy',
                 'age' => 22,
             ]);
@@ -119,8 +116,10 @@ describe('Object static helpers', function () {
     it('checks hasOwn property', function () {
         $user = _o(name: 'Jefy');
 
-        expect(Struct::hasOwn($user, 'name'))->toBeTrue()
-            ->and(Struct::hasOwn($user, 'unknown'))->toBeFalse();
+        expect(Struct::hasOwn($user, 'name'))
+            ->toBeTrue()
+            ->and(Struct::hasOwn($user, 'unknown'))
+            ->toBeFalse();
     });
 
     it('assigns properties from multiple sources', function () {
@@ -130,9 +129,12 @@ describe('Object static helpers', function () {
 
         Struct::assign($target, $source1, $source2);
 
-        expect($target->name)->toBe('Target')
-            ->and($target->age)->toBe(25)
-            ->and($target->city)->toBe('Pekanbaru');
+        expect($target->name)
+            ->toBe('Target')
+            ->and($target->age)
+            ->toBe(25)
+            ->and($target->city)
+            ->toBe('Pekanbaru');
     });
 
     it('overwrites existing properties during assign', function () {
@@ -152,29 +154,39 @@ describe('Object static helpers', function () {
 
         $object = Struct::fromEntries($entries);
 
-        expect($object->name)->toBe('From Entries')
-            ->and($object->age)->toBe(30);
+        expect($object->name)
+            ->toBe('From Entries')
+            ->and($object->age)
+            ->toBe(30);
     });
 });
 
 describe('Object.is behavior', function () {
-
     it('compares identical primitive values', function () {
-        expect(Struct::is(1, 1))->toBeTrue()
-            ->and(Struct::is('a', 'a'))->toBeTrue()
-            ->and(Struct::is(true, true))->toBeTrue();
+        expect(Struct::is(1, 1))
+            ->toBeTrue()
+            ->and(Struct::is('a', 'a'))
+            ->toBeTrue()
+            ->and(Struct::is(true, true))
+            ->toBeTrue();
     });
 
     it('distinguishes different primitive values', function () {
-        expect(Struct::is(1, 2))->toBeFalse()
-            ->and(Struct::is('a', 'b'))->toBeFalse()
-            ->and(Struct::is(true, false))->toBeFalse();
+        expect(Struct::is(1, 2))
+            ->toBeFalse()
+            ->and(Struct::is('a', 'b'))
+            ->toBeFalse()
+            ->and(Struct::is(true, false))
+            ->toBeFalse();
     });
 
     it('handles positive and negative zero correctly', function () {
-        expect(Struct::is(0.0, -0.0))->toBeFalse()
-            ->and(Struct::is(0.0, 0.0))->toBeTrue()
-            ->and(Struct::is(-0.0, -0.0))->toBeTrue();
+        expect(Struct::is(0.0, -0.0))
+            ->toBeFalse()
+            ->and(Struct::is(0.0, 0.0))
+            ->toBeTrue()
+            ->and(Struct::is(-0.0, -0.0))
+            ->toBeTrue();
     });
 
     it('treats NaN as equal to NaN', function () {
@@ -186,13 +198,14 @@ describe('Object.is behavior', function () {
         $b = _o(name: 'Jefy');
         $c = $a;
 
-        expect(Struct::is($a, $b))->toBeFalse()
-            ->and(Struct::is($a, $c))->toBeTrue();
+        expect(Struct::is($a, $b))
+            ->toBeFalse()
+            ->and(Struct::is($a, $c))
+            ->toBeTrue();
     });
 });
 
 describe('defineProperty and defineProperties', function () {
-
     it('defines read only property', function () {
         $user = _o(name: 'Jefy');
 
@@ -226,8 +239,10 @@ describe('defineProperty and defineProperties', function () {
             'value' => 'hidden',
             'enumerable' => false,
         ]);
-        expect(Struct::keys($user))->toBe(['name'])
-            ->and(json_encode($user))->toBe('{"name":"Jefy"}');
+        expect(Struct::keys($user))
+            ->toBe(['name'])
+            ->and(json_encode($user))
+            ->toBe('{"name":"Jefy"}');
     });
 
     it('defines multiple properties at once', function () {
@@ -238,23 +253,24 @@ describe('defineProperty and defineProperties', function () {
             'age' => ['value' => 22],
         ]);
 
-        Struct::defineProperties($user, _o(
-            email: _o(
-                value: "jefyokta50@gmail.com",
+        Struct::defineProperties(
+            $user,
+            _o(
+                email: _o(value: 'jefyokta50@gmail.com'),
+                phone_number: _o(value: '082255267294'),
             ),
-            phone_number: _o(
-                value: "082255267294"
-            )
-        ));
+        );
 
-        expect($user->name)->toBe('Jefy')
-            ->and($user->age)->toBe(22)
-            ->and($user->email)->toBe("jefyokta50@gmail.com");
+        expect($user->name)
+            ->toBe('Jefy')
+            ->and($user->age)
+            ->toBe(22)
+            ->and($user->email)
+            ->toBe('jefyokta50@gmail.com');
     });
 });
 
 describe('Object immutability', function () {
-
     it('prevents extensions', function () {
         $object = _o(name: 'Test');
 
@@ -263,17 +279,23 @@ describe('Object immutability', function () {
         expect(Struct::isExtensible($object))->toBeFalse();
 
         $object->newProp = 'Hello';
-    })->throws(Error::class, "Cannot add property 'newProp', object is not extensible.");
+    })->throws(
+        Error::class,
+        "Cannot add property 'newProp', object is not extensible.",
+    );
 
-    it('still allows modifying existing properties after preventExtensions', function () {
-        $object = _o(name: 'Test');
+    it(
+        'still allows modifying existing properties after preventExtensions',
+        function () {
+            $object = _o(name: 'Test');
 
-        Struct::preventExtensions($object);
+            Struct::preventExtensions($object);
 
-        $object->name = 'Updated';
+            $object->name = 'Updated';
 
-        expect($object->name)->toBe('Updated');
-    });
+            expect($object->name)->toBe('Updated');
+        },
+    );
 
     it('seals object', function () {
         $object = _o(name: 'Seal Test');
@@ -315,7 +337,6 @@ describe('Object immutability', function () {
 });
 
 describe('Iteration and serialization', function () {
-
     it('iterates only enumerable properties', function () {
         $user = _o(name: 'Jefy');
 
@@ -342,8 +363,7 @@ describe('Iteration and serialization', function () {
     it('casts to string as pretty json', function () {
         $user = _o(name: 'Jefy');
 
-        expect((string) $user)->toContain('"name"')
-            ->toContain('Jefy');
+        expect((string) $user)->toContain('"name"')->toContain('Jefy');
     });
 
     it('returns debug info without internal properties', function () {

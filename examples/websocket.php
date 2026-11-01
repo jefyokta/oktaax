@@ -1,51 +1,31 @@
 <?php
-require __DIR__ . "/../vendor/autoload.php";
 
-use Oktaax\Console;
-use Oktaax\Core\URL;
+require dirname(__DIR__) . '/vendor/autoload.php';
+
 use Oktaax\Oktaax;
-use Oktaax\Trait\HasWebsocket;
-use Oktaax\Websocket\Client;
-use Oktaax\Websocket\Server;
-use Oktaax\Http\Request;
-use Swoole\Table;
+use Oktaax\Websocket\Connection;
+use Oktaax\Websocket\Message;
 
-$app = new class extends Oktaax {
-    use HasWebsocket;
-};
-
-$app->table(function (Table $table) {
-    // optional websocket-related table setup
-});
-
-$app->ws('message', function (Server $server, Client $client) {
-    $payload = $client->data;
-    $server->reply([
-        'event' => 'message',
-        'received' => $payload,
-        'timestamp' => time(),
-    ]);
-});
-
-$app->ws('ping', function (Server $server, Client $client) {
-    $server->tick(200, function () use ($server) {
-        $server->reply([
-            'event' => 'pong',
+$app = new Oktaax();
+$ws = $app->websocket('/socket');
+$ws->on(
+    'message',
+    fn(Connection $connection, Message $message) => $connection->send(
+        'message',
+        $message->data(),
+        $message->id(),
+    ),
+);
+$ws->on('ping', function (Connection $connection) {
+    $connection->tick(
+        1000,
+        fn(Connection $connection) => $connection->send('pong', [
             'time' => time(),
-        ]);
-    });
+        ]),
+    );
 });
-
-
-
-$app->gate(function ($_, Request $request) {
-    Console::log("incoiming");
-    Console::log($request->name);
-});
-
-$app->get('/', fn() => "WebSocket server is running. Connect at ws://localhost:8001 and send { event: 'message', data: ... }.");
-
-$app->listen(8001, function (URL $url) {
-    echo "HTTP: {$url->getHttpUrl()}\n";
-    echo "WS: {$url->getWebsocketUrl()}\n";
-});
+$app->get(
+    '/',
+    fn() => 'Connect to ws://127.0.0.1:8001/socket and send {"event":"message","data":"Hello"}.',
+);
+$app->listen(8001);

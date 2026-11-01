@@ -13,7 +13,7 @@ use Oktaax\Console;
 use Oktaax\Oktaax;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
-use Oktaax\Core\Application;
+use Oktaax\Application;
 use Oktaax\Exception\HttpException;
 use Oktaax\Exception\ValidationException;
 
@@ -33,7 +33,10 @@ $app->get('/user/{id}', function (Request $request, Response $response) {
     $id = $request->params['id'];
 
     if (!is_numeric($id)) {
-        throw new HttpException(message:'Invalid user ID format',statusCode: 400);
+        throw new HttpException(
+            message: 'Invalid user ID format',
+            statusCode: 400,
+        );
     }
 
     if ($id == '999') {
@@ -44,7 +47,7 @@ $app->get('/user/{id}', function (Request $request, Response $response) {
     $response->json([
         'id' => $id,
         'name' => 'John Doe',
-        'email' => 'john@example.com'
+        'email' => 'john@example.com',
     ]);
 });
 
@@ -60,7 +63,9 @@ $app->post('/validate', function (Request $request, Response $response) {
     }
 
     if (strlen($data['password']) < 8) {
-        throw new ValidationException(['password' => 'Password must be at least 8 characters']);
+        throw new ValidationException([
+            'password' => 'Password must be at least 8 characters',
+        ]);
     }
 
     $response->json(['message' => 'Validation passed']);
@@ -71,46 +76,65 @@ $app->get('/error-demo', function (Request $request, Response $response) {
 
     switch ($type) {
         case 'http':
-            throw new HttpException(statusCode: 418, message: 'This is an HTTP exception');
+            throw new HttpException(
+                statusCode: 418,
+                message: 'This is an HTTP exception',
+            );
         case 'validation':
             throw new ValidationException([
                 'field1' => 'Field 1 error',
-                'field2' => 'Field 2 error'
+                'field2' => 'Field 2 error',
             ]);
         case 'custom':
-            throw new CustomBusinessException('This is a custom business exception');
+            throw new CustomBusinessException(
+                'This is a custom business exception',
+            );
         case 'generic':
             throw new Exception('This is a generic exception');
         default:
-            $response->json(['message' => 'Use ?type=http|validation|custom|generic']);
+            $response->json([
+                'message' => 'Use ?type=http|validation|custom|generic',
+            ]);
     }
 });
 
 // Global error handling setup
 $app->listen(3000, '127.0.0.1', function ($url, Application $coreApp) {
-
     // Handle validation exceptions
-    $coreApp->catch(ValidationException::class, function (ValidationException $e) {
-        Application::getResponse()->status(422)->json([
-            'error' => 'Validation failed',
-            'errors' => $e->getErrors()
-        ]);
+    $coreApp->catch(ValidationException::class, function (
+        ValidationException $e,
+    ) {
+        \Oktaax\Utils\app()
+            ->getResponse()
+            ->status(422)
+            ->json([
+                'error' => 'Validation failed',
+                'errors' => $e->getErrors(),
+            ]);
     });
 
     // Handle HTTP exceptions
     $coreApp->catch(HttpException::class, function (HttpException $e) {
-        Application::getResponse()->status($e->getStatusCode())->json([
-            'error' => $e->getMessage(),
-            'code' => $e->getStatusCode()
-        ]);
+        \Oktaax\Utils\app()
+            ->getResponse()
+            ->status($e->getStatusCode())
+            ->json([
+                'error' => $e->getMessage(),
+                'code' => $e->getStatusCode(),
+            ]);
     });
 
     // Handle custom business exceptions
-    $coreApp->catch(CustomBusinessException::class, function (CustomBusinessException $e) {
-        Application::getResponse()->status($e->getCode())->json([
-            'error' => 'Business logic error',
-            'message' => $e->getMessage()
-        ]);
+    $coreApp->catch(CustomBusinessException::class, function (
+        CustomBusinessException $e,
+    ) {
+        \Oktaax\Utils\app()
+            ->getResponse()
+            ->status($e->getCode())
+            ->json([
+                'error' => 'Business logic error',
+                'message' => $e->getMessage(),
+            ]);
     });
 
     // Handle any other exceptions
@@ -118,10 +142,13 @@ $app->listen(3000, '127.0.0.1', function ($url, Application $coreApp) {
         Console::error('Unhandled exception: ' . $e->getMessage());
         Console::error($e->getTraceAsString());
 
-        Application::getResponse()->status(500)->json([
-            'error' => 'Internal server error',
-            'message' => 'Something went wrong'
-        ]);
+        \Oktaax\Utils\app()
+            ->getResponse()
+            ->status(500)
+            ->json([
+                'error' => 'Internal server error',
+                'message' => 'Something went wrong',
+            ]);
     });
 
     echo "Error handling server started at $url\n";

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>WebSocket · Oktaax</title>
+    </head>
+    <body>
+        <h1>WebSocket echo</h1>
+        <p id="status" role="status">Connecting…</p>
+        <form id="form">
+            <label
+                >Message <input id="message" value="Hello, Oktaax!" required
+            /></label>
+            <button id="send" disabled>Send</button>
+        </form>
+        <pre id="output" aria-live="polite"></pre>
+        <script>
+            const socket = new WebSocket(
+                `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/socket`,
+            );
+            const status = document.querySelector('#status');
+            const send = document.querySelector('#send');
+            socket.onopen = () => {
+                status.textContent = 'Connected';
+                send.disabled = false;
+            };
+            socket.onclose = () => {
+                status.textContent = 'Disconnected';
+                send.disabled = true;
+            };
+            socket.onerror = () => {
+                status.textContent = 'Connection error';
+            };
+            socket.onmessage = ({ data }) => {
+                document.querySelector('#output').textContent += `${data}\n`;
+            };
+            document.querySelector('#form').onsubmit = (event) => {
+                event.preventDefault();
+                if (socket.readyState === WebSocket.OPEN)
+                    socket.send(
+                        JSON.stringify({
+                            event: 'echo',
+                            data: document.querySelector('#message').value,
+                        }),
+                    );
+            };
+        </script>
+    </body>
+</html>

@@ -1,21 +1,22 @@
-//Oktaax ws client example
+// Browser client for examples/guide/serve.php websocket.
+const socket = new WebSocket('ws://127.0.0.1:3000/socket');
 
-const ws = new WebSocket("ws://127.0.0.1:8000")
+type SocketMessage<T = unknown> = {
+    event: string;
+    data?: T;
+    id?: string;
+};
 
-type Message = {
-    event : string;
-    message: any
-}
-
-ws.onmessage = (event)=>{
-
-    console.log(event.data);
-    
-}
-
-const msg : Message = {
-    event:"even",
-    message:"Hallo Server, pls say i love you to every even fd!"
-}
-
-ws.send(JSON.stringify(msg));
+socket.onopen = () => {
+    const message: SocketMessage<string> = {
+        event: 'echo',
+        data: 'Hello from the browser',
+        id: 'example-1',
+    };
+    socket.send(JSON.stringify(message));
+};
+socket.onmessage = ({ data }) => {
+    const message = JSON.parse(data) as SocketMessage;
+    console.log(message.event, message.data, message.id);
+};
+socket.onclose = () => console.log('Disconnected');

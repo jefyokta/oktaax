@@ -4,14 +4,11 @@ use Oktaax\Http\Request;
 use Oktaax\Oktaax;
 use Swoole\Coroutine;
 
-require_once __DIR__ . "/../vendor/autoload.php";
+require_once __DIR__ . '/../vendor/autoload.php';
 
-$app = new Oktaax;
-
-
+$app = new Oktaax();
 
 $delay = async(function (...$args) {
-
     $args = func_get_args();
     $seconds = count($args) == 2 ? $args[1] : $args[0];
     Coroutine::sleep($seconds);
@@ -23,7 +20,7 @@ $delay = async(function (...$args) {
 });
 
 $getUser = async(function (int $id) use ($delay) {
-    $result = await($delay("get-user", 1));
+    $result = await($delay('get-user', 1));
 
     return [
         'id' => $id,
@@ -34,7 +31,7 @@ $getUser = async(function (int $id) use ($delay) {
 });
 
 $getOrders = async(function (int $userId) use ($delay) {
-    $result = await($delay("get-orders", 2));
+    $result = await($delay('get-orders', 2));
 
     return [
         [
@@ -54,7 +51,7 @@ $getOrders = async(function (int $userId) use ($delay) {
 });
 
 $getNotifications = async(function (int $userId) use ($delay) {
-    $result = await($delay("get-notifications", 1.5));
+    $result = await($delay('get-notifications', 1.5));
 
     return [
         [
@@ -69,11 +66,11 @@ $getNotifications = async(function (int $userId) use ($delay) {
     ];
 });
 
-
-
-
-$dashboard = async(function (int $userId) use ($getUser, $getOrders, $getNotifications) {
-
+$dashboard = async(function (int $userId) use (
+    $getUser,
+    $getOrders,
+    $getNotifications,
+) {
     $user = await($getUser($userId));
 
     yield [
@@ -81,12 +78,8 @@ $dashboard = async(function (int $userId) use ($getUser, $getOrders, $getNotific
         'data' => $user,
     ];
 
-
-
     $orders = $getOrders($user['id']);
     $notifications = $getNotifications($user['id']);
-
-
 
     $orders = await($orders);
 
@@ -95,7 +88,6 @@ $dashboard = async(function (int $userId) use ($getUser, $getOrders, $getNotific
         'data' => $orders,
     ];
 
-
     $notifications = await($notifications);
 
     yield [
@@ -103,51 +95,34 @@ $dashboard = async(function (int $userId) use ($getUser, $getOrders, $getNotific
         'data' => $notifications,
     ];
 
+    $orderItems = array_filter($orders, fn($item) => isset($item['total']));
 
-
-    $orderItems = array_filter(
-        $orders,
-        fn($item) => isset($item['total'])
-    );
-
-    $totalSpent = array_sum(
-        array_column($orderItems, 'total')
-    );
+    $totalSpent = array_sum(array_column($orderItems, 'total'));
 
     return [
         'user_id' => $user['id'],
         'orders_count' => count($orderItems),
         'total_spent' => $totalSpent,
         'notifications_count' => count(
-            array_filter(
-                $notifications,
-                fn($item) => isset($item['message'])
-            )
+            array_filter($notifications, fn($item) => isset($item['message'])),
         ),
     ];
 });
 
-
-
-
 $generator = await($dashboard(123));
 
 foreach ($generator as $event) {
-    echo sprintf(
-        "[%s]\n",
-        $event['type']
-    );
+    echo sprintf("[%s]\n", $event['type']);
 
     print_r($event['data']);
 
     echo PHP_EOL;
 }
 
-
-
-
-$app->get("/generator", function (Request $req) use ($delay) {
-    $eol =  str_starts_with($req->header('user-agent'), "curl/") ? "\n" :  "</br>";
+$app->get('/generator', function (Request $req) use ($delay) {
+    $eol = str_starts_with($req->header('user-agent'), 'curl/')
+        ? "\n"
+        : '</br>';
     yield 1;
     await($delay(1));
     yield $eol;
@@ -158,15 +133,12 @@ $app->get("/generator", function (Request $req) use ($delay) {
     yield $eol;
     await($delay(1));
 
-
     yield 3;
     await($delay(1));
 
     yield $eol;
 
-
-    return "done";
+    return 'done';
 });
-
 
 $app->listen(3000);

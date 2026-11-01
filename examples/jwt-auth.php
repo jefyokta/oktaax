@@ -24,9 +24,24 @@ define('TOKEN_EXPIRY', 3600); // 1 hour
 
 // Mock user database
 $users = [
-    ['id' => 1, 'username' => 'admin', 'password' => password_hash('admin123', PASSWORD_DEFAULT), 'role' => 'admin'],
-    ['id' => 2, 'username' => 'user', 'password' => password_hash('user123', PASSWORD_DEFAULT), 'role' => 'user'],
-    ['id' => 3, 'username' => 'john', 'password' => password_hash('john123', PASSWORD_DEFAULT), 'role' => 'user'],
+    [
+        'id' => 1,
+        'username' => 'admin',
+        'password' => password_hash('admin123', PASSWORD_DEFAULT),
+        'role' => 'admin',
+    ],
+    [
+        'id' => 2,
+        'username' => 'user',
+        'password' => password_hash('user123', PASSWORD_DEFAULT),
+        'role' => 'user',
+    ],
+    [
+        'id' => 3,
+        'username' => 'john',
+        'password' => password_hash('john123', PASSWORD_DEFAULT),
+        'role' => 'user',
+    ],
 ];
 
 // Helper function to find user by username
@@ -59,7 +74,7 @@ $app->post('/login', function (Request $request, Response $response) {
 
     if (empty($data['username']) || empty($data['password'])) {
         return $response->status(400)->json([
-            'error' => 'Username and password are required'
+            'error' => 'Username and password are required',
         ]);
     }
 
@@ -67,7 +82,7 @@ $app->post('/login', function (Request $request, Response $response) {
 
     if (!$user || !password_verify($data['password'], $user['password'])) {
         return $response->status(401)->json([
-            'error' => 'Invalid credentials'
+            'error' => 'Invalid credentials',
         ]);
     }
 
@@ -78,7 +93,7 @@ $app->post('/login', function (Request $request, Response $response) {
         'username' => $user['username'],
         'role' => $user['role'],
         'iat' => time(),
-        'exp' => time() + TOKEN_EXPIRY
+        'exp' => time() + TOKEN_EXPIRY,
     ];
 
     $token = JWT::encode($payload, JWT_SECRET, JWT_ALGORITHM);
@@ -89,12 +104,11 @@ $app->post('/login', function (Request $request, Response $response) {
         'user' => [
             'id' => $user['id'],
             'username' => $user['username'],
-            'role' => $user['role']
+            'role' => $user['role'],
         ],
-        'expires_in' => TOKEN_EXPIRY
+        'expires_in' => TOKEN_EXPIRY,
     ]);
 });
-
 
 // JWT Authentication middleware
 $authMiddleware = function (Request $request, Response $response, $next) {
@@ -102,7 +116,7 @@ $authMiddleware = function (Request $request, Response $response, $next) {
 
     if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
         return $response->status(401)->json([
-            'error' => 'Authorization header missing or invalid'
+            'error' => 'Authorization header missing or invalid',
         ]);
     }
 
@@ -114,7 +128,7 @@ $authMiddleware = function (Request $request, Response $response, $next) {
         // Check if token is expired
         if ($decoded->exp < time()) {
             return $response->status(401)->json([
-                'error' => 'Token expired'
+                'error' => 'Token expired',
             ]);
         }
 
@@ -122,7 +136,7 @@ $authMiddleware = function (Request $request, Response $response, $next) {
         $user = findUserById($decoded->sub);
         if (!$user) {
             return $response->status(401)->json([
-                'error' => 'User not found'
+                'error' => 'User not found',
             ]);
         }
 
@@ -130,7 +144,7 @@ $authMiddleware = function (Request $request, Response $response, $next) {
         $next();
     } catch (Exception $e) {
         return $response->status(401)->json([
-            'error' => 'Invalid token'
+            'error' => 'Invalid token',
         ]);
     }
 };
@@ -138,16 +152,22 @@ $authMiddleware = function (Request $request, Response $response, $next) {
 // Role-based authorization middleware
 function requireRole($requiredRole)
 {
-    return function (Request $request, Response $response, $next) use ($requiredRole) {
+    return function (
+        Request $request,
+        Response $response,
+        $next,
+    ) use ($requiredRole) {
         if (!isset($request->user)) {
-            return $response->status(401)->json(['error' => 'Authentication required']);
+            return $response
+                ->status(401)
+                ->json(['error' => 'Authentication required']);
         }
 
         if ($request->user['role'] !== $requiredRole) {
             return $response->status(403)->json([
                 'error' => 'Insufficient permissions',
                 'required_role' => $requiredRole,
-                'user_role' => $request->user['role']
+                'user_role' => $request->user['role'],
             ]);
         }
 
@@ -157,15 +177,14 @@ function requireRole($requiredRole)
 
 // Protected routes
 $app->middleware([$authMiddleware], function ($router) {
-
     // Get current user profile
     $router->get('/profile', function (Request $request, Response $response) {
         $response->json([
             'user' => [
                 'id' => $request->user['id'],
                 'username' => $request->user['username'],
-                'role' => $request->user['role']
-            ]
+                'role' => $request->user['role'],
+            ],
         ]);
     });
 
@@ -179,45 +198,54 @@ $app->middleware([$authMiddleware], function ($router) {
             'user' => [
                 'id' => $request->user['id'],
                 'username' => $request->user['username'],
-                'role' => $request->user['role']
-            ]
+                'role' => $request->user['role'],
+            ],
         ]);
     });
 
     // Admin-only routes
     $router->middleware([requireRole('admin')], function ($subRouter) {
-
         // List all users (admin only)
-        $subRouter->get('/users', function (Request $request, Response $response) {
+        $subRouter->get('/users', function (
+            Request $request,
+            Response $response,
+        ) {
             global $users;
 
             $userList = array_map(function ($user) {
                 return [
                     'id' => $user['id'],
                     'username' => $user['username'],
-                    'role' => $user['role']
+                    'role' => $user['role'],
                 ];
             }, $users);
 
             $response->json([
                 'users' => $userList,
-                'total' => count($users)
+                'total' => count($users),
             ]);
         });
 
         // Delete user (admin only)
-        $subRouter->delete('/users/{id}', function (Request $request, Response $response) {
+        $subRouter->delete('/users/{id}', function (
+            Request $request,
+            Response $response,
+        ) {
             $id = (int) $request->params['id'];
 
             if ($id === $request->user['id']) {
-                return $response->status(400)->json(['error' => 'Cannot delete yourself']);
+                return $response
+                    ->status(400)
+                    ->json(['error' => 'Cannot delete yourself']);
             }
 
             global $users;
             $index = array_search($id, array_column($users, 'id'));
 
             if ($index === false) {
-                return $response->status(404)->json(['error' => 'User not found']);
+                return $response
+                    ->status(404)
+                    ->json(['error' => 'User not found']);
             }
 
             array_splice($users, $index, 1);
@@ -232,7 +260,9 @@ $app->post('/refresh', function (Request $request, Response $response) {
     $authHeader = $request->header('Authorization');
 
     if (!$authHeader || !str_starts_with($authHeader, 'Bearer ')) {
-        return $response->status(401)->json(['error' => 'Authorization header required']);
+        return $response
+            ->status(401)
+            ->json(['error' => 'Authorization header required']);
     }
 
     $token = substr($authHeader, 7);
@@ -247,7 +277,7 @@ $app->post('/refresh', function (Request $request, Response $response) {
             'username' => $decoded->username,
             'role' => $decoded->role,
             'iat' => time(),
-            'exp' => time() + TOKEN_EXPIRY
+            'exp' => time() + TOKEN_EXPIRY,
         ];
 
         $newToken = JWT::encode($newPayload, JWT_SECRET, JWT_ALGORITHM);
@@ -255,7 +285,7 @@ $app->post('/refresh', function (Request $request, Response $response) {
         $response->json([
             'message' => 'Token refreshed',
             'token' => $newToken,
-            'expires_in' => TOKEN_EXPIRY
+            'expires_in' => TOKEN_EXPIRY,
         ]);
     } catch (Exception $e) {
         return $response->status(401)->json(['error' => 'Invalid token']);
@@ -271,7 +301,10 @@ $app->post('/verify', function (Request $request, Response $response) {
     }
 
     try {
-        $decoded = JWT::decode($data['token'], new Key(JWT_SECRET, JWT_ALGORITHM));
+        $decoded = JWT::decode(
+            $data['token'],
+            new Key(JWT_SECRET, JWT_ALGORITHM),
+        );
 
         $response->json([
             'valid' => true,
@@ -280,13 +313,13 @@ $app->post('/verify', function (Request $request, Response $response) {
                 'username' => $decoded->username,
                 'role' => $decoded->role,
                 'issued_at' => date('c', $decoded->iat),
-                'expires_at' => date('c', $decoded->exp)
-            ]
+                'expires_at' => date('c', $decoded->exp),
+            ],
         ]);
     } catch (Exception $e) {
         $response->json([
             'valid' => false,
-            'error' => $e->getMessage()
+            'error' => $e->getMessage(),
         ]);
     }
 });

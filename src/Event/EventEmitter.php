@@ -5,26 +5,34 @@ namespace Oktaax\Event;
 use Closure;
 use Oktaax\Exception\EventDispatchException;
 
+/**
+ * Dispatch listeners synchronously within an optional owning execution scope; state is instance-owned.
+ */
 class EventEmitter
 {
     /**
-     * Registered event listeners.
+     * Optionally run each listener through an owning application-scope wrapper.
      *
-     * @var array<string, array<int, Closure(Event $ev):mixed>>
+     * @param (\Closure(\Closure(): mixed): mixed)|null $invoke
+     */
+    public function __construct(private ?Closure $invoke = null) {}
+    /**
+     * Listeners retained until explicitly removed or the owning scope is cleared.
+     *
+     * @var array<string, list<\Closure(\Oktaax\Event\Event<mixed>): mixed>>
      */
     protected array $listeners = [];
 
-
     /**
-     * Register an event listener.
-     * @template T of mixed
-     * @param string  $event
-     * @param callable(Event<T> $e ):mixed $listener
-     * @param bool  $single when its true and event already has listener, the current listener wont be registered
-     * 
+     * Register a listener; single=true skips registration when any listener already exists.
+     *
+     * @param callable(\Oktaax\Event\Event<mixed>): mixed $listener
      */
-    public function on(string $event, callable $listener, bool $single = false): self
-    {
+    public function on(
+        string $event,
+        callable $listener,
+        bool $single = false,
+    ): self {
         if ($single && \count($this->listeners[$event] ?? []) > 0) {
             return $this;
         }
@@ -34,12 +42,13 @@ class EventEmitter
     }
 
     /**
-     * Register a listener that runs only once.
+     * Register a one-shot listener removed before invocation.
+     *
+     * @param callable(\Oktaax\Event\Event<mixed>): mixed $listener
      */
     public function once(string $event, callable $listener): self
     {
         $once = function (...$args) use ($event, $listener, &$once) {
-
             $this->off($event, $once);
             $listener(...$args);
         };
@@ -47,10 +56,9 @@ class EventEmitter
     }
 
     /**
-     * Remove event listeners.
+     * Remove all listeners, one event, or a specific listener using the same callable identity.
      *
-     * If no event is provided, all listeners are removed.
-     * If no listener is provided, all listeners for the event are removed.
+     * @param (callable(\Oktaax\Event\Event<mixed>): mixed)|null $listener
      */
     public function off(?string $event = null, ?callable $listener = null): self
     {
@@ -59,9 +67,7 @@ class EventEmitter
         }
 
         if ($listener === null) {
-            unset(
-                $this->listeners[$event],
-            );
+            unset($this->listeners[$event]);
 
             return $this;
         }
@@ -72,33 +78,42 @@ class EventEmitter
         }
 
         if (isset($this->listeners[$event])) {
-            $this->listeners[$event] = array_values(array_filter(
-                $this->listeners[$event],
-                static fn(Closure $registered): bool => $registered !== $target
-            ));
+            $this->listeners[$event] = array_values(
+                array_filter(
+                    $this->listeners[$event],
+                    static fn(Closure $registered): bool => $registered !==
+                        $target,
+                ),
+            );
         }
 
         return $this;
     }
 
     /**
-     * Dispatch an event to its registered listeners.
+     * Invoke a snapshot of local listeners, attempt every listener, then report collected failures.
+     *
+     * @param array<array-key, mixed>|\Oktaax\Event\Event<mixed> $payload
+     * @throws \Oktaax\Exception\EventDispatchException When one or more listeners fail.
      */
     public function emit(string $event, array|Event $payload = []): self
     {
         $listeners = $this->listeners[$event] ?? [];
-        $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
+        $ev =
+            $payload instanceof Event ? $payload : new Event($event, $payload);
         $errors = [];
 
         foreach ($listeners as $listener) {
-
             try {
-                $listener($ev);
+                if ($this->invoke !== null) {
+                    ($this->invoke)(fn() => $listener($ev));
+                } else {
+                    $listener($ev);
+                }
             } catch (\Throwable $th) {
                 $errors[] = $th;
             }
         }
-
 
         if (!empty($errors)) {
             throw new EventDispatchException($event, $errors);

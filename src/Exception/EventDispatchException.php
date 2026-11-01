@@ -2,7 +2,6 @@
 
 namespace Oktaax\Exception;
 
-
 use RuntimeException;
 use Throwable;
 
@@ -34,4 +33,3 @@ final class EventDispatchException extends RuntimeException
         return $this->exceptions;
     }
 }
-

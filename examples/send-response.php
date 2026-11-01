@@ -1,8 +1,7 @@
 <?php
-require __DIR__ . "/../vendor/autoload.php";
+require __DIR__ . '/../vendor/autoload.php';
 
 use Oktaax\Contracts\Invokable;
-use Oktaax\Core\Application;
 use Oktaax\Http\Request;
 use Oktaax\Http\Response;
 use Oktaax\Oktaax;
@@ -76,7 +75,6 @@ class CustomReturn
     public function __construct(public array $payload) {}
 }
 
-
 $app->get('/return-custom', function () {
     return new CustomReturn([
         'message' => 'This response is returned as a custom object.',
@@ -84,22 +82,21 @@ $app->get('/return-custom', function () {
     ]);
 });
 
-
 //injecting method to response
 class CustomResponse extends Invokable
 {
     public function __invoke()
     {
-        Application::context()->response()->end("custom response");
+        \Oktaax\Utils\app()->context()->response()->end('custom response');
     }
 }
 
-$app->get("/custom-response-method", function ($_,Response $response) {
+$app->get('/custom-response-method', function ($_, Response $response) {
     $response->custom();
 });
 
 // Return JSON while also showing Response header usage
-$app->get('/return-and-response', function ($_,Response $response) {
+$app->get('/return-and-response', function ($_, Response $response) {
     $response->header('X-Returned', 'true');
     return [
         'status' => 'ok',
@@ -107,16 +104,19 @@ $app->get('/return-and-response', function ($_,Response $response) {
     ];
 });
 
-$app->listen(8005, function (Application $application) {
-    
-    $application->respond(CustomReturn::class, function (CustomReturn $result, Request $request, Response $response) {
-        $response->status(202)
-            ->header('X-Custom-Return', 'true')
-            ->json([
-                'type' => 'custom-return',
-                'payload' => $result->payload,
-            ]);
-    });
-
-    $application->inject(Response::class, 'custom', CustomResponse::class);
+$app->respond(CustomReturn::class, function (
+    CustomReturn $result,
+    Request $request,
+    Response $response,
+) {
+    $response
+        ->status(202)
+        ->header('X-Custom-Return', 'true')
+        ->json([
+            'type' => 'custom-return',
+            'payload' => $result->payload,
+        ]);
 });
+
+$app->inject(Response::class, 'custom', CustomResponse::class);
+$app->listen(8005);

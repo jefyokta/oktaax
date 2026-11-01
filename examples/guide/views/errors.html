@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Error page gallery · Oktaax</title>
+    </head>
+    <body>
+        <h1>Error page gallery</h1>
+        <p>
+            Open an HTTP page, or compare the exception page with
+            <code>OKTAAX_DEBUG=1</code> and <code>OKTAAX_DEBUG=0</code>.
+        </p>
+        <ul>
+            <li><a href="/http/400">400 · Bad request</a></li>
+            <li><a href="/http/403">403 · Forbidden</a></li>
+            <li><a href="/http/404">404 · Not found</a></li>
+            <li><a href="/http/405">405 · Method not allowed</a></li>
+            <li><a href="/http/429">429 · Too many requests</a></li>
+            <li><a href="/http/500">500 · Server error</a></li>
+            <li><a href="/http/503">503 · Service unavailable</a></li>
+            <li><a href="/exception">Unhandled exception</a></li>
+            <li><a href="/api/conflict">Custom JSON error handler</a></li>
+        </ul>
+    </body>
+</html>

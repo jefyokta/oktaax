@@ -1,0 +1,17 @@
+parameters:
+    level: 1
+    paths:
+        - src/Application.php
+        - src/Application
+        - src/Config
+        - src/Container
+        - src/Database
+        - src/Http
+        - src/HttpClient
+        - src/Runtime
+        - src/Task
+        - src/Validation
+        - src/View
+        - src/Oktaax.php
+        - src/Websocket
+        - src/Event

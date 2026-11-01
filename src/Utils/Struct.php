@@ -18,34 +18,64 @@ use ReflectionUnionType;
 use Traversable;
 
 /**
- * @template T
+ * Named-property utility object with bound closures, computed getters, and optional runtime type guards.
+ *
+ * @template T of object
  * @mixin T
+ * @implements \ArrayAccess<array-key, mixed>
+ * @implements \IteratorAggregate<array-key, mixed>
+ * @phpstan-type PropertyDescriptor array{value?: mixed, writable?: bool, configurable?: bool, enumerable?: bool}
  */
 class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 {
     private \stdClass $attributes;
 
-    public  static bool $skipTypeCheck = false;
+    public static bool $skipTypeCheck = false;
     //ex
+    /**
+     * Runtime constraints used when strict mode is enabled.
+     *
+     * @var array<string, string|\Oktaax\Utils\Types\TypeGuard|list<string|\Oktaax\Utils\Types\TypeGuard>>
+     */
     private $propertyTypes = [];
 
+    /**
+     * Whether writes must satisfy the registered runtime property constraints.
+     *
+     * @var bool
+     */
     private $strict = false;
 
-
+    /**
+     * Property names restricted by the corresponding descriptor flag.
+     *
+     * @var list<string>
+     */
     private array $nonWritableProperties = [];
 
+    /**
+     * Property names restricted by the corresponding descriptor flag.
+     *
+     * @var list<string>
+     */
     private array $nonConfigurableProperties = [];
 
+    /**
+     * Property names restricted by the corresponding descriptor flag.
+     *
+     * @var list<string>
+     */
     private array $nonEnumerableProperties = [];
 
     private bool $frozen = false;
     private bool $extensible = true;
 
     /**
-     * 
-     * @param mixed[] $params
+     * Create properties from named arguments only and bind closures/getters to this object.
+     *
+     * @param mixed ...$params
      * @named-arguments
-     * @throws InvalidArgumentException
+     * @throws \InvalidArgumentException When a positional argument is supplied.
      */
     public function __construct(mixed ...$params)
     {
@@ -59,10 +89,14 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
                     : '[' . gettype($value) . ']';
 
                 throw new InvalidArgumentException(
-                    "Missing argument name at position #{$argumentPosition}." . PHP_EOL .
-                        "Details: Received the value {$culpritValue} as a positional argument, but Struct requires named arguments." . PHP_EOL . PHP_EOL .
-                        "Correct usage:" . PHP_EOL .
-                        "    new Struct(name: \"Jefy\", status: \"active\")"
+                    "Missing argument name at position #{$argumentPosition}." .
+                        PHP_EOL .
+                        "Details: Received the value {$culpritValue} as a positional argument, but Struct requires named arguments." .
+                        PHP_EOL .
+                        PHP_EOL .
+                        'Correct usage:' .
+                        PHP_EOL .
+                        "    new Struct(name: \"Jefy\", status: \"active\")",
                 );
             }
 
@@ -80,7 +114,7 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         $value = $this->attributes->$name;
 
         if ($value instanceof GetterProperty) {
-            $value = ($value->getCallback()->call($this));
+            $value = $value->getCallback()->call($this);
             return $value;
         }
 
@@ -98,9 +132,9 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         TypeGuard::assert($name, $value, ...$types);
 
         $this->attributes->$name =
-            ($value === null || $value instanceof Undefined)
-            ? $value
-            : $this->bindValue($value);
+            $value === null || $value instanceof Undefined
+                ? $value
+                : $this->bindValue($value);
     }
     // private function setStrictly(string $name, mixed $value): void
     // {
@@ -156,7 +190,6 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
     public function __set(string $name, mixed $value): void
     {
         if ($this->strict) {
-
             try {
                 $this->setStrictly($name, $value);
                 return;
@@ -165,14 +198,11 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
             }
         }
         if ($this->frozen) {
-            throw new Error("Cannot modify frozen object.");
+            throw new Error('Cannot modify frozen object.');
         }
-        if (
-            !$this->extensible &&
-            !property_exists($this->attributes, $name)
-        ) {
+        if (!$this->extensible && !property_exists($this->attributes, $name)) {
             throw new Error(
-                "Cannot add property '{$name}', object is not extensible."
+                "Cannot add property '{$name}', object is not extensible.",
             );
         }
 
@@ -184,7 +214,7 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
             property_exists($this->attributes, $name) &&
             $this->attributes->$name instanceof GetterProperty
         ) {
-            throw new Error("Getter cannot be mutated!");
+            throw new Error('Getter cannot be mutated!');
         }
 
         $this->attributes->$name = $this->bindValue($value);
@@ -198,28 +228,34 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
     public function __unset(string $name): void
     {
         if ($this->frozen) {
-            throw new Error("Cannot modify frozen object.");
+            throw new Error('Cannot modify frozen object.');
         }
 
         if (!$this->isConfigurable($name)) {
-            throw new Error("Cannot delete non-configurable property '{$name}'.");
+            throw new Error(
+                "Cannot delete non-configurable property '{$name}'.",
+            );
         }
 
         unset($this->attributes->$name);
     }
 
+    /**
+     * Invoke a function-valued property with the supplied positional or named arguments.
+     *
+     * @param array<array-key, mixed> $arguments
+     */
     public function __call(string $name, array $arguments): mixed
     {
         if (
             property_exists($this->attributes, $name) &&
-            ($this->attributes->$name instanceof Closure || $this->attributes->$name instanceof Asynchronous)
+            ($this->attributes->$name instanceof Closure ||
+                $this->attributes->$name instanceof Asynchronous)
         ) {
             return ($this->attributes->$name)(...$arguments);
         }
 
-        throw new \BadMethodCallException(
-            "Cannot find method {$name}"
-        );
+        throw new \BadMethodCallException("Cannot find method {$name}");
     }
 
     public function offsetExists(mixed $offset): bool
@@ -254,6 +290,11 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         $this->__unset((string) $offset);
     }
 
+    /**
+     * Iterate enumerable properties and their values.
+     *
+     * @return \Traversable<array-key, mixed>
+     */
     public function getIterator(): Traversable
     {
         foreach (get_object_vars($this->attributes) as $key => $value) {
@@ -263,6 +304,11 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         }
     }
 
+    /**
+     * Expose enumerable property values to JSON encoding.
+     *
+     * @return array<array-key, mixed>
+     */
     public function jsonSerialize(): mixed
     {
         $result = [];
@@ -283,11 +329,10 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 
     public function __toString(): string
     {
-
         // return "[object Object]";
         return json_encode(
             $this->jsonSerialize(),
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE,
         );
     }
     public static function preventExtensions(self $object): self
@@ -351,22 +396,35 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 
         return $value1 === $value2;
     }
+    /**
+     * Return enumerable property keys.
+     *
+     * @return list<array-key>
+     */
     public static function keys(self $object): array
     {
         return array_keys($object->jsonSerialize());
     }
 
+    /**
+     * Return enumerable property values in property order.
+     *
+     * @return list<mixed>
+     */
     public static function values(self $object): array
     {
         return array_values($object->jsonSerialize());
     }
 
+    /**
+     * Return the enumerable associative property map, rather than a list of key/value tuples.
+     *
+     * @return array<array-key, mixed>
+     */
     public static function entries(self $object): array
     {
         return $object->jsonSerialize();
     }
-
-
 
     public function clone(): self
     {
@@ -384,6 +442,12 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         return $target;
     }
 
+    /**
+     * Create properties from iterable keys and values; entries are not [key, value] tuples.
+     *
+     * @param iterable<array-key, mixed> $entries
+     * @return self<object>
+     */
     public static function fromEntries(iterable $entries = []): self
     {
         $object = new self();
@@ -417,10 +481,15 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         return $object;
     }
 
+    /**
+     * Apply a value and descriptor flags; omitted flags default to false.
+     *
+     * @param self<object>|PropertyDescriptor $descriptor
+     */
     public static function defineProperty(
         self $object,
         string $property,
-        self|array $descriptor
+        self|array $descriptor,
     ): void {
         $value = $descriptor['value'] ?? null;
         $writable = $descriptor['writable'] ?? false;
@@ -429,24 +498,37 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 
         $object->attributes->$property = $object->bindValue($value);
 
-        if (!$writable && !\in_array($property, $object->nonWritableProperties, true)) {
+        if (
+            !$writable &&
+            !\in_array($property, $object->nonWritableProperties, true)
+        ) {
             $object->nonWritableProperties[] = $property;
         }
 
-        if (!$configurable && !\in_array($property, $object->nonConfigurableProperties, true)) {
+        if (
+            !$configurable &&
+            !\in_array($property, $object->nonConfigurableProperties, true)
+        ) {
             $object->nonConfigurableProperties[] = $property;
         }
 
-        if (!$enumerable && !\in_array($property, $object->nonEnumerableProperties, true)) {
+        if (
+            !$enumerable &&
+            !\in_array($property, $object->nonEnumerableProperties, true)
+        ) {
             $object->nonEnumerableProperties[] = $property;
         }
     }
 
+    /**
+     * Apply named property descriptors.
+     *
+     * @param self<object>|array<string, self<object>|PropertyDescriptor> $properties
+     */
     public static function defineProperties(
         self $object,
-        self|array $properties
+        self|array $properties,
     ): void {
-
         foreach ($properties as $key => $descriptor) {
             self::defineProperty($object, $key, $descriptor);
         }
@@ -467,24 +549,26 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
         return !\in_array($key, $this->nonEnumerableProperties, true);
     }
     /**
-     * @template T of object
-     * @param Struct $object
-     * @param class-string<T> $contract
-     * @param (Closure(Error): void)|null $onError
-     * @return bool
-     * @throws Error
-     * @throws InvalidArgumentException
+     * Check property and method compatibility with a reflected class contract; optionally report errors through a callback.
+     *
+     * @param Struct<object> $object
+     * @param class-string<TContract> $contract
+     * @param (\Closure(\Error): mixed)|null $onError
+     * @template TContract of object
+     * @throws \Error When the object violates its contract and no error callback handles it.
+     * @throws \InvalidArgumentException When the contract class is unavailable.
      */
     public static function satisfies(
         Struct $object,
         string $contract,
-        ?Closure $onError = null
+        ?Closure $onError = null,
     ): bool {
-
-        if (self::$skipTypeCheck) return true;
+        if (self::$skipTypeCheck) {
+            return true;
+        }
         if (!class_exists($contract) && !interface_exists($contract)) {
             throw new InvalidArgumentException(
-                "Contract '{$contract}' does not exist."
+                "Contract '{$contract}' does not exist.",
             );
         }
 
@@ -501,9 +585,7 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
             throw $error;
         };
 
-        $isRequired = function (
-            \ReflectionType|null $type
-        ): bool {
+        $isRequired = function (\ReflectionType|null $type): bool {
             if ($type === null) {
                 return true;
             }
@@ -536,7 +618,7 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 
         $matchesType = function (
             mixed $value,
-            ReflectionNamedType $type
+            ReflectionNamedType $type,
         ): bool {
             $expectedType = $type->getName();
 
@@ -552,7 +634,10 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
             };
         };
 
-        foreach ($reflection->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+        foreach (
+            $reflection->getProperties(\ReflectionProperty::IS_PUBLIC)
+            as $property
+        ) {
             $name = $property->getName();
             $type = $property->getType();
 
@@ -561,7 +646,7 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
             if (!self::hasOwn($object, $name)) {
                 if ($required) {
                     return $fail(
-                        "Struct does not satisfy contract '{$contract}'. Missing property '{$name}'."
+                        "Struct does not satisfy contract '{$contract}'. Missing property '{$name}'.",
                     );
                 }
 
@@ -603,22 +688,20 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
                         '|',
                         array_map(
                             fn(ReflectionNamedType $t): string => $t->getName(),
-                            $type->getTypes()
-                        )
+                            $type->getTypes(),
+                        ),
                     ),
                     $type instanceof \ReflectionIntersectionType => implode(
                         '&',
                         array_map(
                             fn(ReflectionNamedType $t): string => $t->getName(),
-                            $type->getTypes()
-                        )
+                            $type->getTypes(),
+                        ),
                     ),
                     default => 'unknown',
                 };
 
-                return $fail(
-                    "Property '{$name}' must be of type {$expected}."
-                );
+                return $fail("Property '{$name}' must be of type {$expected}.");
             }
         }
 
@@ -627,39 +710,52 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
 
     static function create(Struct|array $source)
     {
-        return $source instanceof self ? $source->clone() : self::fromEntries($source);
+        return $source instanceof self
+            ? $source->clone()
+            : self::fromEntries($source);
     }
 
+    /**
+     * Create a Struct whose subsequent writes are checked against the supplied property constraints.
+     *
+     * @param array<string, string|\Oktaax\Utils\Types\TypeGuard|list<string|\Oktaax\Utils\Types\TypeGuard>> $propertyTypes
+     * @param mixed ...$properties
+     * @return static<object>
+     */
     static function strict(array $propertyTypes, mixed ...$properties)
     {
         $object = new static();
-        $object->propertyTypes =  $propertyTypes;
+        $object->propertyTypes = $propertyTypes;
         $object->strict = true;
 
         foreach ($properties as $key => $value) {
-            $object->$key = $value ;
+            $object->$key = $value;
         }
         return $object;
     }
     static function bool(mixed $value)
     {
-        return (is_object($value) && $value instanceof CanConvertToBoolean) ? $value->getBooleanValue() : !!$value;
+        return is_object($value) && $value instanceof CanConvertToBoolean
+            ? $value->getBooleanValue()
+            : !!$value;
     }
 
     /**
-     * @template TClass
-     * @param Struct $object
+     * Construct the target class and copy compatible declared properties, optionally selecting closure properties.
+     *
+     * @param Struct<object> $object
      * @param class-string<TClass> $class
-     * @param ?array $rule
-     * @param mixed ...$constructorArgs the class constructor arguments
-     * @throws \Exception when object is not compatible with target class
+     * @param array{closure?: array{skip?: bool, only?: list<string>}}|null $rule
+     * @param mixed ...$constructorArgs
      * @return TClass
+     * @template TClass of object
+     * @throws \Throwable When target construction or property assignment fails.
      */
     public static function convert(
         Struct $object,
         string $class,
         ?array $rule = null,
-        mixed ...$constructorArgs
+        mixed ...$constructorArgs,
     ): object {
         $rule ??= [
             'closure' => [
@@ -683,8 +779,9 @@ class Struct implements ArrayAccess, IteratorAggregate, JsonSerializable
                     continue;
                 }
             }
-            if (property_exists($instance, $key))
+            if (property_exists($instance, $key)) {
                 $instance->{$key} = $value;
+            }
         }
 
         return $instance;

@@ -3,20 +3,31 @@
 namespace Oktaax\Http;
 
 /**
- * Mirrors the Web API Headers interface.
+ * Normalize and validate header names/values while preserving separate Set-Cookie values.
  *
+ * @implements \IteratorAggregate<int, array{string, string}>
  * @see https://developer.mozilla.org/en-US/docs/Web/API/Headers
  */
 class Headers implements \IteratorAggregate
 {
-
-
-    private  $map = [];
+    /**
+     * Normalized header strings; Set-Cookie values are joined internally with a NUL delimiter.
+     *
+     * @var array<string, string>
+     */
+    private $map = [];
     private const string COOKIE_DELIMITER = "\x00";
 
-    public function __construct(array|Headers $init = [], private $trusted = false)
-    {
-
+    /**
+     * Copy headers or normalize a header map; trusted=true skips token/value validation.
+     *
+     * @param array<string, string|list<string>>|self $init
+     * @param bool $trusted
+     */
+    public function __construct(
+        array|Headers $init = [],
+        private $trusted = false,
+    ) {
         if ($init instanceof Headers) {
             foreach ($init->entries() as [$key, $value]) {
                 $this->append($key, $value);
@@ -35,12 +46,12 @@ class Headers implements \IteratorAggregate
         }
     }
 
-
-
     private function validateName(string $name): void
     {
         if ($name === '') {
-            throw new \InvalidArgumentException('Header name must not be empty.');
+            throw new \InvalidArgumentException(
+                'Header name must not be empty.',
+            );
         }
         if ($this->trusted) {
             return;
@@ -48,7 +59,7 @@ class Headers implements \IteratorAggregate
 
         if (!preg_match('/^[a-zA-Z0-9!#$%&\'*+\-.^_`|~]+$/', $name)) {
             throw new \InvalidArgumentException(
-                "Invalid header name: '{$name}'. Only token characters are allowed."
+                "Invalid header name: '{$name}'. Only token characters are allowed.",
             );
         }
     }
@@ -60,7 +71,7 @@ class Headers implements \IteratorAggregate
         }
         if (preg_match('/\r|\n/', $value)) {
             throw new \InvalidArgumentException(
-                "Invalid header value: contains CR or LF characters (possible header injection)."
+                'Invalid header value: contains CR or LF characters (possible header injection).',
             );
         }
     }
@@ -70,30 +81,39 @@ class Headers implements \IteratorAggregate
         return strtolower($name);
     }
 
-
-    /** @return string[] */
+    /**
+     * Split the internal cookie delimiter into separate response header values.
+     *
+     * @return list<string>
+     */
     private function decodeCookies(string $raw): array
     {
-        if ($raw === '') return [];
+        if ($raw === '') {
+            return [];
+        }
         return explode(self::COOKIE_DELIMITER, $raw);
     }
 
+    /**
+     * Join Set-Cookie values without conflating commas inside cookie attributes.
+     *
+     * @param list<string> $cookies
+     */
     private function encodeCookies(array $cookies): string
     {
         return implode(self::COOKIE_DELIMITER, $cookies);
     }
-
 
     public function append(string $name, string $value): void
     {
         $this->validateName($name);
         $this->validateValue($value);
 
-        $key   = $this->normalize($name);
+        $key = $this->normalize($name);
         $value = trim($value);
 
         if ($key === 'set-cookie') {
-            $cookies   = $this->decodeCookies($this->map[$key] ?? '');
+            $cookies = $this->decodeCookies($this->map[$key] ?? '');
             $cookies[] = $value;
             $this->map[$key] = $this->encodeCookies($cookies);
             return;
@@ -112,13 +132,14 @@ class Headers implements \IteratorAggregate
         unset($this->map[$this->normalize($name)]);
     }
 
-
     public function get(string $name): ?string
     {
         $this->validateName($name);
         $key = $this->normalize($name);
 
-        if (!isset($this->map[$key])) return null;
+        if (!isset($this->map[$key])) {
+            return null;
+        }
 
         if ($key === 'set-cookie') {
             return $this->decodeCookies($this->map[$key])[0] ?? null;
@@ -127,6 +148,11 @@ class Headers implements \IteratorAggregate
         return $this->map[$key];
     }
 
+    /**
+     * Return separate Set-Cookie field values without comma splitting.
+     *
+     * @return list<string>
+     */
     public function getSetCookie(): array
     {
         return $this->decodeCookies($this->map['set-cookie'] ?? '');
@@ -138,6 +164,11 @@ class Headers implements \IteratorAggregate
         return isset($this->map[$this->normalize($name)]);
     }
 
+    /**
+     * Replace one header or all Set-Cookie values after validation.
+     *
+     * @param string|list<string> $value
+     */
     public function set(string $name, string|array $value): void
     {
         $this->validateName($name);
@@ -153,8 +184,11 @@ class Headers implements \IteratorAggregate
         $this->map[$key] = trim($value);
     }
 
-
-
+    /**
+     * Return sorted name/value pairs, preserving repeated Set-Cookie entries.
+     *
+     * @return list<array{string, string}>
+     */
     public function entries(): array
     {
         $result = [];
@@ -174,6 +208,11 @@ class Headers implements \IteratorAggregate
         return $result;
     }
 
+    /**
+     * Return sorted unique lowercase header names.
+     *
+     * @return list<string>
+     */
     public function keys(): array
     {
         $keys = array_keys($this->map);
@@ -181,12 +220,21 @@ class Headers implements \IteratorAggregate
         return $keys;
     }
 
+    /**
+     * Return header values in entry order, including individual Set-Cookie fields.
+     *
+     * @return list<string>
+     */
     public function values(): array
     {
         return array_column($this->entries(), 1);
     }
 
-
+    /**
+     * Invoke the callback with value, normalized name, and this collection for each entry.
+     *
+     * @param callable(string, string, self): mixed $callback
+     */
     public function forEach(callable $callback): void
     {
         foreach ($this->entries() as [$name, $value]) {
@@ -194,11 +242,21 @@ class Headers implements \IteratorAggregate
         }
     }
 
+    /**
+     * Iterate sorted name/value pairs rather than an associative name map.
+     *
+     * @return \ArrayIterator<int, array{string, string}>
+     */
     public function getIterator(): \ArrayIterator
     {
         return new \ArrayIterator($this->entries());
     }
 
+    /**
+     * Return the internal normalized string map; Set-Cookie strings use the internal delimiter.
+     *
+     * @return array<string, string>
+     */
     public function all(): array
     {
         return $this->map;

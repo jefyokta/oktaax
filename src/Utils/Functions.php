@@ -6,7 +6,7 @@
  * @package Oktaax
  * @author Jefyokta
  * @license MIT License
- * 
+ *
  * @link https://github.com/jefyokta/oktaax
  *
  * @copyright Copyright (c) 2024, Jefyokta
@@ -37,121 +37,119 @@
 
 namespace Oktaax\Utils;
 
-use Deprecated;
-use InvalidArgumentException;
-use Oktaax\Console;
-use Oktaax\Core\Application;
-use JefyOkta\PhpPromise\Asynchronous;
+use Oktaax\Application\ApplicationContext;
 use JefyOkta\PhpPromise\Promise;
-use JefyOkta\PhpPromise\Exception\PromiseException;
-use Oktaax\Http\Client\Request as ClientRequest;
-use Oktaax\Http\Client\RequestOptions;
-use Oktaax\Http\Client\Response;
+use Oktaax\HttpClient\Request as ClientRequest;
+use Oktaax\HttpClient\RequestOptions;
+use Oktaax\HttpClient\Response;
 use Oktaax\Http\Headers;
-use Oktaax\Http\Request;
-use Oktaax\Oktaa;
 use Oktaax\Oktaax;
-use Oktaax\Trait\HasWebsocket;
-use Oktaax\ServerBag;
 use Oktaax\Utils\Interfaces\CanConvertToBoolean;
-use stdClass;
-use Swoole\Coroutine;
-use Swoole\Coroutine\Channel;
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
 use Throwable;
 
-function declareFuncs() {}
-define("undefined", Undefined::get());
+define('undefined', Undefined::get());
 
-if (! function_exists('oktaa')) {
-    function oktaa()
-    {
-        return new Oktaa;
-    }
-};
-
-
-
-if (! function_exists('oktaax')) {
+if (!function_exists('oktaax')) {
     /**
-     * return a instance of oktaax. A http server
-     * 
+     * Create a process-server convenience application without starting a runtime.
+     *
+     * @return \Oktaax\Oktaax
      */
     function oktaax()
     {
-        return new Oktaax;
+        return new Oktaax();
     }
-};
+}
 
-if (! function_exists('xsocket')) {
-
-    /**`
-     * 
-     * Get a instsance of Oktaax with websocket
-     * @return Xsocket
+if (!function_exists('setTimeout')) {
+    /**
+     * Schedule one callback after a millisecond delay in the active application scope.
+     *
+     * @param callable(): mixed $func
+     * @param int $ms
+     * @return int|false
+     * @throws \LogicException When no application scope is active.
      */
-    function xsocket()
-    {
-        return new  class extends Oktaax {
-            use HasWebsocket;
-        };
-    }
-};
-
-if (! function_exists('setTimeout')) {
     function setTimeout($func, $ms)
     {
-        return @Timer::after($ms, $func);
+        $application = ApplicationContext::current();
+        $timer = null;
+        $timer = Timer::after($ms, function () use (
+            $application,
+            $func,
+            &$timer,
+        ) {
+            $application->workers()->forgetTimer($timer);
+            $application->within($func);
+        });
+        if ($timer !== false) {
+            $application->workers()->trackTimer($timer);
+        }
+        return $timer;
     }
 }
 
-if (! function_exists('setInterval')) {
+if (!function_exists('setInterval')) {
+    /**
+     * Schedule a recurring millisecond callback and register its timer with the active worker.
+     *
+     * @param callable(int): mixed $cb
+     * @param int $ms
+     * @return int|false
+     * @throws \LogicException When no application scope is active.
+     */
     function setInterval(callable $cb, int $ms)
     {
-        return Timer::tick($ms, $cb);
+        $application = ApplicationContext::current();
+        $timer = Timer::tick(
+            $ms,
+            fn(...$args) => $application->within(fn() => $cb(...$args)),
+        );
+        if ($timer !== false) {
+            $application->workers()->trackTimer($timer);
+        }
+        return $timer;
     }
 }
 
 /**
- * 
- * @return Request
- */
-if (!function_exists('xrequest')) {
-    function xrequest(): ?Request
-    {
-        return Application::context()->get(Request::class);
-    }
-}
-
-
-/**
- * 
- * @return Promise<Response>
+ * Open a coroutine HTTP request; the response body must be consumed once or explicitly closed.
+ *
+ * @param array{method?: string, headers?: array<string, string|list<string>>|\Oktaax\Http\Headers, body?: mixed, timeout?: int}|\Oktaax\HttpClient\RequestOptions $options
+ * @return \JefyOkta\PhpPromise\Promise<\Oktaax\HttpClient\Response>
  */
 
 function fetch(string $url, array|RequestOptions $options = []): Promise
 {
     return new Promise(function ($resolve, $reject) use ($url, $options) {
         try {
-            if (!$options instanceof RequestOptions) {
+            if (!($options instanceof RequestOptions)) {
                 $options = new RequestOptions(
                     method: $options['method'] ?? 'GET',
                     headers: $options['headers'] ?? [],
                     body: $options['body'] ?? null,
-                    timeout: $options['timeout'] ?? 0
+                    timeout: $options['timeout'] ?? 0,
                 );
             }
 
             $u = parse_url($url);
             $host = $u['host'] ?? null;
-            if (!$host) throw new \Exception("Invalid URL");
+            if (!$host) {
+                throw new \Exception('Invalid URL');
+            }
 
-            $path = ($u['path'] ?? '/') . (isset($u['query']) ? '?' . $u['query'] : '');
-            $port = $u['port'] ?? (($u['scheme'] ?? 'http') === 'https' ? 443 : 80);
-            $ssl  = ($u['scheme'] ?? 'http') === 'https';
+            $path =
+                ($u['path'] ?? '/') .
+                (isset($u['query']) ? '?' . $u['query'] : '');
+            $port =
+                $u['port'] ?? (($u['scheme'] ?? 'http') === 'https' ? 443 : 80);
+            $ssl = ($u['scheme'] ?? 'http') === 'https';
 
-            $cli = new Client($ssl ? SWOOLE_SOCK_TCP | SWOOLE_SSL : SWOOLE_SOCK_TCP);
+            $cli = new Client(
+                $ssl ? SWOOLE_SOCK_TCP | SWOOLE_SSL : SWOOLE_SOCK_TCP,
+            );
 
             $cli->set([
                 'timeout' => $options->timeout,
@@ -167,7 +165,9 @@ function fetch(string $url, array|RequestOptions $options = []): Promise
             while (!str_contains($buffer, "\r\n\r\n")) {
                 $chunk = $cli->recv();
                 if ($chunk === '' || $chunk === false) {
-                    throw new \Exception("Connection closed while reading header");
+                    throw new \Exception(
+                        'Connection closed while reading header',
+                    );
                 }
                 $buffer .= $chunk;
             }
@@ -177,7 +177,7 @@ function fetch(string $url, array|RequestOptions $options = []): Promise
             $lines = explode("\r\n", $head);
 
             if (!preg_match('#HTTP/\d\.\d\s+(\d+)#', array_shift($lines), $m)) {
-                throw new \Exception("Invalid HTTP response");
+                throw new \Exception('Invalid HTTP response');
             }
 
             $status = \intval($m[1]);
@@ -197,71 +197,82 @@ function fetch(string $url, array|RequestOptions $options = []): Promise
     });
 }
 
-
-
-
-
-if (! function_exists('xcsrf_token')) {
-
-    function xcsrf_token()
-    {
-        return xrequest()?->_token;
-    }
-}
-
-if (! function_exists('xserver')) {
+if (!function_exists('clearInterval')) {
     /**
-     * @deprecated 
-     * @return \Swoole\Http\Server|\Swoole\Websocket\Server
+     * Clear a native timer and forget it from the active worker timer registry.
+     *
+     * @return bool
+     * @throws \LogicException When no application scope is active.
      */
-    function xserver(): \Swoole\Http\Server|\Swoole\Websocket\Server
-    {
-        return ServerBag::get();
-    }
-}
-
-if (! function_exists('clearInterval')) {
     function clearInterval(int $id)
     {
+        ApplicationContext::current()->workers()->forgetTimer($id);
         return Timer::clear($id);
     }
 }
 
-if (! function_exists('clearTimeout')) {
+if (!function_exists('clearTimeout')) {
+    /**
+     * Clear a native timer and forget it from the active worker timer registry.
+     *
+     * @return bool
+     * @throws \LogicException When no application scope is active.
+     */
     function clearTimeout(int $id)
     {
+        ApplicationContext::current()->workers()->forgetTimer($id);
         return Timer::clear($id);
     }
 }
 
-if (! function_exists('_o')) {
-
+if (!function_exists('_o')) {
+    /**
+     * Create a Struct from named property arguments.
+     *
+     * @param mixed ...$args
+     * @return \Oktaax\Utils\Struct<object>
+     */
     function _o(mixed ...$args): Struct
     {
         return new Struct(...$args);
     }
 }
 
-if (! function_exists("Boolean")) {
+if (!function_exists('Boolean')) {
+    /**
+     * Use an object truthiness contract when available, otherwise PHP boolean conversion.
+     *
+     * @return bool
+     */
     function Boolean(mixed $val)
     {
-
         if (\is_object($val) && $val instanceof CanConvertToBoolean) {
             return $val->getBooleanValue();
         }
-        return !! $val;
+        return !!$val;
     }
 }
 
-if (! function_exists("getter")) {
+if (!function_exists('getter')) {
+    /**
+     * Wrap a zero-argument computed getter for later binding to its owning Struct.
+     *
+     * @param \Closure(): TValue $callback
+     * @return \Oktaax\Utils\GetterProperty<TValue>
+     * @template TValue
+     */
     function getter(\Closure $callback)
     {
-
         return new GetterProperty($callback);
     }
 }
 
-function app()
+/**
+ * Return the explicitly active application; constructing an application does not select a global default.
+ *
+ * @throws \LogicException When no application scope is active.
+ */
+function app(): \Oktaax\Application
 {
-    return Application::getInstance();
+    return ApplicationContext::current();
 }

@@ -1,11 +1,11 @@
-<?php 
+<?php
 /**
  * Oktaax - Real-time Websocket and HTTP Server using Swoole
  *
  * @package Oktaax
  * @author Jefyokta
  * @license MIT License
- * 
+ *
  * @link https://github.com/jefyokta/oktaax
  *
  * @copyright Copyright (c) 2024, Jefyokta
@@ -33,17 +33,11 @@
  * SOFTWARE.
  *
  */
- 
 
-
-
-
-
-
- /**
-  * 
-  *@return array<string>
-  */
+/**
+ *
+ *@return array<string>
+ */
 return [
     'html' => 'text/html',
     'htm' => 'text/html',
@@ -95,9 +89,12 @@ return [
     'odp' => 'application/vnd.oasis.opendocument.presentation',
     'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
     'odt' => 'application/vnd.oasis.opendocument.text',
-    'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'pptx' =>
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'xlsx' =>
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'docx' =>
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'wmlc' => 'application/vnd.wap.wmlc',
     'wasm' => 'application/wasm',
     '7z' => 'application/x-7z-compressed',
@@ -155,5 +152,4 @@ return [
     'asf' => 'video/x-ms-asf',
     'wmv' => 'video/x-ms-wmv',
     'avi' => 'video/x-msvideo',
-    
 ];

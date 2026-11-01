@@ -6,7 +6,7 @@
  * @package Oktaax
  * @author Jefyokta
  * @license MIT License
- * 
+ *
  * @link https://github.com/jefyokta/oktaax
  *
  * @copyright Copyright (c) 2024, Jefyokta
@@ -35,32 +35,28 @@
  *
  */
 
-
-
-
-
 namespace Oktaax\Http;
-
-use Oktaax\Core\Application;
 
 class RequestValidated
 {
-
-
     /**
-     *  @var array<string[]> $data
-     * @var ?array<string[]> $errors
+     * Store filtered input and an optional field/rule error map.
+     *
+     * @param array<array-key, mixed> $data
+     * @param array<string, array<string, string>>|null $errors
      */
-    public function __construct(private $data = [], private ?array $errors = null) {}
-
+    public function __construct(
+        private $data = [],
+        private ?array $errors = null,
+    ) {}
 
     /**
-     * @param array<string> $message
-     * @return static
+     * Override existing field.rule messages without adding new validation failures.
+     *
+     * @param array<string, string> $messages
      */
     public function setMessage(array $messages): static
     {
-
         foreach ($messages as $ms => $value) {
             [$field, $rule] = explode('.', $ms);
 
@@ -76,39 +72,37 @@ class RequestValidated
 
     public function isOk(): bool
     {
-
         return empty($this->errors);
     }
     /**
-     * 
-     * Return all validate result
-     * @return array<array[],array[]>
+     * Return filtered input and the nullable validation error map as a tuple.
+     *
+     * @return array{array<array-key, mixed>, array<string, array<string, string>>|null}
      */
     public function getAll(): array
     {
         return [$this->data, $this->errors];
     }
     /**
-     * 
-     * Return all error from result
-     * @return array
+     * Return validation failures, or an empty map when none are present.
+     *
+     * @return array<string, array<string, string>>
      */
     public function getErrors(): array
     {
         return $this->errors ?? [];
     }
     /**
-     * 
-     * Return all data from result
-     * @return array
+     * Return only the input fields retained by validation.
+     *
+     * @return array<array-key, mixed>
      */
     public function getData(): array
     {
-
         return $this->data;
     }
     /**
-     * 
+     *
      * Return first errors
      * @return string|null
      */
@@ -122,11 +116,21 @@ class RequestValidated
         return !empty($this->errors);
     }
 
+    /**
+     * Return validation failures, or an empty map when none are present.
+     *
+     * @return array<string, array<string, string>>
+     */
     public function errors(): array
     {
         return $this->getErrors();
     }
 
+    /**
+     * Return only the input fields retained by validation.
+     *
+     * @return array<array-key, mixed>
+     */
     public function all(): array
     {
         return $this->getData();
@@ -141,4 +145,4 @@ class RequestValidated
     {
         return isset($this->data[$name]);
     }
-};
+}

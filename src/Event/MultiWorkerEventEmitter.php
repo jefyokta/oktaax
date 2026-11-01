@@ -2,38 +2,61 @@
 
 namespace Oktaax\Event;
 
+use Closure;
+use Oktaax\Application\WorkerContext;
 use Oktaax\Exception\EventDispatchException;
-use Override;
-
-use function Oktaax\Utils\app;
 
 class MultiWorkerEventEmitter extends EventEmitter
 {
+    /**
+     * Bind this emitter to a worker and an optional application-scope listener invoker.
+     *
+     * @param (\Closure(\Closure(): mixed): mixed)|null $invoke
+     */
+    public function __construct(
+        private WorkerContext $worker,
+        ?Closure $invoke = null,
+    ) {
+        parent::__construct($invoke);
+    }
 
-    #[Override]
+    /**
+     * Deliver an event locally and forward it to other HTTP workers without waiting for peer delivery.
+     *
+     * @param array<array-key, mixed>|\Oktaax\Event\Event<mixed> $payload
+     * @throws \Oktaax\Exception\EventDispatchException When a local listener fails.
+     */
     public function emit(string $event, array|Event $payload = []): EventEmitter
     {
-        $listeners = $this->listeners[$event] ?? [];
-        $ev = $payload instanceof Event ? $payload : new Event($event, $payload);
-        $errors = [];
-
-        foreach ($listeners as $listener) {
-            try {
-                $listener($ev);
-            } catch (\Throwable $th) {
-                $errors[] = $th;
-            }
+        $value =
+            $payload instanceof Event ? $payload : new Event($event, $payload);
+        $value->sender = [
+            'name' => $this->worker->name,
+            'id' => $this->worker->id,
+        ];
+        $failure = null;
+        try {
+            parent::emit($event, $value);
+        } catch (EventDispatchException $error) {
+            $failure = $error;
         }
-
-        app()->worker->send($ev);
-        if (!empty($errors)) {
-            throw new EventDispatchException($event, $errors);
+        $this->worker->send($value);
+        if ($failure !== null) {
+            throw $failure;
         }
-
         return $this;
     }
 
-    public function _emit(string $event, array|Event $payload = []){
-        return parent::emit(...func_get_args());
+    /**
+     * Deliver an event only to local listeners, without forwarding or rebroadcast.
+     *
+     * @param array<array-key, mixed>|\Oktaax\Event\Event<mixed> $payload
+     * @throws \Oktaax\Exception\EventDispatchException When a local listener fails.
+     */
+    public function emitLocal(
+        string $event,
+        array|Event $payload = [],
+    ): EventEmitter {
+        return parent::emit($event, $payload);
     }
 }

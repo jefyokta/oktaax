@@ -6,7 +6,7 @@
  * @package Oktaax
  * @author Jefyokta
  * @license MIT License
- * 
+ *
  * @link https://github.com/jefyokta/oktaax
  *
  * @copyright Copyright (c) 2024, Jefyokta
@@ -35,9 +35,6 @@
  *
  */
 
-
-
-
 namespace Oktaax;
 
 use JefyOkta\PhpPromise\Promise;
@@ -48,36 +45,39 @@ use Oktaax\Utils\Undefined;
 
 class Console
 {
+    /**
+     * Labeled start times used by time() and timeEnd().
+     *
+     * @var array<string, float>
+     */
     private static array $timers = [];
     private static int $indent = 0;
 
     public static int $maxDepth = 3;
 
-
-
     public static function log(...$args)
     {
-        self::write("log", $args, "\033[42m\033[30m", "\033[0m");
+        self::write('log', $args, "\033[42m\033[30m", "\033[0m");
     }
 
     public static function error(...$args)
     {
-        self::write("error", $args, "\033[41m\033[97m", "\033[31m", STDERR);
+        self::write('error', $args, "\033[41m\033[97m", "\033[31m", STDERR);
     }
 
     public static function warn(...$args)
     {
-        self::write("warn", $args, "\033[43m\033[30m", "\033[33m");
+        self::write('warn', $args, "\033[43m\033[30m", "\033[33m");
     }
 
     public static function info(...$args)
     {
-        self::write("info", $args, "\033[44m\033[30m", "\033[36m");
+        self::write('info', $args, "\033[44m\033[30m", "\033[36m");
     }
 
     public static function debug(...$args)
     {
-        self::write("debug", $args, "\033[45m\033[97m", "\033[35m");
+        self::write('debug', $args, "\033[45m\033[97m", "\033[35m");
     }
 
     public static function dir($data, $depth = 3)
@@ -111,17 +111,22 @@ class Console
         $duration = (microtime(true) - self::$timers[$label]) * 1000;
         unset(self::$timers[$label]);
 
-        self::info("%s: %d ms", $label, $duration);
+        self::info('%s: %d ms', $label, $duration);
     }
 
+    /**
+     * Print rows with shared column names as a terminal table.
+     *
+     * @param array<array-key, array<array-key, mixed>> $data
+     */
     public static function table(array $data)
     {
         if (empty($data)) {
-            self::log("[]");
+            self::log('[]');
             return;
         }
 
-        $rows = array_map(fn($r) => (array)$r, $data);
+        $rows = array_map(fn($r) => (array) $r, $data);
         $headers = array_keys($rows[0]);
 
         $widths = [];
@@ -138,17 +143,17 @@ class Console
         }
 
         $line = function ($row) use ($widths) {
-            $out = "|";
+            $out = '|';
             foreach ($row as $k => $v) {
                 $v = self::stringify($v);
-                $out .= " " . str_pad($v, $widths[$k]) . " |";
+                $out .= ' ' . str_pad($v, $widths[$k]) . ' |';
             }
             return $out;
         };
 
-        $separator = "+";
+        $separator = '+';
         foreach ($headers as $h) {
-            $separator .= str_repeat("-", $widths[$h] + 2) . "+";
+            $separator .= str_repeat('-', $widths[$h] + 2) . '+';
         }
 
         fwrite(STDOUT, $separator . PHP_EOL);
@@ -162,32 +167,44 @@ class Console
         fwrite(STDOUT, $separator . PHP_EOL);
     }
 
-
     private static function write(
         string $type,
         array $args,
         string $boxColor,
         string $msgColor,
-        mixed $output = STDOUT
+        mixed $output = STDOUT,
     ) {
         $label = strtoupper($type);
         $box = "{$boxColor} {$label} \033[0m";
 
         $message = self::format($args);
 
-        $indent = str_repeat("  ", self::$indent);
+        $indent = str_repeat('  ', self::$indent);
 
         fwrite($output, "\n{$indent}{$box} {$message}\033[0m\n");
     }
 
+    /**
+     * Apply supported console placeholders and append unconsumed arguments.
+     *
+     * @param list<mixed> $args
+     */
     private static function format(array $args): string
     {
-        if (empty($args)) return '';
+        if (empty($args)) {
+            return '';
+        }
 
         $first = array_shift($args);
 
         if (!is_string($first)) {
-            return (((is_object($first) && !($first instanceof Promise)) || is_array($first)) ? "\n\n" : "") . self::stringify($first) . ' ' . implode(' ', array_map([self::class, 'stringify'], $args));
+            return ((is_object($first) && !($first instanceof Promise)) ||
+            is_array($first)
+                ? "\n\n"
+                : '') .
+                self::stringify($first) .
+                ' ' .
+                implode(' ', array_map([self::class, 'stringify'], $args));
         }
 
         $i = 0;
@@ -195,7 +212,9 @@ class Console
         $formatted = preg_replace_callback(
             '/%(\d+)?(\.\d+)?([sdjof])/',
             function ($match) use (&$args, &$i) {
-                if (!isset($args[$i])) return $match[0];
+                if (!isset($args[$i])) {
+                    return $match[0];
+                }
 
                 $val = $args[$i++];
 
@@ -203,23 +222,30 @@ class Console
                 $precision = $match[2] ?? null;
 
                 return match ($type) {
-                    's' => (string)$val,
-                    'd' => (string)intval($val),
+                    's' => (string) $val,
+                    'd' => (string) intval($val),
                     'j' => json_encode($val),
                     'o' => self::inspect($val),
                     'f' => $precision
-                        ? number_format((float)$val, (int)substr($precision, 1), '.', '')
-                        : (string)(float)$val,
+                        ? number_format(
+                            (float) $val,
+                            (int) substr($precision, 1),
+                            '.',
+                            '',
+                        )
+                        : (string) (float) $val,
                     default => $match[0],
                 };
             },
-            $first
+            $first,
         );
 
         $rest = array_slice($args, $i);
 
         if (!empty($rest)) {
-            $formatted .= ' ' . implode(' ', array_map([self::class, 'stringify'], $rest));
+            $formatted .=
+                ' ' .
+                implode(' ', array_map([self::class, 'stringify'], $rest));
         }
 
         return $formatted;
@@ -229,7 +255,6 @@ class Console
     {
         return self::inspect($arg);
     }
-
 
     private static function inspect(mixed $data, int $depth = 0): string
     {
@@ -258,19 +283,26 @@ class Console
         }
 
         if (\is_array($data)) {
-            if (empty($data)) return "[]";
-            $items = array_map(function ($k, $v) use ($depth) {
-                $key = "\033[36m{$k}\033[0m";
-                return str_repeat("  ", $depth + 1)
-                    . $key . ": "
-                    . self::inspect($v, $depth + 1);
-            }, array_keys($data), $data);
+            if (empty($data)) {
+                return '[]';
+            }
+            $items = array_map(
+                function ($k, $v) use ($depth) {
+                    $key = "\033[36m{$k}\033[0m";
+                    return str_repeat('  ', $depth + 1) .
+                        $key .
+                        ': ' .
+                        self::inspect($v, $depth + 1);
+                },
+                array_keys($data),
+                $data,
+            );
 
-            return "[\n"
-                . implode(",\n", $items)
-                . "\n"
-                . str_repeat("  ", $depth)
-                . "]";
+            return "[\n" .
+                implode(",\n", $items) .
+                "\n" .
+                str_repeat('  ', $depth) .
+                ']';
         }
 
         if (\is_object($data)) {
@@ -287,22 +319,28 @@ class Console
                 return $data->onDebug();
             }
 
-            $vars = $data instanceof Struct
-                ? Struct::entries($data)
-                : get_object_vars($data);
+            $vars =
+                $data instanceof Struct
+                    ? Struct::entries($data)
+                    : get_object_vars($data);
 
-            $items = array_map(function ($k, $v) use ($depth) {
-                $key = "\033[36m{$k}\033[0m";
-                return str_repeat("  ", $depth + 1)
-                    . $key . ": "
-                    . self::inspect($v, $depth + 1);
-            }, array_keys($vars), $vars);
+            $items = array_map(
+                function ($k, $v) use ($depth) {
+                    $key = "\033[36m{$k}\033[0m";
+                    return str_repeat('  ', $depth + 1) .
+                        $key .
+                        ': ' .
+                        self::inspect($v, $depth + 1);
+                },
+                array_keys($vars),
+                $vars,
+            );
 
-            return "{\n"
-                . implode(",\n", $items)
-                . "\n"
-                . str_repeat("  ", $depth)
-                . "}";
+            return "{\n" .
+                implode(",\n", $items) .
+                "\n" .
+                str_repeat('  ', $depth) .
+                '}';
         }
 
         if (\gettype($data) == 'string') {
@@ -314,9 +352,7 @@ class Console
         }
 
         if (\is_bool($data)) {
-            return $data
-                ? "\033[34mtrue\033[0m"
-                : "\033[34mfalse\033[0m";
+            return $data ? "\033[34mtrue\033[0m" : "\033[34mfalse\033[0m";
         }
 
         if ($data === null) {

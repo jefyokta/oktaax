@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 use Oktaax\Console;
 
-require "vendor/autoload.php";
+require 'vendor/autoload.php';
 
 $null = null;
-
 
 $null[] = 'it should be a type error';
 
@@ -17,10 +16,8 @@ var_dump($null);
 //   string(23) "it should be type error"
 // }
 
-
-
-$map = new WeakMap;
-$object = new stdClass;
+$map = new WeakMap();
+$object = new stdClass();
 $nonWeak = [];
 $key = $object::class;
 
@@ -28,10 +25,10 @@ $nonWeak[$key] = 'saoasoas';
 
 $map[$object] = 1;
 
-Console::log($map->count(),$nonWeak);
+Console::log($map->count(), $nonWeak);
 
-unset($object,$key);
+unset($object, $key);
 
-$map[new stdClass] =1;
+$map[new stdClass()] = 1;
 
-Console::log($map->count(),$nonWeak);
+Console::log($map->count(), $nonWeak);

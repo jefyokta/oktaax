@@ -2,30 +2,32 @@
 
 namespace Oktaax\Event;
 
-use function Oktaax\Utils\app;
-
 /**
- * @template  T of mixed
+ * A named application event carrying a payload and optional worker sender metadata.
+ *
+ * @template T
  */
 class Event
 {
+    public readonly string $name;
 
-    public  readonly string $name;
+    /**
+     * Sender metadata attached by IPC-aware emitters; absent for ordinary local events.
+     *
+     * @var array{name: string, id: int}|null
+     */
+    public ?array $sender = null;
 
-    public ?array $sender ;
-
+    /**
+     * Create an event value without looking up an active application.
+     *
+     * @param T $data
+     */
     public function __construct(
         string $eventName,
         /** @var  T */
-        public mixed $data
+        public mixed $data,
     ) {
         $this->name = $eventName;
-
-        if (app()->worker) {
-            $this->sender = [
-                "name" => app()->worker->name,
-                "id" => app()->worker->id
-            ];
-        }
     }
 }

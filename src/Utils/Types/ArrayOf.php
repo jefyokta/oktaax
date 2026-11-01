@@ -8,15 +8,15 @@ use TypeError;
 class ArrayOf extends TypeGuard
 {
     /**
-     * @var string[]
+     * Accepted runtime type names or nested guards for every array element.
+     *
+     * @var list<string|\Oktaax\Utils\Types\TypeGuard>
      */
     private array $types = [];
 
     private function __construct(string|TypeGuard ...$types)
     {
-        $this->types = empty($types)
-            ? ['mixed']
-            : $types;
+        $this->types = empty($types) ? ['mixed'] : $types;
     }
 
     public static function type(string|TypeGuard ...$types): static
@@ -34,11 +34,13 @@ class ArrayOf extends TypeGuard
     public function satisfies(string $varName, mixed $value): void
     {
         if (!\is_array($value)) {
-            throw new TypeError(sprintf(
-                "Property '%s' must be of type array, %s given.",
-                $varName,
-                get_debug_type($value)
-            ));
+            throw new TypeError(
+                sprintf(
+                    "Property '%s' must be of type array, %s given.",
+                    $varName,
+                    get_debug_type($value),
+                ),
+            );
         }
 
         foreach ($value as $index => $item) {

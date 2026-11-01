@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>WebSocket workspace · Oktaax</title>
+        <link rel="stylesheet" href="/demo/style.css" />
+        <script type="module" src="/demo/client.js"></script>
+    </head>
+    <body>
+        <header>
+            <div>
+                <span class="eyebrow">OKTAAX / RUNNABLE EXAMPLE</span>
+                <h1>WebSocket workspace</h1>
+            </div>
+            <p>
+                Explore authenticated chat, connection lifetimes, and live
+                events.
+            </p>
+        </header>
+        <main>
+            <section class="panel session" aria-labelledby="session-title">
+                <div class="section-heading">
+                    <h2 id="session-title">01 / Session & connection</h2>
+                    <span id="status" role="status" class="badge"
+                        >Disconnected</span
+                    >
+                </div>
+                <p class="muted">
+                    Local demo accounts. Alice: engineering; Bob: design; Admin:
+                    all rooms and monitor.
+                </p>
+                <form id="login-form" class="row">
+                    <label
+                        >Account<select id="username" autocomplete="username">
+                            <option value="alice">Alice</option>
+                            <option value="bob">Bob</option>
+                            <option value="admin">Admin</option>
+                        </select></label
+                    >
+                    <label
+                        >Password<input
+                            id="password"
+                            type="password"
+                            value="alice-demo"
+                            autocomplete="current-password"
+                            required
+                    /></label>
+                    <button type="submit">Sign in</button
+                    ><button id="logout" type="button" class="secondary">
+                        Sign out
+                    </button>
+                </form>
+                <div class="row">
+                    <label
+                        >Endpoint<select id="endpoint">
+                            <option value="/socket/chat">
+                                Chat / default JSON
+                            </option>
+                            <option value="/socket/status">
+                                Monitor / admin only
+                            </option>
+                            <option value="/socket/alternate">
+                                Echo / alternate JSON codec
+                            </option>
+                            <option value="/socket/binary">
+                                Echo / binary JSON codec
+                            </option>
+                        </select></label
+                    >
+                    <button id="connect" type="button">Connect</button
+                    ><button id="disconnect" type="button" class="secondary">
+                        Disconnect
+                    </button>
+                    <label class="check"
+                        ><input id="reconnect" type="checkbox" checked />
+                        Reconnect with backoff</label
+                    >
+                    <label class="check"
+                        ><input id="heartbeat" type="checkbox" checked />
+                        Respond to heartbeat</label
+                    >
+                </div>
+                <dl class="metrics">
+                    <div>
+                        <dt>Identity</dt>
+                        <dd id="identity">Not signed in</dd>
+                    </div>
+                    <div>
+                        <dt>Worker</dt>
+                        <dd id="worker">—</dd>
+                    </div>
+                    <div>
+                        <dt>Joined rooms</dt>
+                        <dd id="rooms">—</dd>
+                    </div>
+                    <div>
+                        <dt>Pending replies</dt>
+                        <dd id="pending">0</dd>
+                    </div>
+                </dl>
+                <p id="notice" role="alert"></p>
+            </section>
+            <div class="workspace">
+                <div class="controls">
+                    <section class="panel" aria-labelledby="chat-title">
+                        <h2 id="chat-title">02 / Rooms & messages</h2>
+                        <div class="row">
+                            <label
+                                >Room<select id="room">
+                                    <option>lobby</option>
+                                </select></label
+                            ><button id="join" data-chat type="button">
+                                Join</button
+                            ><button
+                                id="leave"
+                                data-chat
+                                type="button"
+                                class="secondary"
+                            >
+                                Leave
+                            </button>
+                        </div>
+                        <form id="chat-form">
+                            <label
+                                >Message<textarea
+                                    id="text"
+                                    rows="3"
+                                    maxlength="2000"
+                                >
+Hello from Oktaax!</textarea>
+                            </label>
+                            <div class="row">
+                                <button data-chat type="submit">
+                                    Send to room</button
+                                ><button
+                                    id="typing"
+                                    data-chat
+                                    type="button"
+                                    class="secondary"
+                                >
+                                    Typing event to peers
+                                </button>
+                            </div>
+                        </form>
+                        <p class="muted">
+                            Room events reach joined clients on any worker. Open
+                            another browser profile to try a different account.
+                        </p>
+                        <div id="admin-actions" hidden class="row">
+                            <button id="announce" data-chat type="button">
+                                Announce to endpoint</button
+                            ><button
+                                id="backend-notice"
+                                type="button"
+                                class="secondary"
+                            >
+                                Publish via HTTP → backend emitter
+                            </button>
+                        </div>
+                    </section>
+                    <section class="panel" aria-labelledby="actions-title">
+                        <h2 id="actions-title">03 / State, timers & cleanup</h2>
+                        <div class="buttons">
+                            <button data-event="ping" type="button">Ping</button
+                            ><button data-event="echo" type="button">
+                                Echo</button
+                            ><button data-event="state.get" type="button">
+                                Connection state</button
+                            ><button
+                                data-event="clock.start"
+                                data-chat
+                                type="button"
+                            >
+                                Start clock</button
+                            ><button
+                                data-event="clock.stop"
+                                data-chat
+                                type="button"
+                            >
+                                Stop clock</button
+                            ><button
+                                data-event="reminder.schedule"
+                                data-chat
+                                type="button"
+                            >
+                                Remind in 2 seconds</button
+                            ><button
+                                data-event="reminder.cancel"
+                                data-chat
+                                type="button"
+                            >
+                                Cancel reminder</button
+                            ><button
+                                data-event="document.preview"
+                                data-chat
+                                type="button"
+                            >
+                                Preview text in temp stream</button
+                            ><button
+                                data-event="client.close"
+                                type="button"
+                                class="secondary"
+                            >
+                                Ask server to close
+                            </button>
+                        </div>
+                        <pre
+                            id="snapshot"
+                            aria-label="Latest connection or monitor state"
+                        >
+No state received yet.</pre>
+                    </section>
+                    <section class="panel" aria-labelledby="raw-title">
+                        <h2 id="raw-title">04 / Protocol & failure cases</h2>
+                        <label
+                            >Raw wire packet<textarea
+                                id="raw"
+                                rows="5"
+                                spellcheck="false"
+                            >
+{"event":"state.get","data":{},"id":"manual-1"}</textarea>
+                        </label>
+                        <button id="raw-send" type="button">
+                            Send raw frame
+                        </button>
+                        <div class="buttons diagnostics">
+                            <button
+                                data-event="unknown.example"
+                                type="button"
+                                class="secondary"
+                            >
+                                Unknown event</button
+                            ><button
+                                data-event="validation.example"
+                                data-chat
+                                type="button"
+                                class="secondary"
+                            >
+                                Validation failure</button
+                            ><button
+                                data-event="demo.fail"
+                                type="button"
+                                class="secondary"
+                            >
+                                Internal error</button
+                            ><button
+                                data-fault="json"
+                                type="button"
+                                class="danger"
+                            >
+                                Bad JSON · closes</button
+                            ><button
+                                data-fault="binary"
+                                type="button"
+                                class="danger"
+                            >
+                                Binary · closes</button
+                            ><button
+                                data-fault="oversize"
+                                type="button"
+                                class="danger"
+                            >
+                                Oversize · closes
+                            </button>
+                        </div>
+                        <p class="muted">
+                            Protocol failures stop automatic reconnect. Use
+                            Connect after inspecting the close code.
+                        </p>
+                    </section>
+                </div>
+                <section class="panel wire" aria-labelledby="wire-title">
+                    <div class="section-heading">
+                        <h2 id="wire-title">Live wire log</h2>
+                        <button id="clear" type="button" class="secondary">
+                            Clear
+                        </button>
+                    </div>
+                    <p class="muted">
+                        ↑ Sent &nbsp; ↓ Received &nbsp; · Lifecycle · Last 200
+                        entries
+                    </p>
+                    <ol id="log" aria-label="WebSocket wire log"></ol>
+                </section>
+            </div>
+        </main>
+        <footer>
+            Run: <code>php examples/guide/serve.php websocket-complete</code> ·
+            Source and guide: <code>examples/guide/websocket-complete/</code>
+        </footer>
+    </body>
+</html>

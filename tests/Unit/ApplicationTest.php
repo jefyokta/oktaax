@@ -1,123 +1,47 @@
 <?php
 
-use Oktaax\Core\Application;
+use Oktaax\Application;
 use Oktaax\Http\Request;
-use Oktaax\Http\Response as OktaaxResponse;
-use Oktaax\Http\Router;
-use Oktaax\Types\OktaaxConfig;
-use Oktaax\Types\AppConfig;
-use Oktaax\Interfaces\View;
+use Oktaax\Http\Response;
+use Tests\Support\Coroutines;
+use Tests\Support\HttpFixture;
 
-class FakeSwooleResponse extends \Swoole\Http\Response
-{
-    public function isWritable(): bool
-    {
-        return true;
-    }
-    /** @disregard
-     */
-    public function header(string $key, array|string $value, bool $format = true): bool
-    {
-        return true;
-    }
-    /** @disregard
-     */
-    public function status(int $http_code, string $reason = ''): bool
-    {
-        return true;
-    }
-    /** @disregard
-     */
-    public function end(?string $content = null): bool
-    {
-        return true;
-    }
-}
-
-class FakeRequest extends Request
-{
-    public function getMethod(): string
-    {
-        return 'GET';
-    }
-}
-
-beforeEach(function () {
-    $router = new ReflectionClass(Router::class);
-    $routes = $router->getProperty('routes');
-    $routes->setValue(null, []);
-
-});
-
-it('does not leak request/response after handle', function () {
-    $swooleRequest = new \Swoole\Http\Request();
-    $swooleRequest->get = [];
-    $swooleRequest->post = [];
-    $swooleRequest->cookie = [];
-    $swooleRequest->server = ['request_uri' => '/ping', 'request_method' => 'GET'];
-
-    $swooleResponse = new FakeSwooleResponse();
-
-    $request = new FakeRequest($swooleRequest);
-    $response = new OktaaxResponse(
-        $swooleResponse,
-        $request
-    );
-
-    $router = new Router();
-    $router->get('/ping', fn() => 'pong');
-
-    \Swoole\Coroutine::create(function () use ($request, $response) {
-        Application::create($request, $response)->handle();
-        expect(Application::getRequest())->toBeNull();
-        expect(Application::getResponse())->toBeNull();
+it('does not retain request or response context after handling', function () {
+    Coroutines::run(function () {
+        $app = new Application();
+        $app->get('/ping', fn() => 'pong');
+        $http = new HttpFixture(uri: '/ping');
+        $app->handleRequest($http->request, $http->response);
+        expect($http->nativeResponse->sentBody)->toBe('pong');
+        expect($app->getRequest())
+            ->toBeNull()
+            ->and($app->getResponse())
+            ->toBeNull();
     });
 });
 
-it('lets application inject request/response helpers, register catcher and respond', function () {
-    $swooleRequest = new \Swoole\Http\Request();
-    $swooleRequest->get = [];
-    $swooleRequest->post = [];
-    $swooleRequest->cookie = [];
-    $swooleRequest->server = ['request_uri' => '/custom', 'request_method' => 'GET'];
-
-    $swooleResponse = new FakeSwooleResponse();
-
-    $request = new FakeRequest($swooleRequest);
-    $response = new OktaaxResponse(
-        $swooleResponse,
-        $request
-    );
-
-    class DummyResult {}
-
-    $router = new Router();
-    $router->get('/custom', function () {
-        return new DummyResult();
-    });
-
-    $application = Application::create($request, $response);
-
-    class HelloInvokable
-    {
-        public function __invoke()
-        {
-            return 'world';
-        }
-    }
-
-    class HelloRespInvokable
-    {
-        public function __invoke()
-        {
-            return 'worldresp';
-        }
-    }
-
-    $application->inject(Request::class, 'hello', HelloInvokable::class);
-
-    $application->inject(OktaaxResponse::class, 'helloResp', HelloRespInvokable::class);
-
-    expect($request->hello())->toBe('world');
-    expect($response->helloResp())->toBe('worldresp');
-});
+it(
+    'binds application helpers and custom result resolvers to the request',
+    function () {
+        Coroutines::run(function () {
+            $app = new Application();
+            $app->inject(Request::class, 'hello', fn() => 'world');
+            $app->inject(Response::class, 'helloResponse', fn() => 'response');
+            $result = new class {};
+            $app->respond(
+                $result::class,
+                fn($value, $req, $res) => $res->json([
+                    'request' => $req->hello(),
+                    'response' => $res->helloResponse(),
+                ]),
+            );
+            $app->get('/custom', fn() => $result);
+            $http = new HttpFixture(uri: '/custom');
+            $app->handleRequest($http->request, $http->response);
+            expect(json_decode($http->nativeResponse->sentBody, true))->toBe([
+                'request' => 'world',
+                'response' => 'response',
+            ]);
+        });
+    },
+);

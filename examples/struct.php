@@ -1,14 +1,12 @@
 <?php
 
-
 use Oktaax\Console;
 use Oktaax\Utils\Struct;
 use Oktaax\Utils\Types\ArrayOf;
 
 use function Oktaax\Utils\{_o, getter};
 
-require __DIR__ . "/../vendor/autoload.php";
-
+require __DIR__ . '/../vendor/autoload.php';
 
 #[Attribute(Attribute::TARGET_PROPERTY)]
 class Getter
@@ -30,7 +28,7 @@ class Address
         string $street,
         string $city,
         string $province,
-        string $country
+        string $country,
     ): void {}
 }
 
@@ -73,51 +71,38 @@ class Person
     public array $projects;
 
     #[Getter]
-
     public int $projectCount;
 
     #[Getter]
-
     public int $totalStars;
 
-    public function rename(
-        string $first,
-        string $last
-    ): void {}
+    public function rename(string $first, string $last): void {}
 
-    public function moveTo(
-        string $city,
-        string $country
-    ): void {}
+    public function moveTo(string $city, string $country): void {}
 
-    public function addSkill(
-        string $skill
-    ): void {}
+    public function addSkill(string $skill): void {}
 
-    public function addProject(
-        string $name,
-        string $description
-    ): Project {
-
-        return new Project;
+    public function addProject(string $name, string $description): Project
+    {
+        return new Project();
     }
 
     public function introduce(): string
     {
-        return "";
+        return '';
     }
 }
 
 /** @var Struct<Person> */
 $person = _o(
-    firstName: "Jefy",
-    lastName: "Okta",
-    birthDay: new DateTime("2002-10-06"),
+    firstName: 'Jefy',
+    lastName: 'Okta',
+    birthDay: new DateTime('2002-10-06'),
     address: _o(
-        street: "Jl. HR. Soebrantas",
-        city: "Pekanbaru",
-        province: "Riau",
-        country: "Indonesia",
+        street: 'Jl. HR. Soebrantas',
+        city: 'Pekanbaru',
+        province: 'Riau',
+        country: 'Indonesia',
         fullAddress: getter(function () {
             return "{$this->street}, {$this->city}, {$this->province}, {$this->country}";
         }),
@@ -126,20 +111,16 @@ $person = _o(
             string $street,
             string $city,
             string $province,
-            string $country
+            string $country,
         ) {
             $this->street = $street;
             $this->city = $city;
             $this->province = $province;
             $this->country = $country;
-        }
+        },
     ),
 
-    skills: [
-        "PHP",
-        "TypeScript",
-        "Electron",
-    ],
+    skills: ['PHP', 'TypeScript', 'Electron'],
 
     projects: [],
 
@@ -161,27 +142,16 @@ $person = _o(
 
     totalStars: getter(function () {
         return array_sum(
-            array_map(
-                fn($project) => $project->stars,
-                $this->projects
-            )
+            array_map(fn($project) => $project->stars, $this->projects),
         );
     }),
 
-
-
-    rename: function (
-        string $first,
-        string $last
-    ) {
+    rename: function (string $first, string $last) {
         $this->firstName = $first;
         $this->lastName = $last;
     },
 
-    moveTo: function (
-        string $city,
-        string $country
-    ) {
+    moveTo: function (string $city, string $country) {
         $this->address->city = $city;
         $this->address->country = $country;
     },
@@ -192,10 +162,7 @@ $person = _o(
         $this->skills = $skills;
     },
 
-    addProject: function (
-        string $name,
-        string $description
-    ) {
+    addProject: function (string $name, string $description) {
         $projects = $this->projects;
 
         $projects[] = _o(
@@ -203,9 +170,7 @@ $person = _o(
             description: $description,
             private: false,
             stars: 0,
-            contributors: [
-                $this->fullName,
-            ],
+            contributors: [$this->fullName],
 
             star: function (int $count = 1) {
                 $this->stars += $count;
@@ -215,7 +180,7 @@ $person = _o(
                 $contributors = $this->contributors;
                 $contributors[] = $name;
                 $this->contributors = $contributors;
-            }
+            },
         );
 
         $this->projects = $projects;
@@ -224,67 +189,56 @@ $person = _o(
     },
 
     introduce: function () {
-
         return <<<TEXT
-👋 {$this->fullName}
+        👋 {$this->fullName}
 
-Age      : {$this->age}
-Location : {$this->location}
-Projects : {$this->projectCount}
-Stars    : {$this->totalStars}
-TEXT;
-    }
+        Age      : {$this->age}
+        Location : {$this->location}
+        Projects : {$this->projectCount}
+        Stars    : {$this->totalStars}
+        TEXT;
+    },
 );
 
 Console::log($person->introduce());
 
-$person->rename("John", "Doe");
+$person->rename('John', 'Doe');
 
-$person->moveTo(
-    "Jakarta",
-    "Indonesia"
-);
+$person->moveTo('Jakarta', 'Indonesia');
 
-$person->addSkill("Swift");
+$person->addSkill('Swift');
 
 $project = $person->addProject(
-    name: "HighTex Desktop",
-    description: "Academic document processor"
+    name: 'HighTex Desktop',
+    description: 'Academic document processor',
 );
 
 $project->star(500);
-$project->addContributor("Okta");
-
+$project->addContributor('Okta');
 
 $user = Struct::strict(
     [
-        "name" => 'string',
+        'name' => 'string',
 
-        "age" => 'int',
+        'age' => 'int',
 
-        "birthday" => DateTime::class,
+        'birthday' => DateTime::class,
 
-        "email" => [
-            'string',
-            'null'
-        ],
+        'email' => ['string', 'null'],
 
-        "friend" => [
-            Person::class,
-            'null',
-        ],
+        'friend' => [Person::class, 'null'],
 
-        "data" => 'mixed',
-        'skills' => ArrayOf::type('string')
+        'data' => 'mixed',
+        'skills' => ArrayOf::type('string'),
     ],
 
-    name: "Jefy",
+    name: 'Jefy',
     age: 23,
-    birthday: new DateTime("2002-10-06"),
+    birthday: new DateTime('2002-10-06'),
     email: null,
     friend: null,
     data: [1, 2, 3],
-    skills: []
+    skills: [],
 );
 $user->friend = null;
 
@@ -292,5 +246,4 @@ $user->skills = ['', ''];
 
 Console::log($user);
 
-
-$ovj = new stdClass;
+$ovj = new stdClass();

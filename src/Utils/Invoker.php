@@ -9,11 +9,31 @@ use JefyOkta\PhpPromise\Promise;
 
 final class Invoker
 {
+    /**
+     * Typed context objects available for the next invocation.
+     *
+     * @var array<class-string, object>
+     */
     private array $context = [];
+    /**
+     * Positional fallback values for the next invocation.
+     *
+     * @var list<mixed>
+     */
     private array $positional = [];
 
+    /**
+     * Cached callback reflection keyed by callable identity.
+     *
+     * @var array<string, \ReflectionFunctionAbstract>
+     */
     private static array $cache = [];
 
+    /**
+     * Optional custom parameter resolver for the next invocation.
+     *
+     * @var (\Closure(\ReflectionParameter, array<class-string, object>, list<mixed>): mixed)|null
+     */
     private ?\Closure $resolver = null;
 
     public function addContext(object $obj): static
@@ -22,23 +42,40 @@ final class Invoker
         return $this;
     }
 
+    /**
+     * Provide ordered argument fallbacks for one invocation.
+     *
+     * @param list<mixed> $args
+     */
     public function setPositional(array $args): static
     {
         $this->positional = $args;
         return $this;
     }
 
+    /**
+     * Override parameter resolution using parameter metadata, typed context, and positional fallbacks.
+     *
+     * @param \Closure(\ReflectionParameter, array<class-string, object>, list<mixed>): mixed $resolver
+     */
     public function setResolver(\Closure $resolver): static
     {
         $this->resolver = $resolver;
         return $this;
     }
 
-    function  compile($callback)
+    function compile($callback)
     {
         $this->getReflection($callback);
     }
 
+    /**
+     * Resolve arguments, clear per-call context, and return the callback result without awaiting promises.
+     *
+     * @param callable $callback
+     * @return mixed
+     * @throws \Throwable When reflection or callback execution fails.
+     */
     public function call(mixed $callback): mixed
     {
         $ref = $this->getReflection($callback);
@@ -47,14 +84,18 @@ final class Invoker
         $i = 0;
 
         foreach ($ref->getParameters() as $param) {
-
             if ($this->resolver) {
-                $args[] = ($this->resolver)($param, $this->context, $this->positional);
+                $args[] = ($this->resolver)(
+                    $param,
+                    $this->context,
+                    $this->positional,
+                );
                 continue;
             }
 
             $type = $param->getType();
-            $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+            $typeName =
+                $type instanceof ReflectionNamedType ? $type->getName() : null;
 
             if ($typeName && isset($this->context[$typeName])) {
                 $args[] = $this->context[$typeName];
@@ -91,10 +132,13 @@ final class Invoker
         $this->positional = [];
     }
 
+    /**
+     * Reflect a callback and cache its parameter metadata.
+     *
+     * @return \ReflectionFunctionAbstract
+     */
     private function getReflection(mixed $callback)
     {
-
-
         if (is_array($callback)) {
             $key = $callback[0] . '::' . $callback[1];
         } elseif (\is_string($callback)) {

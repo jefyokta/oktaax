@@ -1,0 +1,20 @@
+services:
+    mysql:
+        image: mysql:8.4
+        ports:
+            - '127.0.0.1:3307:3306'
+        environment:
+            MYSQL_DATABASE: oktaax_example
+            MYSQL_USER: oktaax
+            MYSQL_PASSWORD: example-secret
+            MYSQL_ROOT_PASSWORD: example-root-secret
+        volumes:
+            - mysql-data:/var/lib/mysql
+        healthcheck:
+            test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '--silent']
+            interval: 2s
+            timeout: 2s
+            retries: 30
+
+volumes:
+    mysql-data:
