@@ -2,11 +2,7 @@
 
 use Oktaax\Console;
 use Oktaax\Event\EventEmitter;
-use Oktaax\Oktaax;
-use Swoole\Http\Server;
 
-use function Oktaax\Utils\_o;
-use function Oktaax\Utils\app;
 
 require __DIR__ . '/../vendor/autoload.php';
 

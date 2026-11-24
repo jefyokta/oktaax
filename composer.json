@@ -33,7 +33,7 @@
     "prefer-stable": true,
     "require": {
         "php": ">=8.3",
-        "ext-swoole": "*",
+        "ext-swoole": "^6.2.1",
         "firebase/php-jwt": "^7.2",
         "jefyokta/php-promise": "^0.0.4",
         "nikic/fast-route": "^1.3"

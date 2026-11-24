@@ -11,7 +11,7 @@ final class ErrorPageRenderer
     /**
      * Select optional absolute, readable PHP templates; omitted paths use the built-in pages.
      *
-     * @throws \InvalidArgumentException When a custom template is unreadable or is not a file.
+     * @throws InvalidArgumentException When a custom template is unreadable or is not a file.
      */
     public function __construct(
         private ?string $httpTemplate = null,

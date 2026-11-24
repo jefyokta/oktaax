@@ -53,11 +53,7 @@ use Stringable;
 
 class Request implements Stringable
 {
-    /**
-     * The current request instance.
-     *
-     * @var Request
-     */
+
 
     /**
      * Native connection descriptor when supplied by the runtime.
@@ -69,7 +65,7 @@ class Request implements Stringable
     /**
      * The original native Swoole request.
      *
-     * @var \Swoole\Http\Request
+     * @var HttpRequest
      */
 
     public $request;

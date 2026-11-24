@@ -9,13 +9,13 @@ use Swoole\Coroutine;
 /** Resolves the application bound to the current execution scope. */
 final class ApplicationContext
 {
-    private const KEY = 'oktaax.current_application';
+    private const string KEY = 'oktaax.current_application';
     private static ?Application $synchronous = null;
 
     /**
      * Return the application explicitly bound to this execution scope.
      *
-     * @throws \LogicException When no application scope is active.
+     * @throws LogicException When no application scope is active.
      */
     public static function current(): Application
     {
@@ -32,10 +32,9 @@ final class ApplicationContext
 
     /**
      * Bind an application for one invocation and restore the previous coroutine or synchronous scope.
-     *
+     * @template TResult
      * @param callable(): TResult $callback
      * @return TResult
-     * @template TResult
      */
     public static function run(Application $app, callable $callback): mixed
     {
