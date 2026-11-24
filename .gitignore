@@ -20,9 +20,7 @@ stubs/
 /*.rest
 /*.crt
 /*.key
-src/Task/
-src/Trait/Taskable.php
-src/Auditor
+
 
 benchmark/
 
